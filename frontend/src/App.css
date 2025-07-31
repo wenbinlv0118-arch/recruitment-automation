@@ -1,0 +1,55 @@
+/* App组件特定样式 */
+.ant-layout {
+  background: var(--gradient-secondary) !important;
+}
+
+.ant-card {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.1) !important;
+}
+
+.ant-input {
+  border-radius: 8px !important;
+}
+
+.ant-btn {
+  border-radius: 8px !important;
+}
+
+.ant-btn-primary {
+  background: var(--primary-blue) !important;
+  border-color: var(--primary-blue) !important;
+}
+
+.ant-btn-primary:hover {
+  background: var(--primary-dark) !important;
+  border-color: var(--primary-dark) !important;
+}
+
+.ant-list-item {
+  border-radius: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+.ant-list-item:hover {
+  background: var(--gray-50) !important;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-blue);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-blue);
+} 

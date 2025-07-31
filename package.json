@@ -1,0 +1,17 @@
+{
+  "name": "recruitment-automation",
+  "version": "1.0.0",
+  "description": "智能招聘自动化系统",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "http-proxy-middleware": "^3.0.5"
+  }
+}
