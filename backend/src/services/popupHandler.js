@@ -308,7 +308,11 @@ class PopupHandler {
       console.log(`开始自动处理弹窗，上下文: ${context}`);
       
       await this.page.waitForLoadState('networkidle');
-      await this.page.waitForTimeout(3000);
+      // 使用更智能的等待方式，监听页面加载事件
+      await Promise.race([
+        this.page.waitForSelector('body', { timeout: 5000 }),
+        new Promise(resolve => setTimeout(resolve, 3000))
+      ]);
       
       // 监听控制台日志
       this.page.on('console', msg => {
@@ -323,8 +327,11 @@ class PopupHandler {
       const maxAttempts = 8; // 增加尝试次数
       let popupHandled = false;
       
-      // 增加等待时间，确保弹窗完全加载
-      await this.page.waitForTimeout(2000);
+      // 使用更智能的等待方式，监听页面加载事件
+      await Promise.race([
+        this.page.waitForLoadState('domcontentloaded'),
+        new Promise(resolve => setTimeout(resolve, 2000))
+      ]);
       
       while (attempts < maxAttempts) {
         attempts++;
@@ -334,13 +341,21 @@ class PopupHandler {
           if (await this.closePopups(socket)) {
             popupHandled = true;
             console.log('成功处理弹窗');
-            await this.page.waitForTimeout(1500); // 增加等待时间
+            // 使用更智能的等待方式，监听页面加载事件
+            await Promise.race([
+              this.page.waitForLoadState('domcontentloaded'),
+              new Promise(resolve => setTimeout(resolve, 1500))
+            ]);
             continue;
           }
         } else {
           console.log('未检测到弹窗');
           if (attempts >= 3) break;
-          await this.page.waitForTimeout(1500); // 增加等待时间
+          // 使用更智能的等待方式，监听页面加载事件
+          await Promise.race([
+            this.page.waitForLoadState('domcontentloaded'),
+            new Promise(resolve => setTimeout(resolve, 1500))
+          ]);
         }
       }
       
@@ -358,6 +373,115 @@ class PopupHandler {
       
     } catch (error) {
       console.error('自动处理弹窗时出错:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 处理简历下载相关的弹窗
+   * @param {Object} socket - Socket.IO实例
+   * @returns {Promise<boolean>} 是否处理了弹窗
+   */
+  async handleResumeDownloadPopups(socket) {
+    try {
+      console.log('开始处理简历下载弹窗...');
+      
+      // 1. 处理简历类型选择弹窗
+      const resumeTypeSelectors = [
+        '.a-modal__content:has-text("普通简历")',
+        '.a-dialog:has-text("普通简历")',
+        '[class*="modal"]:has-text("普通简历")',
+        '[class*="dialog"]:has-text("普通简历")'
+      ];
+      
+      for (const selector of resumeTypeSelectors) {
+        try {
+          const popup = await this.page.locator(selector).first();
+          if (await popup.isVisible()) {
+            console.log('检测到简历类型选择弹窗');
+            
+            // 选择普通简历
+            const normalResumeButton = await popup.locator('text=普通简历, text=标准简历, button:has-text("普通")').first();
+            if (normalResumeButton && await normalResumeButton.isVisible()) {
+              await normalResumeButton.click();
+              console.log('已选择普通简历类型');
+              // 使用更智能的等待方式，监听页面加载事件
+            await Promise.race([
+              this.page.waitForLoadState('domcontentloaded'),
+              new Promise(resolve => setTimeout(resolve, 1000))
+            ]);
+            }
+            
+            return true;
+          }
+        } catch (error) {
+          console.log(`处理简历类型弹窗失败: ${error.message}`);
+        }
+      }
+      
+      // 2. 处理下载确认弹窗
+      const downloadConfirmSelectors = [
+        '.a-modal__content:has-text("立即下载")',
+        '.a-dialog:has-text("立即下载")',
+        '[class*="modal"]:has-text("立即下载")',
+        '[class*="dialog"]:has-text("立即下载")'
+      ];
+      
+      for (const selector of downloadConfirmSelectors) {
+        try {
+          const popup = await this.page.locator(selector).first();
+          if (await popup.isVisible()) {
+            console.log('检测到下载确认弹窗');
+            
+            // 点击立即下载
+            const downloadButton = await popup.locator('text=立即下载, button:has-text("立即下载"), button:has-text("确认")').first();
+            if (downloadButton && await downloadButton.isVisible()) {
+              await downloadButton.click();
+              console.log('已确认下载');
+              await this.page.waitForTimeout(1000);
+            }
+            
+            return true;
+          }
+        } catch (error) {
+          console.log(`处理下载确认弹窗失败: ${error.message}`);
+        }
+      }
+      
+      // 3. 处理权限验证弹窗
+      const permissionSelectors = [
+        '.a-modal__content:has-text("权限")',
+        '.a-dialog:has-text("权限")',
+        '[class*="modal"]:has-text("权限")',
+        '[class*="dialog"]:has-text("权限")'
+      ];
+      
+      for (const selector of permissionSelectors) {
+        try {
+          const popup = await this.page.locator(selector).first();
+          if (await popup.isVisible()) {
+            console.log('检测到权限验证弹窗');
+            
+            // 点击确认或同意
+            const confirmButton = await popup.locator('text=确认, text=同意, text=继续, button:has-text("确认")').first();
+            if (confirmButton && await confirmButton.isVisible()) {
+              await confirmButton.click();
+              console.log('已确认权限');
+              await this.page.waitForTimeout(1000);
+            }
+            
+            return true;
+          }
+        } catch (error) {
+          console.log(`处理权限验证弹窗失败: ${error.message}`);
+        }
+      }
+      
+      console.log('未检测到简历下载相关弹窗');
+      return false;
+      
+    } catch (error) {
+      console.error('处理简历下载弹窗时出错:', error);
       return false;
     }
   }

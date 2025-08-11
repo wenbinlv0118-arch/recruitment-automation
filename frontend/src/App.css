@@ -1,55 +1,225 @@
-/* App组件特定样式 */
-.ant-layout {
-  background: var(--gradient-secondary) !important;
-}
+.ant-layout { background: var(--gradient-secondary) !important; }
 
-.ant-card {
-  border-radius: 12px !important;
-  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.1) !important;
-}
+.ant-card { border-radius: 12px !important; box-shadow: 0 4px 16px rgba(30, 58, 138, 0.1) !important; }
 
-.ant-input {
-  border-radius: 8px !important;
-}
+.ant-input { border-radius: 8px !important; }
 
-.ant-btn {
-  border-radius: 8px !important;
-}
+.ant-btn { border-radius: 8px !important; }
 
-.ant-btn-primary {
-  background: var(--primary-blue) !important;
-  border-color: var(--primary-blue) !important;
-}
+.ant-btn-primary { background: var(--primary-blue) !important; border-color: var(--primary-blue) !important; }
 
-.ant-btn-primary:hover {
-  background: var(--primary-dark) !important;
-  border-color: var(--primary-dark) !important;
-}
+.ant-btn-primary:hover { background: var(--primary-dark) !important; border-color: var(--primary-dark) !important; }
 
-.ant-list-item {
-  border-radius: 8px !important;
-  margin-bottom: 8px !important;
-}
+.ant-list-item { border-radius: 8px !important; margin-bottom: 8px !important; }
 
-.ant-list-item:hover {
-  background: var(--gray-50) !important;
-}
+.ant-list-item:hover { background: var(--gray-50) !important; }
 
 /* 自定义滚动条 */
-::-webkit-scrollbar {
-  width: 6px;
+::-webkit-scrollbar { width: 6px; }
+
+::-webkit-scrollbar-track { background: var(--gray-100); border-radius: 3px; }
+
+::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 3px; }
+
+::-webkit-scrollbar-thumb:hover { background: var(--primary-blue); }
+
+/* 新增布局样式 */
+.ant-layout-sider { background: white !important; box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05); z-index: 10; }
+
+.ant-menu-inline { border-right: none !important; }
+
+.ant-menu-item-selected { background-color: #f0f7ff !important; color: var(--primary-blue) !important; }
+
+.ant-menu-item-selected .anticon { color: var(--primary-blue) !important; }
+
+.ant-menu-item { margin: 0 !important; padding: 0 24px !important; height: 48px !important; line-height: 48px !important; }
+
+.ant-menu-item:hover { background-color: #f5f5f5 !important; }
+
+/* 头部样式优化 */
+.header-title { display: flex; align-items: center; gap: 12px; color: white !important; }
+
+/* 内容区域样式 */
+.content-container { padding: 24px; height: calc(100vh - 64px); overflow-y: auto; }
+
+/* 消息区域样式优化 */
+.message-avatar { font-size: 20px; }
+
+.chat-container { height: 100%; display: flex; flex-direction: column; }
+
+.messages-container { flex: 1; overflow-y: auto; }
+
+/* 导航菜单标题样式 */
+.menu-title { padding: 16px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+
+/* 知识检索结果样式 */
+.knowledge-search-result {
+  width: 100%;
+  max-width: 100%;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--gray-100);
-  border-radius: 3px;
+.knowledge-search-result .ant-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--accent-blue);
-  border-radius: 3px;
+.knowledge-search-result .ant-card-head {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6f3ff 100%);
+  border-bottom: 1px solid #d4edda;
+  border-radius: 12px 12px 0 0;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-blue);
-} 
+.knowledge-search-result .ant-card-head-title {
+  font-weight: 600;
+  color: #1890ff;
+}
+
+.knowledge-search-result .ant-list-item {
+  border: none;
+  padding: 0;
+}
+
+.knowledge-search-result .ant-card-body {
+  padding: 16px;
+}
+
+/* 搜索结果卡片样式 */
+.knowledge-search-result .ant-card {
+  transition: all 0.3s ease;
+}
+
+.knowledge-search-result .ant-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* 内容预览区域样式 */
+.knowledge-search-result .content-preview {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #1890ff;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 关键词高亮样式 */
+.knowledge-search-result mark {
+  background-color: #ffd54f !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+  color: #333 !important;
+}
+
+/* 元数据信息区域样式 */
+.knowledge-search-result .metadata-info {
+  background: #fafafa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+}
+
+/* 操作按钮样式 */
+.knowledge-search-result .action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.knowledge-search-result .ant-btn-text {
+  color: #666;
+  transition: all 0.3s ease;
+}
+
+.knowledge-search-result .ant-btn-text:hover {
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+/* 收藏按钮样式 */
+.knowledge-search-result .favorite-button {
+  color: #faad14;
+}
+
+.knowledge-search-result .favorite-button:hover {
+  color: #d48806;
+}
+
+/* 展开/收起按钮样式 */
+.knowledge-search-result .expand-button {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, #f8f9fa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+/* 无结果提示样式 */
+.knowledge-search-result .no-results {
+  text-align: center;
+  padding: 40px;
+}
+
+.knowledge-search-result .no-results .anticon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .knowledge-search-result .ant-card {
+    margin-bottom: 12px;
+  }
+  
+  .knowledge-search-result .ant-card-body {
+    padding: 12px;
+  }
+  
+  .knowledge-search-result .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+/* 动画效果 */
+.knowledge-search-result .ant-card {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 滚动条样式 */
+.knowledge-search-result .content-preview::-webkit-scrollbar {
+  width: 4px;
+}
+
+.knowledge-search-result .content-preview::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.knowledge-search-result .content-preview::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.knowledge-search-result .content-preview::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

@@ -12,6 +12,8 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "http-proxy-middleware": "^3.0.5"
+    "axios": "^1.11.0",
+    "http-proxy-middleware": "^3.0.5",
+    "socket.io-client": "^4.8.1"
   }
 }

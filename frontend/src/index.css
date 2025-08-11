@@ -20,6 +20,13 @@
   --gradient-secondary: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
 }
 
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -33,7 +40,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--gradient-secondary);
-  min-height: 100vh;
 }
 
 code {

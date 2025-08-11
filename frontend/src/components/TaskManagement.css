@@ -1,0 +1,312 @@
+.task-management {
+  padding: 24px;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 16px 24px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.task-header h2 {
+  margin: 0;
+  color: #1890ff;
+}
+
+/* 统计卡片样式 */
+.ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* 表格样式 */
+.ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+  background: #fafafa;
+  font-weight: 600;
+  color: #262626;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #f0f8ff;
+}
+
+/* 搜索区域样式 */
+.ant-input-affix-wrapper {
+  border-radius: 6px;
+}
+
+.ant-select {
+  border-radius: 6px;
+}
+
+.ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+/* 状态标签样式 */
+.ant-badge-status-text {
+  font-weight: 500;
+}
+
+.ant-tag {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* 进度条样式 */
+.ant-progress-bg {
+  border-radius: 4px;
+}
+
+/* 头像组样式 */
+.ant-avatar-group .ant-avatar {
+  border: 2px solid white;
+}
+
+/* 任务详情样式 */
+.task-detail {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.task-detail .ant-card {
+  margin-bottom: 16px;
+}
+
+.task-detail .ant-card-head {
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.task-detail .ant-card-head-title {
+  font-weight: 600;
+  color: #262626;
+}
+
+/* 候选人列表样式 */
+.ant-list-item {
+  padding: 16px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+}
+
+.ant-list-item:hover {
+  background: #f0f8ff;
+  border-color: #1890ff;
+}
+
+.ant-list-item-meta-title {
+  margin-bottom: 8px !important;
+}
+
+.ant-list-item-meta-description {
+  color: #666;
+}
+
+/* 时间线样式 */
+.ant-timeline-item-content {
+  padding-left: 16px;
+}
+
+.ant-timeline-item-head {
+  background: #1890ff;
+}
+
+/* 评论区域样式 */
+.ant-comment {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-comment:last-child {
+  border-bottom: none;
+}
+
+.ant-comment-avatar {
+  margin-right: 12px;
+}
+
+.ant-comment-content-author {
+  margin-bottom: 4px;
+}
+
+.ant-comment-content-detail {
+  color: #262626;
+  line-height: 1.6;
+}
+
+/* 表单样式 */
+.ant-form-item-label > label {
+  font-weight: 500;
+  color: #262626;
+}
+
+.ant-input,
+.ant-select-selector,
+.ant-picker {
+  border-radius: 6px;
+}
+
+.ant-input:focus,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 模态框样式 */
+.ant-modal-content {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ant-modal-header {
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-modal-title {
+  font-weight: 600;
+  color: #262626;
+}
+
+.ant-modal-footer {
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  padding: 16px 24px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .task-management {
+    padding: 16px;
+  }
+  
+  .task-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .ant-col {
+    margin-bottom: 16px;
+  }
+  
+  .ant-table {
+    font-size: 12px;
+  }
+  
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 8px 4px;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-management {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 加载状态样式 */
+.ant-spin-container {
+  min-height: 200px;
+}
+
+/* 空状态样式 */
+.ant-empty {
+  padding: 40px 0;
+}
+
+.ant-empty-description {
+  color: #999;
+}
+
+/* 分页样式 */
+.ant-pagination {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.ant-pagination-item {
+  border-radius: 4px;
+}
+
+.ant-pagination-item-active {
+  border-color: #1890ff;
+}
+
+.ant-pagination-item-active a {
+  color: #1890ff;
+}
+
+/* 工具提示样式 */
+.ant-tooltip-inner {
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* 确认框样式 */
+.ant-popconfirm-message {
+  font-weight: 500;
+}
+
+.ant-popconfirm-buttons .ant-btn {
+  border-radius: 4px;
+}
+
+/* 消息提示样式 */
+.ant-message-notice-content {
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 滚动条样式 */
+.task-detail::-webkit-scrollbar {
+  width: 6px;
+}
+
+.task-detail::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.task-detail::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.task-detail::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+} 

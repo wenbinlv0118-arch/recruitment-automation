@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>输入框调试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        input { padding: 10px; margin: 10px; border: 1px solid #ddd; }
+        .status { padding: 10px; margin: 10px 0; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>输入框调试页面</h1>
+    
+    <div class="debug-section">
+        <h3>测试输入框</h3>
+        <input type="text" id="testInput" placeholder="测试输入框...">
+        <button onclick="testInput()">测试</button>
+        <div id="inputStatus" class="status"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>检查连接状态</h3>
+        <button onclick="checkConnection()">检查连接</button>
+        <div id="connectionStatus" class="status"></div>
+    </div>
+
+    <script>
+        function testInput() {
+            const input = document.getElementById('testInput');
+            const status = document.getElementById('inputStatus');
+            status.innerHTML = `
+                <strong>输入框状态:</strong><br>
+                值: ${input.value}<br>
+                禁用: ${input.disabled}<br>
+                只读: ${input.readOnly}<br>
+                焦点: ${document.activeElement === input}
+            `;
+        }
+
+        function checkConnection() {
+            const status = document.getElementById('connectionStatus');
+            
+            // 尝试连接到Socket.IO
+            const socket = io('http://localhost:3000', {
+                transports: ['websocket', 'polling'],
+                timeout: 5000
+            });
+
+            socket.on('connect', () => {
+                status.innerHTML = '<strong style="color: green;">✓ Socket.IO连接成功</strong>';
+                socket.disconnect();
+            });
+
+            socket.on('connect_error', (error) => {
+                status.innerHTML = `<strong style="color: red;">✗ Socket.IO连接失败: ${error.message}</strong>`;
+            });
+
+            socket.on('disconnect', (reason) => {
+                status.innerHTML = `<strong style="color: orange;">Socket.IO断开: ${reason}</strong>`;
+            });
+        }
+
+        // 自动测试
+        window.addEventListener('load', () => {
+            console.log('页面加载完成');
+            console.log('Socket.IO版本:', typeof io !== 'undefined' ? '已加载' : '未加载');
+        });
+    </script>
+
+    <!-- 加载Socket.IO客户端 -->
+    <script src="/socket.io/socket.io.js"></script>
+</body>
+</html>
