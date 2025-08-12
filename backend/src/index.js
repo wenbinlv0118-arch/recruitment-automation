@@ -8,7 +8,6 @@ const path = require('path');
 const fs = require('fs-extra');
 const multer = require('multer');
 const resumeModel = require('./models/resumeModel');
-const resumeParserService = require('./services/resumeParserService');
 
 const app = express();
 const server = http.createServer(app);
@@ -43,8 +42,7 @@ fs.ensureDirSync(storageDir);
 
 // 智联招聘自动化服务
 const zhilianService = require('./services/zhilianService');
-// 候选人智能服务
-const candidateService = require('./services/candidateService');
+// 候选人智能服务已删除
 // 大语言模型服务
 const LLMService = require('./services/llmService');
 // 知识库路由
@@ -118,69 +116,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 处理设置筛选条件
-  socket.on('setFilterConditions', async (filter) => {
-    try {
-      console.log('设置筛选条件:', filter);
-      candidateService.setFilterConditions(filter);
-      socket.emit('filterUpdated', { 
-        status: 'success', 
-        message: '筛选条件已更新',
-        filter: filter
-      });
-    } catch (error) {
-      console.error('设置筛选条件失败:', error);
-      socket.emit('error', { 
-        message: '设置筛选条件失败: ' + error.message 
-      });
-    }
-  });
-
-  // 处理筛选候选人
-  socket.on('filterCandidates', async () => {
-    try {
-      console.log('开始筛选候选人');
-      const candidates = await candidateService.filterCandidates(socket);
-      socket.emit('candidatesFiltered', { 
-        status: 'success', 
-        message: `已筛选出 ${candidates.length} 位候选人`,
-        candidates: candidates
-      });
-    } catch (error) {
-      console.error('筛选候选人失败:', error);
-      socket.emit('error', { 
-        message: '筛选候选人失败: ' + error.message 
-      });
-    }
-  });
-
-  // 处理与候选人对话
-  socket.on('talkWithCandidate', async (data) => {
-    try {
-      console.log('与候选人对话:', data);
-      const result = await candidateService.talkWithCandidate(socket, data.resumeId, data.message);
-      socket.emit('talkCompleted', result);
-    } catch (error) {
-      console.error('与候选人对话失败:', error);
-      socket.emit('error', { 
-        message: '与候选人对话失败: ' + error.message 
-      });
-    }
-  });
-
-  // 处理获取候选人简历
-  socket.on('getCandidateResume', async (resumeId) => {
-    try {
-      console.log('获取候选人简历:', resumeId);
-      const result = await candidateService.getCandidateResume(socket, resumeId);
-      socket.emit('resumeRetrieved', result);
-    } catch (error) {
-      console.error('获取候选人简历失败:', error);
-      socket.emit('error', { 
-        message: '获取候选人简历失败: ' + error.message 
-      });
-    }
-  });
+  // 候选人管理功能已删除
 
   // 处理用户对话消息
   socket.on('userMessage', async (data) => {
@@ -298,45 +234,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 处理公司搜索请求
-  socket.on('startCompanySearch', async (data) => {
-    try {
-      console.log('启动公司搜索:', data);
-      
-      // 创建公司搜索服务实例
-      const CompanySearchService = require('./services/companySearchService');
-      const companySearchService = new CompanySearchService();
-      
-      // 启动公司搜索流程
-      await companySearchService.startCompanySearch(socket, data);
-      
-    } catch (error) {
-      console.error('启动公司搜索失败:', error);
-      socket.emit('companySearchError', { 
-        message: '启动公司搜索失败: ' + error.message 
-      });
-    }
-  });
-
-  // 处理公司搜索筛选条件配置
-  socket.on('configureCompanyFilters', async (data) => {
-    try {
-      console.log('配置公司搜索筛选条件:', data);
-      
-      // 这里可以添加筛选条件配置逻辑
-      socket.emit('companySearchStatus', { 
-        status: 'filters_configured', 
-        message: '筛选条件已配置，正在执行搜索...',
-        sessionId: data.sessionId
-      });
-      
-    } catch (error) {
-      console.error('配置公司搜索筛选条件失败:', error);
-      socket.emit('companySearchError', { 
-        message: '配置筛选条件失败: ' + error.message 
-      });
-    }
-  });
+  // 公司搜索功能已删除
 
   socket.on('disconnect', () => {
     console.log('客户端断开连接:', socket.id);
@@ -409,11 +307,8 @@ app.post('/api/resume-library/upload', upload.single('file'), async (req, res) =
       return res.status(400).json({ error: '请选择文件' });
     }
     
-    // 解析简历文件
+    // 解析简历文件功能已删除
     let parsedResume = {};
-    if (req.file.originalname.endsWith('.pdf')) {
-      parsedResume = await resumeParserService.parsePDFResume(req.file.buffer);
-    }
     
     const filePath = await resumeModel.uploadResumeFile(req.file.originalname, req.file.buffer);
     
@@ -451,9 +346,7 @@ app.use('/api/tasks', taskRoutes);
 // 注册岗位路由
 app.use('/api/positions', positionRoutes);
 
-// 公司搜索路由
-const companySearchRoutes = require('./routes/companySearch');
-app.use('/api/company-search', companySearchRoutes);
+// 公司搜索路由已删除
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {

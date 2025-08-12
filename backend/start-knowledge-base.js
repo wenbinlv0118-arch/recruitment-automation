@@ -105,25 +105,7 @@ function startServer() {
   return serverProcess;
 }
 
-// 运行测试
-function runTests() {
-  console.log('5. 运行系统测试...');
-  
-  const testProcess = spawn('node', ['test-knowledge-base.js'], {
-    stdio: 'inherit',
-    cwd: __dirname
-  });
-  
-  testProcess.on('close', (code) => {
-    if (code === 0) {
-      console.log('✅ 系统测试通过\n');
-    } else {
-      console.log('❌ 系统测试失败\n');
-    }
-  });
-  
-  return testProcess;
-}
+// 测试功能已删除
 
 // 显示使用说明
 function showUsage() {

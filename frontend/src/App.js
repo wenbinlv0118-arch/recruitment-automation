@@ -25,8 +25,7 @@ import TaskManagement from './components/TaskManagement';
 import KnowledgeSearchResult from './components/KnowledgeSearchResult';
 import JDDetailDrawer from './components/JDDetailModal';
 import Browser from './components/Browser';
-import CompanyFilterModal from './components/CompanyFilterModal';
-import CompanyRecommendationModal from './components/CompanyRecommendationModal';
+// 公司搜索组件已删除
 import PositionManagement from './components/PositionManagement';
 import { createCOTResponse } from './utils/cotUtils';
 import './App.css';
@@ -286,19 +285,19 @@ function App() {
   const [jdDetailVisible, setJdDetailVisible] = useState(false);
   const [currentPositionData, setCurrentPositionData] = useState(null);
   
-  // 公司搜索相关状态
-  const [companyFilterVisible, setCompanyFilterVisible] = useState(false);
-  const [companyRecommendationVisible, setCompanyRecommendationVisible] = useState(false);
-  const [companySearchFilters, setCompanySearchFilters] = useState({});
-  const [recommendedCompanies, setRecommendedCompanies] = useState([]);
-  const [recommendationReport, setRecommendationReport] = useState({});
+  // 公司搜索相关状态已删除
   
   // 职位管理相关状态
   const [positionManagementVisible, setPositionManagementVisible] = useState(false);
   const [currentCompanyInfo, setCurrentCompanyInfo] = useState(null);
   
+  // 公司推荐相关状态
+  const [recommendedCompanies, setRecommendedCompanies] = useState([]);
+  const [recommendationReport, setRecommendationReport] = useState({});
+  const [companyRecommendationVisible, setCompanyRecommendationVisible] = useState(false);
+  
   // 计算是否有任何弹窗显示
-  const hasAnyModal = recommendationVisible || jdDetailVisible || companyFilterVisible || companyRecommendationVisible || positionManagementVisible;
+  const hasAnyModal = recommendationVisible || jdDetailVisible || positionManagementVisible || companyRecommendationVisible;
   
   const messagesEndRef = useRef(null);
   const messageIdCounter = useRef(0); // 用于生成唯一消息ID
@@ -337,7 +336,7 @@ function App() {
   useEffect(() => {
     // console.log('正在连接Socket.IO...');
     
-    const newSocket = io('/', {
+    const newSocket = io('http://localhost:5001', {
       transports: ['websocket', 'polling'], // 优先使用WebSocket，降级到polling
       timeout: 30000,
       forceNew: true,
@@ -594,44 +593,13 @@ function App() {
       }
     });
 
-    // 监听公司搜索完成事件
-    newSocket.on('companySearchCompleted', (data) => {
-      console.log('公司搜索完成:', data);
-      
-      if (data.status === 'no_results') {
-        message.warning('未找到符合条件的公司，请调整筛选条件后重试');
-      }
-    });
+    // 公司搜索相关事件监听器已删除
 
     // 监听简历推荐完成
     newSocket.on('resumeRecommendationCompleted', (data) => {
       setRecommendedResumes(data.recommendations || []);
       setRecommendationReport(data.report || {});
       setRecommendationVisible(true);
-    });
-
-    // 监听公司搜索状态更新
-    newSocket.on('companySearchStatus', (data) => {
-      console.log('公司搜索状态更新:', data);
-      addMessage('AI', data.message, false);
-      
-      if (data.requiresFilterConfig) {
-        setCompanyFilterVisible(true);
-      }
-    });
-
-    // 监听公司搜索结果
-    newSocket.on('companySearchResults', (data) => {
-      console.log('公司搜索结果:', data);
-      setRecommendedCompanies(data.companies || []);
-      setRecommendationReport(data.recommendations || {});
-      setCompanyRecommendationVisible(true);
-    });
-
-    // 监听公司搜索错误
-    newSocket.on('companySearchError', (data) => {
-      console.error('公司搜索错误:', data);
-      addMessage('AI', `公司搜索出错: ${data.message}`, false);
     });
 
     newSocket.on('error', (data) => {
@@ -925,25 +893,7 @@ function App() {
     return hasPositionKeyword || hasCreatePosition || hasRecruitmentPosition;
   };
 
-  // 检查是否是公司搜索查询
-  const isCompanySearchQuery = (query) => {
-    const companyKeywords = [
-      '公司搜索', '找公司', '公司推荐', '智能推荐', '公司分析',
-      '推荐公司', '公司筛选', '找工作', '求职', '公司评估',
-      '公司对比', '公司排名', '最佳公司', '好公司'
-    ];
-    
-    // 检查是否包含公司搜索的关键词
-    const hasCompanyKeyword = companyKeywords.some(keyword => query.includes(keyword));
-    
-    // 检查是否包含"搜索"+"公司"的组合
-    const hasSearchCompany = query.includes('搜索') && query.includes('公司');
-    
-    // 检查是否包含"推荐"+"公司"的组合
-    const hasRecommendCompany = query.includes('推荐') && query.includes('公司');
-    
-    return hasCompanyKeyword || hasSearchCompany || hasRecommendCompany;
-  };
+  // 公司搜索查询识别函数已删除
 
   // 获取推荐简历
   const getRecommendedResumes = async (query) => {
@@ -1005,7 +955,7 @@ function App() {
         message = '我需要简历推荐功能，请帮我推荐合适的候选人';
         break;
       case 'company-search':
-        message = '我想搜索和推荐合适的公司，请帮我启动公司搜索功能';
+        message = '公司搜索功能已删除';
         break;
       case 'knowledge-search':
         message = '我想搜索企业知识库，请帮我查找相关文档';
@@ -1056,9 +1006,7 @@ function App() {
     } else if (isResumeQuery(message)) {
       // 简历查询
       handleResumeQuery(message);
-    } else if (isCompanySearchQuery(message)) {
-      // 公司搜索查询
-      handleCompanySearchQuery(message);
+    // 公司搜索功能已删除
     } else if (isKnowledgeQuery(message)) {
       // 知识库查询
       handleKnowledgeQuery(message);
@@ -1240,67 +1188,9 @@ function App() {
     }
   };
 
-  // 处理公司搜索查询
-  const handleCompanySearchQuery = async (query) => {
-    try {
-      // 添加用户消息
-      addMessage('用户', query, true);
-      
-      // 添加AI响应
-      addMessage('AI', '正在为您启动公司搜索功能...\n\n请配置筛选条件，我将帮您搜索并智能推荐最合适的公司。', false);
-      
-      // 打开公司筛选配置弹窗
-      setCompanyFilterVisible(true);
-      
-    } catch (error) {
-      console.error('处理公司搜索查询失败:', error);
-      addMessage('AI', '抱歉，启动公司搜索功能时出现错误，请重试。', false);
-    }
-  };
+  // 公司搜索查询处理函数已删除
 
-  // 处理公司筛选条件确认
-  const handleCompanyFilterConfirm = async (filters) => {
-    try {
-      setCompanySearchFilters(filters);
-      setCompanyFilterVisible(false);
-      
-      // 添加AI响应
-      addMessage('AI', '筛选条件已确认，正在启动公司搜索...', false);
-      
-      // 通过Socket.IO发送公司搜索请求
-      socket.emit('startCompanySearch', {
-        phoneNumber: extractPhoneFromMessages() || '15675156459',
-        filters: filters
-      });
-      
-    } catch (error) {
-      console.error('处理公司筛选条件确认失败:', error);
-      addMessage('AI', '抱歉，启动公司搜索时出现错误，请重试。', false);
-    }
-  };
-
-  // 处理公司点击
-  const handleCompanyClick = (company) => {
-    console.log('点击公司:', company);
-    
-    // 关闭公司推荐弹窗
-    setCompanyRecommendationVisible(false);
-    
-    // 添加AI消息，说明正在跳转到职位搜索
-    addMessage('AI', `正在为您跳转到 ${company.name || company.companyName} 的职位搜索页面，将应用之前的筛选条件...`, false);
-    
-    // 打开职位管理组件，并传递公司信息和筛选条件
-    setPositionManagementVisible(true);
-    
-    // 将公司信息和筛选条件传递给职位管理组件
-    setCurrentCompanyInfo({
-      company: company,
-      filters: companySearchFilters
-    });
-    
-    // 添加用户消息，显示跳转操作
-    addMessage('用户', `查看 ${company.name || company.companyName} 的职位`, true);
-  };
+  // 公司搜索相关处理函数已删除
 
   // 解析任务创建查询
   const parseTaskCreationQuery = (query) => {
@@ -1625,22 +1515,7 @@ function App() {
         positionData={currentPositionData}
       />
       
-      {/* 公司筛选配置弹窗 */}
-      <CompanyFilterModal
-        visible={companyFilterVisible}
-        onCancel={() => setCompanyFilterVisible(false)}
-        onConfirm={handleCompanyFilterConfirm}
-        initialValues={companySearchFilters}
-      />
-      
-      {/* 公司推荐结果弹窗 */}
-      <CompanyRecommendationModal
-        visible={companyRecommendationVisible}
-        onCancel={() => setCompanyRecommendationVisible(false)}
-        companies={recommendedCompanies}
-        recommendationReport={recommendationReport}
-        onCompanyClick={handleCompanyClick}
-      />
+      {/* 公司搜索相关弹窗已删除 */}
       
       {/* 职位管理弹窗 */}
       <PositionManagement

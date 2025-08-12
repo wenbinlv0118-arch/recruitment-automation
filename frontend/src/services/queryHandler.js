@@ -50,20 +50,7 @@ export class QueryHandler {
     return hasPositionKeyword || hasCreatePosition || hasRecruitmentPosition;
   }
 
-  // 检查是否是公司搜索查询
-  static isCompanySearchQuery(query) {
-    const companyKeywords = [
-      '公司搜索', '找公司', '公司推荐', '智能推荐', '公司分析',
-      '推荐公司', '公司筛选', '找工作', '求职', '公司评估',
-      '公司对比', '公司排名', '最佳公司', '好公司'
-    ];
-    
-    const hasCompanyKeyword = companyKeywords.some(keyword => query.includes(keyword));
-    const hasSearchCompany = query.includes('搜索') && query.includes('公司');
-    const hasRecommendCompany = query.includes('推荐') && query.includes('公司');
-    
-    return hasCompanyKeyword || hasSearchCompany || hasRecommendCompany;
-  }
+  // 公司搜索查询识别函数已删除
 
   // 解析任务创建查询
   static parseTaskCreationQuery(query) {
@@ -217,7 +204,7 @@ export class QueryHandler {
     const capabilityMessages = {
       'smart-recruitment': '请输入您的手机号，我将为您启动智能寻聘流程',
       'resume-recommendation': '我需要简历推荐功能，请帮我推荐合适的候选人',
-      'company-search': '我想搜索和推荐合适的公司，请帮我启动公司搜索功能',
+      'company-search': '公司搜索功能已删除',
       'knowledge-search': '我想搜索企业知识库，请帮我查找相关文档',
       'data-analytics': '我想查看数据分析报告，请帮我分析招聘数据',
       'task-management': '我想创建招聘任务，请帮我管理招聘流程',

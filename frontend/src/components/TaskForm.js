@@ -32,7 +32,7 @@ import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const { Option } = Select;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const TaskForm = ({ visible, task, onCancel, onSuccess }) => {
   const [form] = Form.useForm();

@@ -31,7 +31,6 @@ import {
   EyeOutlined,
   UserOutlined,
   CalendarOutlined,
-  FlagOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   PauseCircleOutlined,
@@ -42,7 +41,7 @@ import TaskForm from './TaskForm';
 import TaskDetail from './TaskDetail';
 import './TaskManagement.css';
 
-const { Title, Text } = Typography;
+const { Text, Title } = Typography;
 const { Option } = Select;
 
 const TaskManagement = () => {

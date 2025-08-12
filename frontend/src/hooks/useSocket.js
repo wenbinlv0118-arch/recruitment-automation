@@ -16,7 +16,7 @@ export const useSocket = (appState) => {
   useEffect(() => {
     Logger.log('正在连接Socket.IO...');
     
-    const newSocket = io('/', {
+    const newSocket = io('http://localhost:5001', {
       transports: ['websocket', 'polling'],
       timeout: 30000,
       forceNew: false,
@@ -121,27 +121,7 @@ export const useSocket = (appState) => {
       appStateRef.current.updateCOTMessage('', data.content, true, false);
     });
 
-    // 监听公司分析完成事件
-    newSocket.on('companyAnalysisCompleted', (data) => {
-      Logger.log('公司分析完成:', data);
-      
-      if (data.status === 'success') {
-        appStateRef.current.updateRecommendedCompanies(data.companies || [], data.recommendationReport || {});
-        appStateRef.current.showCompanyRecommendationModal();
-        appStateRef.current.addMessage('AI', `公司分析完成！共分析了 ${data.companies?.length || 0} 家公司，已为您生成智能推荐报告。`, false);
-      } else {
-        message.error('公司分析失败');
-      }
-    });
-
-    // 监听公司搜索完成事件
-    newSocket.on('companySearchCompleted', (data) => {
-      Logger.log('公司搜索完成:', data);
-      
-      if (data.status === 'no_results') {
-        message.warning('未找到符合条件的公司，请调整筛选条件后重试');
-      }
-    });
+    // 公司搜索相关事件监听器已删除
 
     newSocket.on('error', (data) => {
       console.error('收到错误:', data);
@@ -199,14 +179,7 @@ export const useSocket = (appState) => {
     }
   };
 
-  const startCompanySearch = (filters) => {
-    if (socket) {
-      socket.emit('startCompanySearch', {
-        filters,
-        userId: 'default'
-      });
-    }
-  };
+  // 公司搜索启动函数已删除
 
   return {
     socket,
@@ -215,6 +188,6 @@ export const useSocket = (appState) => {
     sendVerificationCode,
     sendUserMessage,
     sendKnowledgeChat,
-    startCompanySearch
+    // 公司搜索启动函数已删除
   };
 };

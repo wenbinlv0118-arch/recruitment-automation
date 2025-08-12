@@ -63,14 +63,7 @@ export const useAppState = () => {
     setRecommendationQuery(query);
   }, []);
   
-  const updateRecommendedCompanies = useCallback((companies, report = {}) => {
-    setRecommendedCompanies(companies);
-    setRecommendationReport(report);
-  }, []);
-  
-  const updateCompanySearchFilters = useCallback((filters) => {
-    setCompanySearchFilters(filters);
-  }, []);
+  // 公司搜索相关状态更新函数已删除
   
   // 弹窗控制函数
   const showRecommendationModal = useCallback(() => {
@@ -89,21 +82,7 @@ export const useAppState = () => {
     setJdDetailVisible(false);
   }, []);
   
-  const showCompanyFilterModal = useCallback(() => {
-    setCompanyFilterVisible(true);
-  }, []);
-  
-  const hideCompanyFilterModal = useCallback(() => {
-    setCompanyFilterVisible(false);
-  }, []);
-  
-  const showCompanyRecommendationModal = useCallback(() => {
-    setCompanyRecommendationVisible(true);
-  }, []);
-  
-  const hideCompanyRecommendationModal = useCallback(() => {
-    setCompanyRecommendationVisible(false);
-  }, []);
+  // 公司搜索相关弹窗控制函数已删除
   
   return {
     // 状态
@@ -119,11 +98,7 @@ export const useAppState = () => {
     recommendedResumes,
     jdDetailVisible,
     currentPositionData,
-    companyFilterVisible,
-    companyRecommendationVisible,
-    companySearchFilters,
-    recommendedCompanies,
-    recommendationReport,
+    // 公司搜索相关状态已删除
     hasAnyModal,
     
     // 状态更新函数
@@ -136,17 +111,13 @@ export const useAppState = () => {
     updatePositions,
     updateCurrentPositionData,
     updateRecommendedResumes,
-    updateRecommendedCompanies,
-    updateCompanySearchFilters,
+    // 公司搜索相关状态更新函数已删除
     
     // 弹窗控制函数
     showRecommendationModal,
     hideRecommendationModal,
     showJdDetailModal,
     hideJdDetailModal,
-    showCompanyFilterModal,
-    hideCompanyFilterModal,
-    showCompanyRecommendationModal,
-    hideCompanyRecommendationModal,
+    // 公司搜索相关弹窗控制函数已删除
   };
 };
