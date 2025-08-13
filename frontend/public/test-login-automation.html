@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss 直聘登录自动化测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .test-title {
+            text-align: center;
+            color: #1890ff;
+            margin-bottom: 20px;
+        }
+        .test-info {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .test-steps {
+            background: #f0f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .test-steps h3 {
+            color: #1890ff;
+            margin-top: 0;
+        }
+        .test-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin-bottom: 8px;
+        }
+        .feature-list {
+            background: #fff7e6;
+            border: 1px solid #ffd591;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .feature-list h3 {
+            color: #fa8c16;
+            margin-top: 0;
+        }
+        .feature-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .feature-list li {
+            margin-bottom: 6px;
+        }
+        .login-flow {
+            background: #f9f0ff;
+            border: 1px solid #d3adf7;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .login-flow h3 {
+            color: #722ed1;
+            margin-top: 0;
+        }
+        .login-flow .flow-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #722ed1;
+        }
+        .login-flow .step-number {
+            width: 24px;
+            height: 24px;
+            background: #722ed1;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="test-title">Boss 直聘登录自动化测试</h1>
+        
+        <div class="test-info">
+            <h3>第三阶段开发完成说明</h3>
+            <p>本阶段已完成 Boss 直聘的登录自动化实现，包含完整的 App 扫码登录流程、登录状态检测和维护、异常处理机制。</p>
+        </div>
+        
+        <div class="test-steps">
+            <h3>测试步骤</h3>
+            <ol>
+                <li>在主页面的能力卡片中点击"智能寻聘"</li>
+                <li>在平台选择器中选择"Boss 直聘"</li>
+                <li>在控制面板中点击"启动流程"按钮</li>
+                <li>观察流程执行过程，验证新增的登录步骤：
+                    <ul>
+                        <li>选择登录方式</li>
+                        <li>等待扫码登录</li>
+                        <li>验证登录状态</li>
+                        <li>进入招聘系统</li>
+                    </ul>
+                </li>
+                <li>验证登录状态监控功能：
+                    <ul>
+                        <li>登录状态指示器</li>
+                        <li>实时状态更新</li>
+                        <li>登录流程说明</li>
+                    </ul>
+                </li>
+                <li>测试登录超时和失败处理机制</li>
+                <li>验证停止流程功能</li>
+            </ol>
+        </div>
+        
+        <div class="feature-list">
+            <h3>已实现的登录自动化功能</h3>
+            <ul>
+                <li><strong>App 扫码登录流程</strong>：自动选择 App 扫码登录方式</li>
+                <li><strong>登录状态检测</strong>：实时监控登录状态变化</li>
+                <li><strong>状态维护</strong>：完整的登录状态生命周期管理</li>
+                <li><strong>异常处理</strong>：登录超时、失败等异常情况的处理</li>
+                <li><strong>用户引导</strong>：清晰的登录流程说明和状态提示</li>
+                <li><strong>超时控制</strong>：5分钟登录超时机制</li>
+            </ul>
+        </div>
+        
+        <div class="login-flow">
+            <h3>登录自动化流程详解</h3>
+            <div class="flow-step">
+                <div class="step-number">1</div>
+                <div>系统自动选择 App 扫码登录方式</div>
+            </div>
+            <div class="flow-step">
+                <div class="step-number">2</div>
+                <div>显示二维码，等待用户使用 Boss 直聘 App 扫码</div>
+            </div>
+            <div class="flow-step">
+                <div class="step-number">3</div>
+                <div>实时监控登录状态，每2秒检查一次</div>
+            </div>
+            <div class="flow-step">
+                <div class="step-number">4</div>
+                <div>登录成功后，进行3次验证确保状态稳定</div>
+            </div>
+            <div class="flow-step">
+                <div class="step-number">5</div>
+                <div>验证完成后，自动进入招聘系统</div>
+            </div>
+        </div>
+        
+        <div class="test-steps">
+            <h3>预期结果</h3>
+            <ol>
+                <li>登录流程步骤正确显示，包含7个完整步骤</li>
+                <li>启动流程后，步骤进度条按顺序更新</li>
+                <li>登录状态监控区域正确显示当前状态</li>
+                <li>登录状态指示器根据状态变化颜色和图标</li>
+                <li>登录流程说明清晰易懂</li>
+                <li>异常情况（超时、失败）得到正确处理</li>
+                <li>流程完成后显示成功状态</li>
+            </ol>
+        </div>
+        
+        <div class="test-steps">
+            <h3>技术实现说明</h3>
+            <ul>
+                <li><strong>状态管理</strong>：使用 loginStatus 枚举管理登录状态</li>
+                <li><strong>定时监控</strong>：setInterval 实现登录状态定期检查</li>
+                <li><strong>超时控制</strong>：Promise 和 setTimeout 实现超时机制</li>
+                <li><strong>状态验证</strong>：多次验证确保登录状态稳定</li>
+                <li><strong>错误处理</strong>：try-catch 包装所有异步操作</li>
+                <li><strong>用户反馈</strong>：实时状态更新和消息提示</li>
+            </ul>
+        </div>
+        
+        <div class="test-steps">
+            <h3>注意事项</h3>
+            <ul>
+                <li>当前为模拟模式，实际登录检测将在后续阶段实现</li>
+                <li>登录超时设置为5分钟，可根据需要调整</li>
+                <li>状态检查间隔为2秒，平衡实时性和性能</li>
+                <li>登录验证需要3次成功才认为登录稳定</li>
+                <li>所有登录相关操作都有完善的错误处理</li>
+            </ul>
+        </div>
+        
+        <div class="test-info">
+            <h3>下一阶段计划</h3>
+            <p>第四阶段将实现候选人发现与浏览功能，包括自动点击"推荐牛人"、候选人卡片识别和点击、页面滚动和内容刷新机制，以及筛选条件配置器和搜索牛人自动化流程。</p>
+        </div>
+    </div>
+</body>
+</html>

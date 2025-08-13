@@ -26,20 +26,37 @@ function registerAllRoutes(app) {
   });
 
   // 获取下载的简历列表
-  app.get('/api/resumes', (req, res) => {
+  app.get('/api/resumes', async (req, res) => {
     try {
-      const files = fs.readdirSync(storageDir);
-      const resumes = files
-        .filter(file => file.endsWith('.pdf') || file.endsWith('.doc') || file.endsWith('.docx'))
-        .map(file => ({
-          name: file,
-          size: fs.statSync(path.join(storageDir, file)).size,
-          downloadTime: fs.statSync(path.join(storageDir, file)).mtime
-        }));
+      // 首先尝试从简历库获取结构化数据
+      const resumeLibraryResumes = resumeModel.getResumes();
       
-      res.json(resumes);
+      if (resumeLibraryResumes && resumeLibraryResumes.length > 0) {
+        // 如果有简历库数据，返回结构化数据
+        res.json({ success: true, data: resumeLibraryResumes });
+      } else {
+        // 如果没有简历库数据，返回文件系统中的简历文件列表
+        const files = fs.readdirSync(storageDir);
+        const resumes = files
+          .filter(file => file.endsWith('.pdf') || file.endsWith('.doc') || file.endsWith('.docx'))
+          .map(file => ({
+            id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: file,
+            filename: file,
+            size: fs.statSync(path.join(storageDir, file)).size,
+            downloadTime: fs.statSync(path.join(storageDir, file)).mtime,
+            source: 'file_system',
+            parseStatus: 'pending',
+            qualityScore: 0,
+            createdAt: fs.statSync(path.join(storageDir, file)).mtime,
+            updatedAt: fs.statSync(path.join(storageDir, file)).mtime
+          }));
+        
+        res.json({ success: true, data: resumes });
+      }
     } catch (error) {
-      res.status(500).json({ error: '获取简历列表失败' });
+      console.error('获取简历列表失败:', error);
+      res.status(500).json({ success: false, error: '获取简历列表失败' });
     }
   });
 
@@ -71,11 +88,23 @@ function registerAllRoutes(app) {
     }
   });
 
+  // 获取简历来源列表
+  app.get('/api/resume-library/sources', (req, res) => {
+    try {
+      const sources = resumeModel.getResumeSources();
+      res.json({ success: true, data: sources });
+    } catch (error) {
+      console.error('获取简历来源列表失败:', error);
+      res.status(500).json({ success: false, error: '获取简历来源列表失败' });
+    }
+  });
+
   // 简历库相关路由
   app.get('/api/resume-library', async (req, res) => {
     try {
       const positionId = req.query.positionId || null;
-      const resumes = await resumeModel.getResumes(positionId);
+      const source = req.query.source || null;
+      const resumes = resumeModel.getResumes(positionId, source);
       res.json({ success: true, data: resumes });
     } catch (error) {
       console.error('获取简历库列表失败:', error);
@@ -96,30 +125,102 @@ function registerAllRoutes(app) {
 
   app.post('/api/resume-library/upload', upload.single('file'), async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ success: false, error: '请选择文件' });
-      }
+      const { source = 'manual', positionId } = req.body;
       
-      // 解析简历文件
-      let parsedResume = {};
-      if (req.file.originalname.endsWith('.pdf')) {
-        parsedResume = await resumeParserService.parsePDFResume(req.file.buffer);
-      }
-      
-      const filePath = await resumeModel.uploadResumeFile(req.file.originalname, req.file.buffer);
-      
-      res.json({
-        success: true,
-        data: {
-          message: '文件上传成功', 
-          filename: req.file.originalname,
-          path: filePath,
-          parsedResume: parsedResume
+      // 文件上传模式
+      if (req.file) {
+        // 解析简历文件
+        let parsedResume = {};
+        let parseStatus = 'pending';
+        let qualityScore = 0;
+        
+        try {
+          if (req.file.originalname.endsWith('.pdf')) {
+            parsedResume = await resumeParserService.parsePDFResume(req.file.buffer);
+          } else if (req.file.originalname.endsWith('.docx')) {
+            parsedResume = await resumeParserService.parseDOCXResume(req.file.buffer);
+          }
+          
+          // 计算简历质量评分
+          qualityScore = resumeParserService.calculateQualityScore(parsedResume);
+          parseStatus = 'completed';
+        } catch (parseError) {
+          console.error('简历解析失败:', parseError);
+          parseStatus = 'failed';
         }
-      });
+        
+        const filePath = await resumeModel.uploadResumeFile(req.file.originalname, req.file.buffer);
+        
+        // 添加到简历库
+        const resumeData = {
+          ...parsedResume,
+          source,
+          positionId,
+          filePath,
+          parseStatus,
+          qualityScore
+        };
+        
+        const resume = await resumeModel.addResume(resumeData);
+        
+        return res.json({
+          success: true,
+          data: {
+            message: '文件上传成功', 
+            filename: req.file.originalname,
+            path: filePath,
+            parsedResume: parsedResume,
+            resumeId: resume.id,
+            parseStatus,
+            qualityScore
+          }
+        });
+      }
+      
+      // 文本解析模式
+      const { resumeText } = req.body;
+      if (resumeText) {
+        // 解析文本简历
+        let parsedResume = {};
+        let parseStatus = 'pending';
+        let qualityScore = 0;
+        
+        try {
+          parsedResume = await resumeParserService.parseTextResume(resumeText);
+          qualityScore = resumeParserService.calculateQualityScore(parsedResume);
+          parseStatus = 'completed';
+        } catch (parseError) {
+          console.error('简历解析失败:', parseError);
+          parseStatus = 'failed';
+        }
+        
+        // 添加到简历库
+        const resumeData = {
+          ...parsedResume,
+          source,
+          positionId,
+          parseStatus,
+          qualityScore
+        };
+        
+        const resume = await resumeModel.addResume(resumeData);
+        
+        return res.json({
+          success: true,
+          data: {
+            message: '文本解析成功', 
+            parsedResume: parsedResume,
+            resumeId: resume.id,
+            parseStatus,
+            qualityScore
+          }
+        });
+      }
+      
+      return res.status(400).json({ success: false, error: '请选择文件或输入简历文本' });
     } catch (error) {
-      console.error('上传简历文件失败:', error);
-      res.status(500).json({ success: false, error: '上传简历文件失败', message: error.message });
+      console.error('上传简历失败:', error);
+      res.status(500).json({ success: false, error: '上传简历失败', message: error.message });
     }
   });
 

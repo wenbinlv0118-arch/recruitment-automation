@@ -419,7 +419,56 @@ const JDDetailDrawer = ({ visible, onClose, positionData }) => {
     }
   }, [positionData, form]);
 
-  if (!positionData || !editData) return null;
+  // 添加加载状态处理
+  if (!positionData) {
+    return (
+      <JDDrawer visible={visible}>
+        <DrawerHeader>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BookOutlined />
+            <span style={{ fontSize: '16px', fontWeight: '600' }}>
+              岗位JD详情
+            </span>
+          </div>
+          <CloseButton 
+            icon={<CloseOutlined />} 
+            onClick={onClose}
+            size="small"
+          />
+        </DrawerHeader>
+        <DrawerContent>
+          <div style={{ textAlign: 'center', padding: '50px 0' }}>
+            <Text type="secondary">正在加载岗位数据...</Text>
+          </div>
+        </DrawerContent>
+      </JDDrawer>
+    );
+  }
+
+  if (!editData) {
+    return (
+      <JDDrawer visible={visible}>
+        <DrawerHeader>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BookOutlined />
+            <span style={{ fontSize: '16px', fontWeight: '600' }}>
+              岗位JD详情
+            </span>
+          </div>
+          <CloseButton 
+            icon={<CloseOutlined />} 
+            onClick={onClose}
+            size="small"
+          />
+        </DrawerHeader>
+        <DrawerContent>
+          <div style={{ textAlign: 'center', padding: '50px 0' }}>
+            <Text type="secondary">正在初始化编辑数据...</Text>
+          </div>
+        </DrawerContent>
+      </JDDrawer>
+    );
+  }
 
   // 保存修改
   const handleSave = async () => {

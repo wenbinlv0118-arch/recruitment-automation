@@ -8,13 +8,16 @@ class LLMService {
   constructor() {
     // 从环境变量获取API配置
     this.apiKey = process.env.LLM_API_KEY;
-    this.apiUrl = process.env.LLM_API_URL || 'https://api.openai.com/v1/chat/completions';
+    this.apiUrl = process.env.LLM_API_URL || process.env.LLM_BASE_URL || 'https://api.openai.com/v1/chat/completions';
     this.model = process.env.LLM_MODEL || 'gpt-3.5-turbo';
     
     // 验证必要配置
     if (!this.apiKey) {
       throw new Error('LLM_API_KEY 环境变量未设置');
     }
+    
+    // 检测是否为智谱AI API
+    this.isZhipuAI = this.apiUrl.includes('bigmodel.cn');
   }
 
   /**
@@ -26,23 +29,63 @@ class LLMService {
    */
   async chatWithLLM(messages, thinkingCallback = null, finalAnswerCallback = null) {
     try {
+      console.log('LLM服务调用开始，API地址:', this.apiUrl);
+      console.log('使用模型:', this.model);
+      console.log('是否为智谱AI:', this.isZhipuAI);
+      console.log('消息内容:', JSON.stringify(messages, null, 2));
+      
+      // 验证API配置
+      if (!this.apiKey) {
+        throw new Error('LLM_API_KEY 环境变量未设置，请检查 .env 文件配置');
+      }
+      
+      if (!this.apiUrl) {
+        throw new Error('LLM_API_URL 环境变量未设置，请检查 .env 文件配置');
+      }
+      
       // 构建请求参数
-      const requestBody = {
-        model: this.model,
-        messages: messages,
-        stream: true, // 启用流式传输以支持思维链
-        temperature: 0.7
-      };
+      let requestBody;
+      let headers;
+      
+      if (this.isZhipuAI) {
+        // 智谱AI API格式
+        requestBody = {
+          model: this.model,
+          messages: messages,
+          stream: true,
+          temperature: 0.7
+        };
+        headers = {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        };
+      } else {
+        // OpenAI API格式
+        requestBody = {
+          model: this.model,
+          messages: messages,
+          stream: true,
+          temperature: 0.7
+        };
+        headers = {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        };
+      }
+
+      console.log('发送请求到LLM API...');
+      console.log('请求头:', headers);
+      console.log('请求体:', JSON.stringify(requestBody, null, 2));
 
       // 发送请求到大语言模型API
       const response = await axios.post(this.apiUrl, requestBody, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
-        },
+        headers: headers,
         responseType: 'stream',
         timeout: 60000 // 设置60秒超时
       });
+
+      console.log('LLM API响应状态:', response.status);
+      console.log('LLM API响应头:', response.headers);
 
       // 处理流式响应
       return new Promise((resolve, reject) => {
@@ -74,10 +117,19 @@ class LLMService {
               
               try {
                 const parsed = JSON.parse(data);
-                const content = parsed.choices[0]?.delta?.content || '';
+                let content = '';
+                
+                if (this.isZhipuAI) {
+                  // 智谱AI响应格式
+                  content = parsed.choices?.[0]?.delta?.content || '';
+                } else {
+                  // OpenAI响应格式
+                  content = parsed.choices?.[0]?.delta?.content || '';
+                }
                 
                 if (content) {
                   fullContent += content;
+                  console.log('收到LLM流式内容:', content);
                 }
               } catch (parseError) {
                 // 忽略解析错误
@@ -88,6 +140,7 @@ class LLMService {
         });
         
         response.data.on('end', () => {
+          console.log('LLM流式响应完成，总内容长度:', fullContent.length);
           // 完成传输后，解析并发送思维链步骤和最终建议
           if (thinkingCallback || finalAnswerCallback) {
             this.sendThinkingStepsAndFinalAnswer(fullContent, thinkingCallback, finalAnswerCallback || ((finalAnswer) => {
@@ -99,12 +152,51 @@ class LLMService {
         });
         
         response.data.on('error', (error) => {
+          console.error('LLM流式响应错误:', error);
           reject(error);
         });
       });
     } catch (error) {
       console.error('与大语言模型通信时出错:', error);
-      throw new Error(`大语言模型调用失败: ${error.message}`);
+      
+      // 提供更详细的错误信息
+      let errorMessage = '大语言模型调用失败';
+      
+      if (error.response) {
+        // 服务器响应了错误状态码
+        console.error('LLM API错误响应:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        });
+        
+        if (error.response.status === 401) {
+          errorMessage = 'API密钥无效或已过期，请检查LLM_API_KEY配置';
+        } else if (error.response.status === 403) {
+          errorMessage = 'API访问被拒绝，请检查API密钥权限';
+        } else if (error.response.status === 429) {
+          errorMessage = 'API调用频率超限，请稍后再试';
+        } else if (error.response.status >= 500) {
+          errorMessage = 'LLM服务暂时不可用，请稍后再试';
+        } else {
+          errorMessage = `LLM API错误: ${error.response.status} ${error.response.statusText}`;
+        }
+      } else if (error.request) {
+        // 请求已发出但没有收到响应
+        console.error('LLM API请求超时或无响应:', error.request);
+        errorMessage = 'LLM服务连接超时，请检查网络连接和API地址';
+      } else {
+        // 其他错误
+        if (error.message.includes('LLM_API_KEY')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('LLM_API_URL')) {
+          errorMessage = error.message;
+        } else {
+          errorMessage = `LLM服务错误: ${error.message}`;
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 

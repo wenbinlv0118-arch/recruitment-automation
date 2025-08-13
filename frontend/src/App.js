@@ -21,6 +21,8 @@ import KnowledgeBase from './components/KnowledgeBase';
 import DocumentUpload from './components/DocumentUpload';
 import ResumeRecommendationModal from './components/ResumeRecommendationModal';
 import CapabilityCards from './components/CapabilityCards';
+import SmartRecruitmentPlatform from './components/SmartRecruitmentPlatform';
+import BossZhipinRecruitment from './components/BossZhipinRecruitment';
 import TaskManagement from './components/TaskManagement';
 import KnowledgeSearchResult from './components/KnowledgeSearchResult';
 import JDDetailDrawer from './components/JDDetailModal';
@@ -77,7 +79,7 @@ const StyledContent = styled(Content).withConfig({
   flex-direction: column;
   margin-top: 64px;
   margin-left: 256px;
-  overflow: hidden;
+  overflow: visible;
   transition: width 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   will-change: width;
 `;
@@ -296,8 +298,13 @@ function App() {
   const [recommendationReport, setRecommendationReport] = useState({});
   const [companyRecommendationVisible, setCompanyRecommendationVisible] = useState(false);
   
+  // 智能寻聘平台相关状态
+  const [smartRecruitmentVisible, setSmartRecruitmentVisible] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState(null);
+  const [bossZhipinRecruitmentVisible, setBossZhipinRecruitmentVisible] = useState(false);
+  
   // 计算是否有任何弹窗显示
-  const hasAnyModal = recommendationVisible || jdDetailVisible || positionManagementVisible || companyRecommendationVisible;
+  const hasAnyModal = recommendationVisible || jdDetailVisible || positionManagementVisible || companyRecommendationVisible || bossZhipinRecruitmentVisible;
   
   const messagesEndRef = useRef(null);
   const messageIdCounter = useRef(0); // 用于生成唯一消息ID
@@ -949,8 +956,9 @@ function App() {
     
     switch (capability.id) {
       case 'smart-recruitment':
-        message = '我想启动智能寻聘功能，请帮我自动化招聘流程';
-        break;
+        // 直接打开智能寻聘平台选择器
+        setSmartRecruitmentVisible(true);
+        return;
       case 'resume-recommendation':
         message = '我需要简历推荐功能，请帮我推荐合适的候选人';
         break;
@@ -1020,6 +1028,26 @@ function App() {
       // 普通对话 - 调用后端大模型API
       socket.emit('userMessage', { message: message });
     }
+  };
+
+  // 处理智能寻聘平台选择
+  const handlePlatformSelect = (platform) => {
+    setSelectedPlatform(platform);
+    
+    // 根据选择的平台启动相应的流程
+    if (platform.id === 'zhilian') {
+      // 启动智联招聘智能寻聘流程
+      addMessage('AI', `您选择了智联招聘平台，正在启动智能寻聘流程...`, false);
+      // TODO: 调用智联招聘的智能寻聘功能
+    } else if (platform.id === 'boss') {
+      // 启动 Boss 直聘智能寻聘流程
+      addMessage('AI', `您选择了Boss直聘平台，正在启动智能寻聘流程...`, false);
+      // 显示 Boss 直聘控制面板
+      setBossZhipinRecruitmentVisible(true);
+    }
+    
+    // 关闭平台选择器
+    setSmartRecruitmentVisible(false);
   };
 
   // 处理简历查询
@@ -1416,6 +1444,74 @@ function App() {
               <CapabilityCardsWrapper>
                 <CapabilityCards onCapabilityClick={handleCapabilityClick} />
               </CapabilityCardsWrapper>
+              
+              {/* 智能寻聘平台选择器 */}
+              {smartRecruitmentVisible && (
+                <>
+                  {/* 背景遮罩 */}
+                  <div 
+                    style={{ 
+                      position: 'fixed', 
+                      top: 0, 
+                      left: 0, 
+                      right: 0, 
+                      bottom: 0, 
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+                      zIndex: 999 
+                    }}
+                    onClick={() => setSmartRecruitmentVisible(false)}
+                  />
+                  
+                  {/* 平台选择器 */}
+                  <div style={{ 
+                    position: 'fixed', 
+                    top: '50%', 
+                    left: '50%', 
+                    transform: 'translate(-50%, -50%)', 
+                    zIndex: 1000,
+                    width: '90%',
+                    maxWidth: '800px',
+                    maxHeight: '90vh',
+                    overflow: 'auto'
+                  }}>
+                    <SmartRecruitmentPlatform onPlatformSelect={handlePlatformSelect} />
+                  </div>
+                </>
+              )}
+              
+              {/* Boss 直聘智能寻聘控制面板 */}
+              {bossZhipinRecruitmentVisible && (
+                <>
+                  {/* 背景遮罩 */}
+                  <div 
+                    style={{ 
+                      position: 'fixed', 
+                      top: 0, 
+                      left: 0, 
+                      right: 0, 
+                      bottom: 0, 
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+                      zIndex: 999 
+                    }}
+                    onClick={() => setBossZhipinRecruitmentVisible(false)}
+                  />
+                  
+                  {/* 控制面板 */}
+                  <div style={{ 
+                    position: 'fixed', 
+                    top: '50%', 
+                    left: '50%', 
+                    transform: 'translate(-50%, -50%)', 
+                    zIndex: 1000,
+                    width: '95%',
+                    maxWidth: '1000px',
+                    maxHeight: '95vh',
+                    overflow: 'auto'
+                  }}>
+                    <BossZhipinRecruitment />
+                  </div>
+                </>
+              )}
               <MessagesContainer>
                 {/* 修改消息渲染部分 */}
                 {messages.map((msg, index) => (

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能寻聘平台选择器测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .test-title {
+            text-align: center;
+            color: #1890ff;
+            margin-bottom: 20px;
+        }
+        .test-info {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .test-steps {
+            background: #f0f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .test-steps h3 {
+            color: #1890ff;
+            margin-top: 0;
+        }
+        .test-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="test-title">智能寻聘平台选择器测试页面</h1>
+        
+        <div class="test-info">
+            <h3>测试说明</h3>
+            <p>这是一个测试页面，用于验证智能寻聘平台选择器组件的功能。请按照以下步骤进行测试：</p>
+        </div>
+        
+        <div class="test-steps">
+            <h3>测试步骤</h3>
+            <ol>
+                <li>在主页面的能力卡片中点击"智能寻聘"</li>
+                <li>验证平台选择器弹窗是否正常显示</li>
+                <li>检查三个平台（智联招聘、Boss直聘、前程无忧）是否正确显示</li>
+                <li>测试平台选择功能是否正常工作</li>
+                <li>验证选择后的状态显示和流程启动</li>
+                <li>测试弹窗关闭功能（点击背景或选择平台后）</li>
+            </ol>
+        </div>
+        
+        <div class="test-steps">
+            <h3>预期结果</h3>
+            <ol>
+                <li>平台选择器弹窗正常显示，包含三个平台选项</li>
+                <li>每个平台显示正确的图标、名称、描述和功能列表</li>
+                <li>智联招聘和Boss直聘可以正常选择，前程无忧显示"即将推出"</li>
+                <li>选择平台后显示确认信息并自动关闭弹窗</li>
+                <li>在聊天界面中显示相应的启动消息</li>
+            </ol>
+        </div>
+        
+        <div class="test-steps">
+            <h3>注意事项</h3>
+            <ul>
+                <li>确保前端服务正常运行（npm start）</li>
+                <li>检查浏览器控制台是否有错误信息</li>
+                <li>验证组件的响应式设计在不同屏幕尺寸下的表现</li>
+                <li>测试键盘导航和可访问性功能</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

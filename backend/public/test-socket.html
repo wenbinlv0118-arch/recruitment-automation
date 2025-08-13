@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO 连接测试</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .error { background-color: #fff3cd; color: #856404; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        input {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Socket.IO 连接测试</h1>
+    
+    <div id="status" class="status disconnected">未连接</div>
+    
+    <div>
+        <button id="connectBtn" onclick="connect()">连接</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled>断开</button>
+        <button id="testBtn" onclick="testMessage()" disabled>发送测试消息</button>
+    </div>
+    
+    <div>
+        <input type="text" id="messageInput" placeholder="输入消息内容" />
+        <button id="sendBtn" onclick="sendMessage()" disabled>发送</button>
+    </div>
+    
+    <h3>连接日志:</h3>
+    <div id="log" class="log"></div>
+    
+    <script>
+        let socket = null;
+        let isConnected = false;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logEntry.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(connected, message) {
+            const statusDiv = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const testBtn = document.getElementById('testBtn');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            isConnected = connected;
+            
+            if (connected) {
+                statusDiv.textContent = `已连接 - ${message}`;
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                testBtn.disabled = false;
+                sendBtn.disabled = false;
+            } else {
+                statusDiv.textContent = `未连接 - ${message}`;
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                testBtn.disabled = true;
+                sendBtn.disabled = true;
+            }
+        }
+        
+        function connect() {
+            log('开始连接...');
+            
+            try {
+                socket = io('http://localhost:5001', {
+                    transports: ['websocket', 'polling'],
+                    timeout: 30000,
+                    forceNew: false,
+                    reconnection: true,
+                    reconnectionAttempts: 5,
+                    reconnectionDelay: 1000,
+                    upgrade: true,
+                    autoConnect: true,
+                    query: {
+                        clientType: 'test',
+                        timestamp: Date.now()
+                    }
+                });
+                
+                // 连接事件
+                socket.on('connect', () => {
+                    log(`连接成功! Socket ID: ${socket.id}`, 'success');
+                    log(`传输方式: ${socket.io.engine.transport.name}`, 'success');
+                    updateStatus(true, `Socket ID: ${socket.id}`);
+                });
+                
+                socket.on('disconnect', (reason) => {
+                    log(`连接断开，原因: ${reason}`, 'error');
+                    updateStatus(false, `断开原因: ${reason}`);
+                });
+                
+                socket.on('connect_error', (error) => {
+                    log(`连接错误: ${error.message}`, 'error');
+                    updateStatus(false, `连接错误: ${error.message}`);
+                });
+                
+                // 监听服务器消息
+                socket.on('statusUpdate', (data) => {
+                    log(`状态更新: ${JSON.stringify(data)}`, 'success');
+                });
+                
+                socket.on('aiMessage', (data) => {
+                    log(`AI消息: ${JSON.stringify(data)}`, 'success');
+                });
+                
+                socket.on('thinking', (data) => {
+                    log(`思维链: ${JSON.stringify(data)}`, 'success');
+                });
+                
+                socket.on('finalAnswer', (data) => {
+                    log(`最终答案: ${JSON.stringify(data)}`, 'success');
+                });
+                
+                socket.on('error', (data) => {
+                    log(`错误消息: ${JSON.stringify(data)}`, 'error');
+                });
+                
+                // 传输升级事件
+                socket.io.on('upgrade', () => {
+                    log('传输已升级到 WebSocket', 'success');
+                });
+                
+                socket.io.on('downgrade', () => {
+                    log('传输已降级到 Polling', 'error');
+                });
+                
+            } catch (error) {
+                log(`连接失败: ${error.message}`, 'error');
+                updateStatus(false, `连接失败: ${error.message}`);
+            }
+        }
+        
+        function disconnect() {
+            if (socket) {
+                log('断开连接...');
+                socket.disconnect();
+                socket = null;
+                updateStatus(false, '手动断开');
+            }
+        }
+        
+        function testMessage() {
+            if (socket && isConnected) {
+                const message = '这是一条测试消息';
+                log(`发送测试消息: ${message}`);
+                socket.emit('userMessage', { message: message });
+            } else {
+                log('Socket未连接，无法发送消息', 'error');
+            }
+        }
+        
+        function sendMessage() {
+            if (socket && isConnected) {
+                const messageInput = document.getElementById('messageInput');
+                const message = messageInput.value.trim();
+                
+                if (message) {
+                    log(`发送消息: ${message}`);
+                    socket.emit('userMessage', { message: message });
+                    messageInput.value = '';
+                } else {
+                    log('请输入消息内容', 'error');
+                }
+            } else {
+                log('Socket未连接，无法发送消息', 'error');
+            }
+        }
+        
+        // 页面加载完成后自动连接
+        window.onload = function() {
+            log('页面加载完成，准备连接...');
+            setTimeout(connect, 1000);
+        };
+        
+        // 页面卸载时断开连接
+        window.onbeforeunload = function() {
+            if (socket) {
+                socket.disconnect();
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>候选人发现与浏览功能测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .test-title {
+            text-align: center;
+            color: #1890ff;
+            margin-bottom: 20px;
+        }
+        .test-info {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .test-steps {
+            background: #f0f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .test-steps h3 {
+            color: #1890ff;
+            margin-top: 0;
+        }
+        .test-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin-bottom: 8px;
+        }
+        .feature-list {
+            background: #fff7e6;
+            border: 1px solid #ffd591;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .feature-list h3 {
+            color: #fa8c16;
+            margin-top: 0;
+        }
+        .feature-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .feature-list li {
+            margin-bottom: 6px;
+        }
+        .tab-info {
+            background: #f9f0ff;
+            border: 1px solid #d3adf7;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .tab-info h3 {
+            color: #722ed1;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="test-title">候选人发现与浏览功能测试</h1>
+        
+        <div class="test-info">
+            <h3>第四阶段开发完成说明</h3>
+            <p>本阶段已完成候选人发现与浏览功能，包含推荐牛人自动化流程、搜索牛人筛选配置器、候选人卡片识别和点击、页面滚动和内容刷新机制等。</p>
+        </div>
+        
+        <div class="test-steps">
+            <h3>测试步骤</h3>
+            <ol>
+                <li>在主页面的能力卡片中点击"智能寻聘"</li>
+                <li>在平台选择器中选择"Boss 直聘"</li>
+                <li>在控制面板中点击"启动流程"按钮</li>
+                <li>等待登录流程完成后，观察标签页变化：
+                    <ul>
+                        <li>流程控制标签页：显示流程状态和步骤</li>
+                        <li>候选人发现标签页：显示两种寻聘方式</li>
+                        <li>筛选配置标签页：显示筛选条件配置器</li>
+                    </ul>
+                </li>
+                <li>测试候选人发现功能：
+                    <ul>
+                        <li>点击"搜索牛人"卡片，进入筛选配置页面</li>
+                        <li>配置筛选条件并应用</li>
+                        <li>点击"推荐牛人"卡片，启动推荐流程</li>
+                    </ul>
+                </li>
+                <li>验证筛选条件配置器功能：
+                    <ul>
+                        <li>基础搜索条件（关键词搜索）</li>
+                        <li>职位要求（职位类型、工作经验、学历、薪资）</li>
+                        <li>地理位置（工作城市）</li>
+                        <li>公司信息（公司规模、融资阶段）</li>
+                        <li>筛选器保存和加载功能</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <div class="feature-list">
+            <h3>已实现的核心功能</h3>
+            <ul>
+                <li><strong>推荐牛人自动化流程</strong>：自动进入推荐牛人页面，候选人列表获取和识别</li>
+                <li><strong>候选人卡片处理</strong>：自动点击候选人卡片，详情页面处理，返回列表</li>
+                <li><strong>页面滚动刷新</strong>：自动滚动加载更多候选人，智能内容刷新</li>
+                <li><strong>筛选条件配置器</strong>：完整的搜索条件配置界面，支持多种筛选维度</li>
+                <li><strong>搜索牛人自动化</strong>：筛选条件应用、搜索执行、结果处理</li>
+                <li><strong>标签页界面</strong>：流程控制、候选人发现、筛选配置三个主要功能区域</li>
+            </ul>
+        </div>
+        
+        <div class="tab-info">
+            <h3>标签页功能详解</h3>
+            <h4>1. 流程控制标签页</h4>
+            <ul>
+                <li>实时状态监控和显示</li>
+                <li>操作控制按钮（启动、停止、刷新）</li>
+                <li>流程步骤可视化进度</li>
+                <li>登录状态监控和说明</li>
+                <li>功能说明和注意事项</li>
+            </ul>
+            
+            <h4>2. 候选人发现标签页</h4>
+            <ul>
+                <li>搜索牛人：使用筛选条件精准搜索</li>
+                <li>推荐牛人：浏览系统推荐的候选人</li>
+                <li>直观的卡片式选择界面</li>
+                <li>自动流程启动和状态管理</li>
+            </ul>
+            
+            <h4>3. 筛选配置标签页</h4>
+            <ul>
+                <li>基础搜索条件配置</li>
+                <li>职位要求筛选（类型、经验、学历、薪资）</li>
+                <li>地理位置选择</li>
+                <li>公司信息筛选</li>
+                <li>筛选器保存和加载</li>
+                <li>条件应用和搜索启动</li>
+            </ul>
+        </div>
+        
+        <div class="test-steps">
+            <h3>预期结果</h3>
+            <ol>
+                <li>登录完成后自动切换到候选人发现标签页</li>
+                <li>三个标签页功能完整，界面美观</li>
+                <li>筛选条件配置器包含所有必要的筛选维度</li>
+                <li>搜索牛人和推荐牛人功能正常工作</li>
+                <li>流程状态监控准确，步骤进度正确</li>
+                <li>筛选器保存和加载功能正常</li>
+            </ol>
+        </div>
+        
+        <div class="test-steps">
+            <h3>技术实现说明</h3>
+            <ul>
+                <li><strong>服务层</strong>：bossZhipinService.js 包含完整的候选人发现逻辑</li>
+                <li><strong>组件层</strong>：BossZhipinRecruitment.js 提供标签页界面</li>
+                <li><strong>筛选器</strong>：CandidateFilterConfigurator.js 提供筛选配置功能</li>
+                <li><strong>状态管理</strong>：React hooks 管理组件状态和流程</li>
+                <li><strong>模拟功能</strong>：开发阶段使用模拟方法，为 Playwright 集成预留接口</li>
+            </ul>
+        </div>
+        
+        <div class="test-steps">
+            <h3>注意事项</h3>
+            <ul>
+                <li>当前为模拟模式，实际浏览器自动化将在后续阶段实现</li>
+                <li>筛选条件配置器支持多种筛选维度，可根据需要扩展</li>
+                <li>候选人发现流程包含完整的错误处理和状态管理</li>
+                <li>标签页结构清晰，便于用户理解和操作</li>
+                <li>所有功能都有完善的用户反馈和提示</li>
+            </ul>
+        </div>
+        
+        <div class="test-info">
+            <h3>下一阶段计划</h3>
+            <p>第五阶段将实现简历内容采集功能，包括候选人详情页面自动打开、在线简历内容自动复制、简历质量检测算法等。</p>
+        </div>
+    </div>
+</body>
+</html>

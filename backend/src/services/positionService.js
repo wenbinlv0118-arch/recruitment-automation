@@ -5,12 +5,19 @@ class PositionService {
   constructor() {
     this.resumeModel = ResumeModel;
     this.llmService = null;
-    
-    try {
-      this.llmService = new LLMService();
-    } catch (error) {
-      console.warn('大语言模型服务初始化失败，将使用模拟模式:', error.message);
+  }
+  
+  // 延迟初始化LLM服务
+  async initLLMService() {
+    if (!this.llmService) {
+      try {
+        this.llmService = new LLMService();
+        console.log('✅ LLM服务初始化成功');
+      } catch (error) {
+        console.warn('大语言模型服务初始化失败，将使用模拟模式:', error.message);
+      }
     }
+    return this.llmService;
   }
 
   async createPositionFromDialog(userMessage, thinkingCallback = null, finalAnswerCallback = null) {
@@ -66,6 +73,9 @@ class PositionService {
   }
 
   async parsePositionInfo(userMessage, thinkingCallback = null) {
+    // 确保LLM服务已初始化
+    await this.initLLMService();
+    
     if (!this.llmService) {
       return this.simplePositionParsing(userMessage);
     }
@@ -95,9 +105,18 @@ class PositionService {
     try {
       const response = await this.llmService.chatWithLLM(messages, thinkingCallback);
       
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      // 清理响应内容，移除可能的控制字符
+      const cleanResponse = response.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+      const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch (parseError) {
+          console.warn('JSON解析失败，尝试清理后重新解析:', parseError.message);
+          // 进一步清理JSON字符串
+          const cleanedJson = jsonMatch[0].replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
+          return JSON.parse(cleanedJson);
+        }
       } else {
         throw new Error('无法解析大模型响应');
       }
@@ -154,6 +173,9 @@ class PositionService {
   }
 
   async generateJobDescription(positionInfo, thinkingCallback = null) {
+    // 确保LLM服务已初始化
+    await this.initLLMService();
+    
     if (!this.llmService) {
       return this.generateSimpleJD(positionInfo);
     }
@@ -187,9 +209,18 @@ class PositionService {
     try {
       const response = await this.llmService.chatWithLLM(messages, thinkingCallback);
       
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      // 清理响应内容，移除可能的控制字符
+      const cleanResponse = response.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+      const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch (parseError) {
+          console.warn('JSON解析失败，尝试清理后重新解析:', parseError.message);
+          // 进一步清理JSON字符串
+          const cleanedJson = jsonMatch[0].replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
+          return JSON.parse(cleanedJson);
+        }
       } else {
         throw new Error('无法解析大模型响应');
       }

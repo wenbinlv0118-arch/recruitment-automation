@@ -4,13 +4,13 @@ import styled from 'styled-components';
 // 弹窗基础模式 - 样式定义
 const BaseDrawer = styled.div`
   position: fixed;
-  top: 0;
+  top: 64px;
   right: 0;
   bottom: 0;
   width: 33.33%;
   background: white;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   transform: translateX(${props => props.$visible ? '0' : '100%'});

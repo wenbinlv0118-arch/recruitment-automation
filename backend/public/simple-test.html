@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单Socket测试</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #log { background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin: 10px 0; height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>简单Socket.IO测试</h1>
+    
+    <div id="status" class="status disconnected">未连接</div>
+    
+    <div>
+        <button onclick="connect()">连接</button>
+        <button onclick="disconnect()">断开</button>
+        <button onclick="testMessage()">发送测试消息</button>
+    </div>
+    
+    <div id="log"></div>
+    
+    <script>
+        let socket = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div><strong>[${timestamp}]</strong> ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function connect() {
+            log('开始连接...');
+            
+            socket = io('http://localhost:5001', {
+                transports: ['websocket', 'polling'],
+                forceNew: true
+            });
+            
+            socket.on('connect', () => {
+                log('✅ 连接成功! Socket ID: ' + socket.id);
+                document.getElementById('status').textContent = '已连接 - ' + socket.id;
+                document.getElementById('status').className = 'status connected';
+            });
+            
+            socket.on('disconnect', (reason) => {
+                log('❌ 连接断开: ' + reason);
+                document.getElementById('status').textContent = '未连接';
+                document.getElementById('status').className = 'status disconnected';
+            });
+            
+            socket.on('connect_error', (error) => {
+                log('❌ 连接错误: ' + error.message);
+                document.getElementById('status').textContent = '连接错误';
+                document.getElementById('status').className = 'status disconnected';
+            });
+            
+            socket.on('statusUpdate', (data) => {
+                log('📊 状态更新: ' + JSON.stringify(data));
+            });
+            
+            socket.on('aiMessage', (data) => {
+                log('🤖 AI消息: ' + JSON.stringify(data));
+            });
+            
+            socket.on('thinking', (data) => {
+                log('🧠 思维链: ' + JSON.stringify(data));
+            });
+            
+            socket.on('finalAnswer', (data) => {
+                log('💡 最终回答: ' + JSON.stringify(data));
+            });
+            
+            socket.on('error', (data) => {
+                log('❌ 错误: ' + JSON.stringify(data));
+            });
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('已断开连接');
+            }
+        }
+        
+        function testMessage() {
+            if (socket && socket.connected) {
+                const message = '你好，这是一条测试消息';
+                log('📤 发送测试消息: ' + message);
+                socket.emit('userMessage', { message: message });
+            } else {
+                log('❌ 请先连接Socket');
+            }
+        }
+        
+        // 页面加载完成后自动连接
+        window.onload = function() {
+            log('页面加载完成，准备连接...');
+            setTimeout(connect, 1000);
+        };
+    </script>
+</body>
+</html>
