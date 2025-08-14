@@ -369,16 +369,32 @@ const ResumeProcessor = () => {
           
           <div>
             <Text strong>简历内容:</Text>
-            <div style={{ 
-              marginTop: 8, 
-              padding: 12, 
-              background: '#f5f5f5', 
-              borderRadius: 4,
-              maxHeight: 300,
-              overflowY: 'auto'
-            }}>
-              {resume.content}
-            </div>
+            {resume.parsedContent && resume.parseMethod === 'llm' ? (
+              <div style={{ 
+                marginTop: 8, 
+                padding: 12, 
+                background: '#f5f5f5', 
+                borderRadius: 4,
+                maxHeight: 300,
+                overflowY: 'auto'
+              }}>
+
+                <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '12px' }}>
+                   {resume.parsedContent.replace(/^```markdown\s*\n/, '').replace(/\n```\s*$/, '').trim()}
+                 </div>
+              </div>
+            ) : (
+              <div style={{ 
+                marginTop: 8, 
+                padding: 12, 
+                background: '#f5f5f5', 
+                borderRadius: 4,
+                maxHeight: 300,
+                overflowY: 'auto'
+              }}>
+                {resume.content || resume.originalText || '暂无内容'}
+              </div>
+            )}
           </div>
           
           <Divider />

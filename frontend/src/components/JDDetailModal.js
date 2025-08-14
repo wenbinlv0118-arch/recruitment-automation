@@ -86,14 +86,16 @@ const EditableCard = styled(Card)`
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   
-  .ant-card-body {
-    padding: 16px;
-  }
-  
   &.editing {
     border: 2px solid #1890ff;
   }
 `;
+
+// 设置可编辑卡片内容样式
+const editableCardBodyStyle = {
+  padding: '16px'
+};
+
 
 const EditableItem = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== 'bgColor' && prop !== 'borderColor'
@@ -161,11 +163,14 @@ const InfoCard = styled(Card)`
   margin-bottom: 16px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  
-  .ant-card-body {
-    padding: 16px;
-  }
 `;
+
+
+// 设置卡片内容样式
+const infoCardBodyStyle = {
+  padding: '16px'
+};
+
 
 const InfoItem = styled.div`
   display: flex;
@@ -752,7 +757,7 @@ const JDDetailDrawer = ({ visible, onClose, positionData }) => {
   };
 
   const renderBasicInfo = () => (
-    <EditableCard className={isEditing ? 'editing' : ''}>
+    <EditableCard className={isEditing ? 'editing' : ''} styles={{ body: editableCardBodyStyle }}>
       <Form form={form} layout="vertical">
         <Space direction="vertical" style={{ width: '100%' }}>
           <InfoItem>
@@ -1103,6 +1108,7 @@ const JDDetailDrawer = ({ visible, onClose, positionData }) => {
             background: isEditing ? '#f8f9fa' : '#fafafa',
             border: isEditing ? '1px dashed #d9d9d9' : '1px solid #d9d9d9'
           }}
+          styles={{ body: infoCardBodyStyle }}
         >
           <div style={{ 
             whiteSpace: 'pre-line',

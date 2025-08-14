@@ -144,17 +144,15 @@ const CandidateBrowser = () => {
   
   // 筛选条件状态
   const [filters, setFilters] = useState({
-    position: '',
-    location: '',
-    experience: '',
-    salary: '',
-    education: '',
-    age: [18, 50],
+    education: '',      // 学历要求
+    university: '',     // 院校要求
+    experience: '',     // 经验要求
+    age: '',           // 年龄要求
     isActive: true
   });
   
-  // 候选人数量设置
-  const [targetCandidateCount, setTargetCandidateCount] = useState(50);
+  // 简历采集数量设置 - 测试环节支持2-5份简历
+  const [targetResumeCount, setTargetResumeCount] = useState(3);
 
   // 获取步骤信息
   const getSteps = () => {
@@ -214,7 +212,15 @@ const CandidateBrowser = () => {
       } else {
         setCurrentStep(1);
       }
-      message.success('开始候选人浏览...');
+      
+      // 添加调试信息
+      console.log('启动浏览参数:', {
+        mode: browseMode,
+        filters: filters,
+        targetCount: targetResumeCount
+      });
+      
+      message.success(`开始${browseMode === 'search' ? '搜索牛人' : browseMode === 'recommended' ? '推荐牛人' : '沟通版块'}浏览...`);
       
       // 调用后端API启动浏览
       const response = await fetch('/api/boss-zhipin/start-browsing', {
@@ -225,11 +231,12 @@ const CandidateBrowser = () => {
         body: JSON.stringify({
           mode: browseMode,
           filters: filters,
-          targetCount: targetCandidateCount
+          targetCount: targetResumeCount
         })
       });
       
       const result = await response.json();
+      console.log('后端响应:', result);
       
       if (result.success) {
         message.success('候选人浏览已启动');
@@ -358,12 +365,10 @@ const CandidateBrowser = () => {
   // 重置筛选条件
   const resetFilters = () => {
     setFilters({
-      position: '',
-      location: '',
-      experience: '',
-      salary: '',
-      education: '',
-      age: [18, 50],
+      education: '',      // 学历要求
+      university: '',     // 院校要求
+      experience: '',     // 经验要求
+      age: '',           // 年龄要求
       isActive: true
     });
   };
@@ -460,46 +465,40 @@ const CandidateBrowser = () => {
         </Row>
       </Card>
 
-      {/* 候选人数量设置 */}
-      <Card title="候选人数量设置" style={{ marginBottom: 24 }}>
+      {/* 简历采集数量设置 */}
+      <Card title="简历采集数量设置" style={{ marginBottom: 24 }}>
         <Row gutter={16} align="middle">
           <Col span={12}>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontWeight: 500, marginBottom: 8, display: 'block' }}>目标候选人数量</label>
-              <Slider
-                min={10}
-                max={200}
-                step={10}
-                value={targetCandidateCount}
-                onChange={setTargetCandidateCount}
-                marks={{
-                  10: '10',
-                  50: '50',
-                  100: '100',
-                  150: '150',
-                  200: '200'
-                }}
-                tooltip={{
-                  formatter: (value) => `${value}个候选人`
-                }}
-              />
+              <label style={{ fontWeight: 500, marginBottom: 8, display: 'block' }}>目标简历采集数量（测试环节）</label>
+              <Select
+                value={targetResumeCount}
+                onChange={setTargetResumeCount}
+                style={{ width: '100%' }}
+                size="large"
+              >
+                <Option value={2}>2份简历</Option>
+                <Option value={3}>3份简历</Option>
+                <Option value={4}>4份简历</Option>
+                <Option value={5}>5份简历</Option>
+              </Select>
             </div>
           </Col>
           <Col span={12}>
             <div style={{ textAlign: 'center', padding: '20px', background: '#f5f5f5', borderRadius: '8px' }}>
               <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1890ff', marginBottom: '8px' }}>
-                {targetCandidateCount}
+                {targetResumeCount}
               </div>
-              <div style={{ color: '#666' }}>个候选人</div>
+              <div style={{ color: '#666' }}>份简历</div>
               <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-                达到此数量后自动停止寻聘
+                采集到此数量后自动停止
               </div>
             </div>
           </Col>
         </Row>
         <Alert
-          message="寻聘说明"
-          description={`系统将自动浏览候选人信息，当成功处理的候选人数量达到 ${targetCandidateCount} 个时，将自动停止寻聘流程。您可以随时手动停止寻聘。`}
+          message="简历采集说明"
+          description={`系统将自动浏览候选人信息并采集简历，当成功采集的简历数量达到 ${targetResumeCount} 份时，将自动停止采集流程。这是测试环节，您可以随时手动停止采集。`}
           type="info"
           showIcon
           style={{ marginTop: 16 }}
@@ -510,64 +509,7 @@ const CandidateBrowser = () => {
       {browseMode === 'search' && (
         <FilterPanel title="筛选条件配置">
         <Row gutter={16}>
-          <Col span={8}>
-            <div className="filter-row">
-              <label className="filter-label">期望职位</label>
-              <Input 
-                placeholder="如：前端工程师"
-                value={filters.position}
-                onChange={(e) => updateFilter('position', e.target.value)}
-              />
-            </div>
-          </Col>
-          <Col span={8}>
-            <div className="filter-row">
-              <label className="filter-label">工作地区</label>
-              <Input 
-                placeholder="如：北京、上海"
-                value={filters.location}
-                onChange={(e) => updateFilter('location', e.target.value)}
-              />
-            </div>
-          </Col>
-          <Col span={8}>
-            <div className="filter-row">
-              <label className="filter-label">工作经验</label>
-              <Select 
-                placeholder="选择工作经验"
-                value={filters.experience}
-                onChange={(value) => updateFilter('experience', value)}
-                style={{ width: '100%' }}
-              >
-                <Option value="0-1">0-1年</Option>
-                <Option value="1-3">1-3年</Option>
-                <Option value="3-5">3-5年</Option>
-                <Option value="5-10">5-10年</Option>
-                <Option value="10+">10年以上</Option>
-              </Select>
-            </div>
-          </Col>
-        </Row>
-        
-        <Row gutter={16}>
-          <Col span={8}>
-            <div className="filter-row">
-              <label className="filter-label">期望薪资</label>
-              <Select 
-                placeholder="选择薪资范围"
-                value={filters.salary}
-                onChange={(value) => updateFilter('salary', value)}
-                style={{ width: '100%' }}
-              >
-                <Option value="0-5">5K以下</Option>
-                <Option value="5-10">5-10K</Option>
-                <Option value="10-20">10-20K</Option>
-                <Option value="20-30">20-30K</Option>
-                <Option value="30+">30K以上</Option>
-              </Select>
-            </div>
-          </Col>
-          <Col span={8}>
+          <Col span={12}>
             <div className="filter-row">
               <label className="filter-label">学历要求</label>
               <Select 
@@ -575,30 +517,81 @@ const CandidateBrowser = () => {
                 value={filters.education}
                 onChange={(value) => updateFilter('education', value)}
                 style={{ width: '100%' }}
+                allowClear
               >
-                <Option value="大专">大专</Option>
-                <Option value="本科">本科</Option>
-                <Option value="硕士">硕士</Option>
+                <Option value="">不限</Option>
+                <Option value="本科及以上">本科及以上</Option>
+                <Option value="硕士及以上">硕士及以上</Option>
                 <Option value="博士">博士</Option>
+                <Option value="自定义">自定义</Option>
               </Select>
             </div>
           </Col>
-          <Col span={8}>
+          <Col span={12}>
             <div className="filter-row">
-              <label className="filter-label">年龄范围</label>
-              <Slider
-                range
-                min={18}
-                max={50}
+              <label className="filter-label">院校要求</label>
+              <Select 
+                placeholder="选择院校要求"
+                value={filters.university}
+                onChange={(value) => updateFilter('university', value)}
+                style={{ width: '100%' }}
+                allowClear
+              >
+                <Option value="">不限</Option>
+                <Option value="统招本科">统招本科</Option>
+                <Option value="双一流院校">双一流院校</Option>
+                <Option value="211院校">211院校</Option>
+                <Option value="985院校">985院校</Option>
+                <Option value="留学生">留学生</Option>
+                <Option value="QS100">QS100</Option>
+                <Option value="QS500">QS500</Option>
+              </Select>
+            </div>
+          </Col>
+        </Row>
+        
+        <Row gutter={16}>
+          <Col span={12}>
+            <div className="filter-row">
+              <label className="filter-label">经验要求</label>
+              <Select 
+                placeholder="选择经验要求"
+                value={filters.experience}
+                onChange={(value) => updateFilter('experience', value)}
+                style={{ width: '100%' }}
+                allowClear
+              >
+                <Option value="">不限</Option>
+                <Option value="在校/应届">在校/应届</Option>
+                <Option value="24年毕业">24年毕业</Option>
+                <Option value="25年毕业">25年毕业</Option>
+                <Option value="25年后毕业">25年后毕业</Option>
+                <Option value="1-3年">1-3年</Option>
+                <Option value="3-5年">3-5年</Option>
+                <Option value="5-10年">5-10年</Option>
+                <Option value="自定义">自定义</Option>
+              </Select>
+            </div>
+          </Col>
+          <Col span={12}>
+            <div className="filter-row">
+              <label className="filter-label">年龄要求</label>
+              <Select 
+                placeholder="选择年龄要求"
                 value={filters.age}
                 onChange={(value) => updateFilter('age', value)}
-                marks={{
-                  18: '18',
-                  25: '25',
-                  35: '35',
-                  50: '50'
-                }}
-              />
+                style={{ width: '100%' }}
+                allowClear
+              >
+                <Option value="">不限</Option>
+                <Option value="20-25">20-25</Option>
+                <Option value="25-30">25-30</Option>
+                <Option value="30-35">30-35</Option>
+                <Option value="35-40">35-40</Option>
+                <Option value="40-50">40-50</Option>
+                <Option value="50以上">50以上</Option>
+                <Option value="自定义">自定义</Option>
+              </Select>
             </div>
           </Col>
         </Row>

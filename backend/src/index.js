@@ -459,7 +459,7 @@ app.post('/api/resume-library/upload', upload.single('file'), async (req, res) =
 });
 
 
-// API路由：解析简历文本
+// API路由：解析简历文本（原有关键字匹配算法）
 app.post('/api/resume-library/parse-text', async (req, res) => {
   try {
     const { text } = req.body;
@@ -481,6 +481,51 @@ app.post('/api/resume-library/parse-text', async (req, res) => {
   } catch (error) {
     console.error('文本解析失败:', error);
     res.status(500).json({ success: false, error: '文本解析失败', message: error.message });
+  }
+});
+
+// API路由：使用大模型解析Boss直聘简历
+app.post('/api/resume/parse-boss-resume', async (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text || text.trim().length < 10) {
+      return res.status(400).json({ success: false, error: '请提供有效的简历文本内容' });
+    }
+    
+    // 导入LLM服务
+    const LLMService = require('./services/llmService');
+    const llmService = new LLMService();
+    
+    // 构建简历解析提示词
+    const messages = [{
+      role: 'user',
+      content: `帮我把这段话解析成结构化的简历，采用 markdown 的形式输出：\n\n${text}`
+    }];
+    
+    console.log('开始调用大模型解析Boss直聘简历...');
+    
+    // 调用大模型进行简历解析
+    const parsedContent = await llmService.chatWithLLM(messages);
+    
+    console.log('大模型解析完成，结果长度:', parsedContent.length);
+    
+    res.json({ 
+      success: true, 
+      data: {
+        originalText: text,
+        parsedContent: parsedContent,
+        parseMethod: 'llm',
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('大模型简历解析失败:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: '大模型简历解析失败', 
+      message: error.message 
+    });
   }
 });
 
@@ -523,6 +568,86 @@ app.delete('/api/resume-library', async (req, res) => {
   } catch (error) {
     console.error('清空简历库失败:', error);
     res.status(500).json({ success: false, error: '清空简历库失败', message: error.message });
+  }
+});
+
+// API路由：生成工作经历亮点
+app.post('/api/resume/generate-highlights', async (req, res) => {
+  try {
+    const { workExperience } = req.body;
+    
+    if (!workExperience || !Array.isArray(workExperience) || workExperience.length === 0) {
+      return res.status(400).json({ success: false, error: '请提供有效的工作经历数据' });
+    }
+    
+    // 检查LLM服务是否可用
+    if (!llmService) {
+      return res.status(500).json({ success: false, error: 'LLM服务不可用' });
+    }
+    
+    const highlights = [];
+    
+    // 为每段工作经历生成亮点
+    for (const experience of workExperience) {
+      const { company, position, duration, description } = experience;
+      
+      if (!company || !position || !description) {
+        continue; // 跳过不完整的经历
+      }
+      
+      // 构建提示词
+      const messages = [{
+        role: 'user',
+        content: `请为以下工作经历提取3-5个核心亮点，要求简洁明了，突出成就和能力：
+
+公司：${company}
+职位：${position}
+时间：${duration || '未知'}
+工作内容：${description}
+
+请直接返回亮点列表，每个亮点一行，不需要其他格式。`
+      }];
+      
+      try {
+        console.log(`正在为${company}的${position}职位生成亮点...`);
+        
+        // 调用大模型生成亮点
+        const highlightText = await llmService.chatWithLLM(messages);
+        
+        // 解析亮点文本为数组
+        const highlightList = highlightText
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0 && !line.startsWith('#'))
+          .slice(0, 5); // 最多5个亮点
+        
+        highlights.push({
+          company,
+          position,
+          duration,
+          highlights: highlightList
+        });
+        
+      } catch (error) {
+        console.error(`生成${company}亮点失败:`, error);
+        // 如果生成失败，使用默认亮点
+        highlights.push({
+          company,
+          position,
+          duration,
+          highlights: ['负责核心业务开发', '具备丰富项目经验', '团队协作能力强']
+        });
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      data: highlights
+    });
+    
+  } catch (error) {
+    console.error('生成工作经历亮点失败:', error);
+    res.status(500).json({ success: false, error: '生成亮点失败', message: error.message });
   }
 });
 

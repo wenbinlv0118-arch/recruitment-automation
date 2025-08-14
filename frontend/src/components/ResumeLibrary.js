@@ -3,6 +3,8 @@ import { Card, List, Typography, Button, Space, Select, message, Spin, Row, Col,
 import { DownloadOutlined, SearchOutlined, UploadOutlined, UserOutlined, MailOutlined, PhoneOutlined, StarOutlined, EyeOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
 import ResumeUploadModal from './ResumeUploadModal';
 import ResumeDetailModal from './ResumeDetailModal';
+// 移除AI工作亮点分析组件
+// import WorkExperienceHighlights from './WorkExperienceHighlights';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -352,91 +354,199 @@ const ResumeLibrary = () => {
         }}>
           <Row gutter={[16, 16]}>
           {getFilteredAndSortedResumes().map(item => {
-            // 生成亮点内容（基于解析服务字段）
-            const generateHighlights = (resume) => {
-              const highlights = [];
-              
-              // 基于学历的亮点
-              if (resume.education === '博士') {
-                highlights.push('高学历人才', '学术背景深厚');
-              } else if (resume.education === '硕士') {
-                highlights.push('硕士学历', '专业素养高');
-              } else if (resume.education === '本科') {
-                highlights.push('本科学历');
-              }
-              
-              // 基于工作年限的亮点
-              const workYears = parseInt(resume.workYears) || 0;
-              if (workYears >= 10) {
-                highlights.push('资深专家', '经验丰富');
-              } else if (workYears >= 5) {
-                highlights.push('中高级人才', '技术扎实');
-              } else if (workYears >= 2) {
-                highlights.push('成长型人才', '潜力巨大');
-              } else if (workYears >= 1) {
-                highlights.push('新锐人才');
-              }
-              
-              // 基于年龄的亮点
-              if (resume.age) {
-                const age = parseInt(resume.age);
-                if (age <= 28) {
-                  highlights.push('年轻有为');
-                } else if (age >= 35) {
-                  highlights.push('经验成熟');
+            // 解析候选人姓名
+            const parseCandidateName = (resume) => {
+              if (resume.parsedContent) {
+                const content = resume.parsedContent;
+                // 匹配 # 姓名 - 职位 格式
+                const nameMatch = content.match(/# ([^-\n]+)/);
+                if (nameMatch) {
+                  return nameMatch[1].trim();
                 }
               }
-              
-              // 基于当前状态的亮点
-              if (resume.currentStatus === '离职') {
-                highlights.push('可立即到岗');
-              }
-              
-              // 基于技能的亮点
-              if (resume.skills && Array.isArray(resume.skills) && resume.skills.length > 0) {
-                const skillCount = resume.skills.length;
-                if (skillCount >= 8) {
-                  highlights.push('技能全面', '技术栈丰富');
-                } else if (skillCount >= 5) {
-                  highlights.push('技能多样', '综合能力强');
-                }
-                
-                // 特定技能亮点
-                if (resume.skills.some(skill => ['React', 'Vue', 'Angular'].includes(skill))) {
-                  highlights.push('前端专家');
-                }
-                if (resume.skills.some(skill => ['Node.js', 'Spring Boot', 'Django'].includes(skill))) {
-                  highlights.push('后端开发');
-                }
-                if (resume.skills.some(skill => ['Docker', 'Kubernetes'].includes(skill))) {
-                  highlights.push('云原生');
-                }
-                if (resume.skills.some(skill => ['Python', 'Java', 'C++'].includes(skill))) {
-                  highlights.push('编程语言');
-                }
-              }
-              
-              // 基于期望职位的亮点
-              if (resume.expectedPosition?.position) {
-                const position = resume.expectedPosition.position.toLowerCase();
-                if (position.includes('架构师') || position.includes('技术总监')) {
-                  highlights.push('高级职位');
-                } else if (position.includes('主管') || position.includes('经理')) {
-                  highlights.push('管理经验');
-                }
-              }
-              
-              return highlights.slice(0, 4); // 最多显示4个亮点
+              return resume.name !== '大模型解析结果' ? resume.name : '未知姓名';
             };
 
-            const highlights = generateHighlights(item);
+            // 解析学历信息
+            const parseEducationLevel = (resume) => {
+              if (resume.parsedContent) {
+                const content = resume.parsedContent;
+                // 匹配基本信息中的学历
+                const basicInfoMatch = content.match(/\*\*.*?\|.*?\|.*?\*\*/);
+                if (basicInfoMatch) {
+                  const basicInfo = basicInfoMatch[0];
+                  if (basicInfo.includes('大专')) return '大专';
+                  if (basicInfo.includes('本科')) return '本科';
+                  if (basicInfo.includes('硕士')) return '硕士';
+                  if (basicInfo.includes('博士')) return '博士';
+                }
+              }
+              return '未知学历';
+            };
+
+            // 解析工作年限
+             const parseWorkYears = (resume) => {
+               if (resume.parsedContent) {
+                 const content = resume.parsedContent;
+                 // 从自我评价中提取工作年限
+                 const selfEvalMatch = content.match(/## 📌 自我评价([\s\S]*?)(?=##|$)/);
+                 if (selfEvalMatch) {
+                   const selfEval = selfEvalMatch[1];
+                   const yearMatch = selfEval.match(/(\d+)年.*?经验/);
+                   if (yearMatch) {
+                     return yearMatch[1];
+                   }
+                 }
+               }
+               return '0';
+             };
+
+             // 解析求职岗位
+             const parseExpectedPosition = (resume) => {
+               if (resume.parsedContent) {
+                 const content = resume.parsedContent;
+                 // 匹配基本信息中的求职意向
+                 const basicInfoMatch = content.match(/## 基本信息([\s\S]*?)(?=##|---)/i);
+                 if (basicInfoMatch) {
+                   const basicSection = basicInfoMatch[1];
+                   const intentMatch = basicSection.match(/\*\*求职意向\*\*：(.+?)(?=\n|$)/i);
+                   if (intentMatch) {
+                     // 提取职位部分，去掉地点和薪资信息
+                     const fullIntent = intentMatch[1].trim();
+                     const positionMatch = fullIntent.match(/^([^|]+)/);
+                     if (positionMatch) {
+                       return positionMatch[1].trim();
+                     }
+                     return fullIntent;
+                   }
+                 }
+               }
+               return '未指定职位';
+             };
+
+            // 解析工作经历数据
+            const parseWorkExperience = (resume) => {
+              // 从parsedContent中提取工作经历
+              if (resume.parsedContent) {
+                const content = resume.parsedContent;
+                const experiences = [];
+                
+                // 先找到工作经历部分
+                const workStart = content.indexOf('## 工作经历');
+                const nextSectionStart = content.indexOf('## 项目经验');
+                if (workStart !== -1) {
+                  const workSection = content.substring(workStart, nextSectionStart !== -1 ? nextSectionStart : content.length);
+                  
+                  // 匹配工作经历格式：### 公司名称 | 职位 \n **部门** | 时间段
+                  const workMatches = workSection.match(/### ([^|]+) \| ([^\n]+)\s*\n\*\*([^\*]+)\*\* \| ([^\n]+)\s*\n([\s\S]*?)(?=###|$)/g);
+                  if (workMatches) {
+                    workMatches.forEach(match => {
+                      const lines = match.split('\n');
+                      const titleLine = lines[0]; // ### 公司名称 | 职位
+                      const deptLine = lines[1]; // **部门** | 时间段
+                      
+                      const titleMatch = titleLine.match(/### ([^|]+) \| (.+)/);
+                      const deptMatch = deptLine.match(/\*\*([^\*]+)\*\* \| (.+)/);
+                      
+                      if (titleMatch && deptMatch) {
+                        const company = titleMatch[1].trim();
+                        const position = titleMatch[2].trim();
+                        const department = deptMatch[1].trim();
+                        const duration = deptMatch[2].trim();
+                        
+                        // 提取工作描述（从第3行开始）并清理markdown格式
+                        const descriptionLines = lines.slice(2);
+                        let description = '';
+                        for (let line of descriptionLines) {
+                          if (line.trim() && !line.startsWith('###')) {
+                            // 清理markdown格式符号
+                            const cleanLine = line
+                              .replace(/\*\*([^*]+)\*\*/g, '$1') // 移除粗体标记
+                              .replace(/\*([^*]+)\*/g, '$1')     // 移除斜体标记
+                              .replace(/^[-*+]\s+/gm, '')       // 移除列表标记
+                              .replace(/^\s*\d+\.\s+/gm, '')    // 移除数字列表标记
+                              .replace(/^#+\s+/gm, '')         // 移除标题标记
+                              .trim();
+                            if (cleanLine) {
+                              description += cleanLine + ' ';
+                            }
+                          }
+                        }
+                        description = description.trim();
+                        
+                        experiences.push({ company, position, duration, description });
+                      }
+                    });
+                  }
+                }
+                return experiences.slice(0, 3); // 最多显示3段经历
+              }
+              return [];
+            };
+            
+            // 解析教育经历数据
+            const parseEducation = (resume) => {
+              if (resume.parsedContent) {
+                const content = resume.parsedContent;
+                const eduSectionMatch = content.match(/## 教育经历([\s\S]*?)(?=##|---)/i);
+                if (eduSectionMatch) {
+                  const eduSection = eduSectionMatch[1];
+                  const eduMatch = eduSection.match(/\*\*(.+?) \| (.+?) \| (.+?)\*\*\s*\n\*\*(.+?)\*\*/);
+                  if (eduMatch) {
+                    return {
+                      school: eduMatch[1].trim(),
+                      major: eduMatch[2].trim(),
+                      degree: eduMatch[3].trim(),
+                      duration: eduMatch[4].trim()
+                    };
+                  }
+                }
+              }
+              return null;
+            };
+            
+            // 解析联系方式
+            const parseContactInfo = (resume) => {
+              const contact = { email: '', phone: '' };
+              if (resume.parsedContent) {
+                const content = resume.parsedContent;
+                // 从基本信息中提取联系方式
+                const basicInfoMatch = content.match(/## 基本信息([\s\S]*?)(?=##|---)/i);
+                if (basicInfoMatch) {
+                  const basicSection = basicInfoMatch[1];
+                  // 提取邮箱
+                  const emailMatch = basicSection.match(/\*\*邮箱\*\*：(.+?)(?=\n|$)/i) || 
+                                   basicSection.match(/\*\*Email\*\*：(.+?)(?=\n|$)/i) ||
+                                   basicSection.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+                  if (emailMatch) {
+                    contact.email = emailMatch[1] ? emailMatch[1].trim() : emailMatch[0].trim();
+                  }
+                  // 提取电话
+                  const phoneMatch = basicSection.match(/\*\*电话\*\*：(.+?)(?=\n|$)/i) ||
+                                   basicSection.match(/\*\*手机\*\*：(.+?)(?=\n|$)/i) ||
+                                   basicSection.match(/(1[3-9]\d{9})/i);
+                  if (phoneMatch) {
+                    contact.phone = phoneMatch[1] ? phoneMatch[1].trim() : phoneMatch[0].trim();
+                  }
+                }
+              }
+              return contact;
+            };
+            
+            const candidateName = parseCandidateName(item);
+            const educationLevel = parseEducationLevel(item);
+            const workYears = parseWorkYears(item);
+            const expectedPosition = parseExpectedPosition(item);
+            const workExperiences = parseWorkExperience(item);
+            const education = parseEducation(item);
+            const contactInfo = parseContactInfo(item);
 
             return (
               <Col xs={24} sm={12} md={8} lg={6} key={item.id}>
                 <Card
                   hoverable
                   size="small"
-                  style={{ height: 'auto', minHeight: '280px' }}
+                  style={{ height: 'auto', minHeight: '400px' }}
                   styles={{ body: { padding: '16px' } }}
                   actions={[
                     <Button 
@@ -452,112 +562,96 @@ const ResumeLibrary = () => {
                       size="small"
                       type="link"
                       danger
-                      onClick={() => confirmDeleteResume(item.id, item.name)}
+                      onClick={() => confirmDeleteResume(item.id, candidateName)}
                     >
                       删除
                     </Button>
                   ]}
                 >
                   {/* 头像和姓名 */}
-                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '12px' }}>
                     <Avatar 
-                      size={56} 
+                      size={48} 
                       icon={<UserOutlined />}
-                      style={{ backgroundColor: '#1890ff', marginBottom: '8px' }}
+                      style={{ backgroundColor: '#1890ff', marginBottom: '6px' }}
                     />
                     <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#333' }}>
-                      {item.name}
+                      {candidateName}
                     </div>
                   </div>
 
-                  {/* 应聘职位 */}
-                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                    <Tag color="blue" style={{ fontSize: '14px', padding: '6px 12px', borderRadius: '16px' }}>
-                      {item.expectedPosition?.position || '未指定职位'}
+                  {/* 求职岗位 */}
+                  <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+                    <Tag color="blue" style={{ fontSize: '13px', padding: '4px 8px', borderRadius: '12px' }}>
+                      {expectedPosition}
                     </Tag>
                   </div>
 
-                  {/* 基本信息 */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <Tag color="green" style={{ fontSize: '12px' }}>
-                        {item.education || '未知学历'}
-                      </Tag>
-                      <Tag color="orange" style={{ fontSize: '12px' }}>
-                        {item.workYears || '0'}年经验
-                      </Tag>
-                    </div>
-                    
-                    {/* 年龄和状态信息 */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      {item.age && (
-                        <Tag color="cyan" style={{ fontSize: '12px' }}>
-                          {item.age}
-                        </Tag>
-                      )}
-                      {item.currentStatus && (
-                        <Tag color={item.currentStatus === '在职' ? 'success' : 'warning'} style={{ fontSize: '12px' }}>
-                          {item.currentStatus}
-                        </Tag>
-                      )}
-                    </div>
-                    
-                    <div style={{ marginBottom: '8px' }}>
-                      <Text type="secondary" style={{ fontSize: '11px' }}>
-                        来源: {
-                          item.source === 'boss' ? 'Boss直聘' :
-                          item.source === 'qcwy' ? '前程无忧' :
-                          item.source === 'zlzp' ? '智联招聘' :
-                          item.source === 'lagou' ? '拉勾网' :
-                          item.source === 'liepin' ? '猎聘网' :
-                          item.source === 'linkedin' ? 'LinkedIn' :
-                          item.source === 'manual' ? '手动添加' :
-                          item.source ? item.source : '未知来源'
-                        }
-                      </Text>
-                    </div>
+                  {/* 学历和工作年限 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <Tag color="green" style={{ fontSize: '11px' }}>
+                      {educationLevel}
+                    </Tag>
+                    <Tag color="orange" style={{ fontSize: '11px' }}>
+                      {workYears}年经验
+                    </Tag>
                   </div>
 
-
-
-                  {/* 亮点内容 */}
-                  {highlights.length > 0 && (
-                    <div style={{ marginBottom: '16px' }}>
-                      <Text type="secondary" style={{ fontSize: '11px', marginBottom: '6px', display: 'block' }}>
-                        亮点分析:
+                  {/* 工作经历 */}
+                  {workExperiences.length > 0 && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <Text strong style={{ fontSize: '12px', color: '#333', display: 'block', marginBottom: '6px' }}>
+                        💼 工作经历
                       </Text>
-                      <div>
-                        {highlights.map((highlight, index) => (
-                          <Tag 
-                            key={index} 
-                            size="small" 
-                            style={{ 
-                              marginBottom: '4px', 
-                              fontSize: '10px',
-                              backgroundColor: '#f6ffed',
-                              borderColor: '#b7eb8f',
-                              color: '#52c41a'
-                            }}
-                          >
-                            {highlight}
-                          </Tag>
-                        ))}
+                      {workExperiences.slice(0, 2).map((exp, index) => (
+                        <div key={index} style={{ marginBottom: '8px', padding: '6px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#333' }}>
+                            {exp.company} | {exp.position}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#666', marginBottom: '2px' }}>
+                            {exp.duration}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.3' }}>
+                            {exp.description.length > 50 ? exp.description.substring(0, 50) + '...' : exp.description}
+                          </div>
+                        </div>
+                      ))}
+                      {workExperiences.length > 2 && (
+                        <Text type="secondary" style={{ fontSize: '10px' }}>
+                          还有 {workExperiences.length - 2} 段工作经历...
+                        </Text>
+                      )}
+                      
+                      {/* 移除AI亮点分析功能 */}
+                    </div>
+                  )}
+
+                  {/* 教育经历 */}
+                  {education && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <Text strong style={{ fontSize: '12px', color: '#333', display: 'block', marginBottom: '6px' }}>
+                        🎓 教育经历
+                      </Text>
+                      <div style={{ padding: '6px', backgroundColor: '#f0f8ff', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '11px', color: '#333' }}>
+                          {education.school} | {education.major} | {education.degree} | {education.duration}
+                        </div>
                       </div>
                     </div>
                   )}
 
                   {/* 联系方式 */}
-                  <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-                      <MailOutlined style={{ fontSize: '12px', color: '#1890ff', marginRight: '6px' }} />
-                      <Text type="secondary" style={{ fontSize: '11px' }}>
-                        {item.email}
+                  <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '3px' }}>
+                      <MailOutlined style={{ fontSize: '11px', color: '#1890ff', marginRight: '4px' }} />
+                      <Text type="secondary" style={{ fontSize: '10px' }}>
+                        {contactInfo.email || '未提供邮箱'}
                       </Text>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <PhoneOutlined style={{ fontSize: '12px', color: '#1890ff', marginRight: '6px' }} />
-                      <Text type="secondary" style={{ fontSize: '11px' }}>
-                        {item.phone}
+                      <PhoneOutlined style={{ fontSize: '11px', color: '#1890ff', marginRight: '4px' }} />
+                      <Text type="secondary" style={{ fontSize: '10px' }}>
+                        {contactInfo.phone || '未提供电话'}
                       </Text>
                     </div>
                   </div>

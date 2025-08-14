@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Typography, Tag, Divider, Space, Button, Timeline, Descriptions } from 'antd';
+import ReactMarkdown from 'react-markdown';
 import { 
   CloseOutlined, 
   MailOutlined, 
@@ -187,24 +188,24 @@ const TimelineItem = styled.div`
 
 const ProjectItem = styled.div`
   margin-bottom: 16px;
-  
+
   .project-name {
     font-weight: 600;
     color: #333;
     margin-bottom: 4px;
   }
-  
+
   .project-role {
     color: #1890ff;
     margin-bottom: 4px;
   }
-  
+
   .project-time {
     color: #666;
     font-size: 12px;
     margin-bottom: 8px;
   }
-  
+
   .project-description {
     color: #666;
     font-size: 13px;
@@ -212,8 +213,163 @@ const ProjectItem = styled.div`
   }
 `;
 
+// Markdown内容样式
+const MarkdownContent = styled.div`
+  line-height: 1.6;
+  color: #333;
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: #1890ff;
+    margin: 16px 0 8px 0;
+    font-weight: 600;
+  }
+  
+  h1 { font-size: 20px; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 16px; }
+  h4 { font-size: 14px; }
+  
+  p {
+    margin: 8px 0;
+    color: #666;
+  }
+  
+  ul, ol {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+  
+  li {
+    margin: 4px 0;
+    color: #666;
+  }
+  
+  strong {
+    color: #333;
+    font-weight: 600;
+  }
+  
+  code {
+    background: #f5f5f5;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+  }
+  
+  blockquote {
+    border-left: 4px solid #1890ff;
+    padding-left: 12px;
+    margin: 8px 0;
+    color: #666;
+    font-style: italic;
+  }
+`;
+
+/**
+ * 清理 Markdown 内容，移除代码块标记
+ * @param {string} content - 原始内容
+ * @returns {string} 清理后的内容
+ */
+const cleanMarkdownContent = (content) => {
+  if (!content) return '';
+  
+  // 移除开头的 ```markdown 和结尾的 ```
+  return content
+    .replace(/^```markdown\s*\n/, '')
+    .replace(/\n```\s*$/, '')
+    .trim();
+};
+
 const ResumeDetailModal = ({ visible, onClose, resume }) => {
   if (!resume) return null;
+
+  /**
+   * 解析候选人姓名
+   */
+  const parseCandidateName = (resume) => {
+    if (resume.parsedContent) {
+      const content = resume.parsedContent;
+      // 匹配标题中的姓名
+      const titleMatch = content.match(/# (.+?) - /);
+      if (titleMatch) {
+        return titleMatch[1].trim();
+      }
+      // 匹配基本信息中的姓名
+      const nameMatch = content.match(/\*\*姓名\*\*：(.+?)\n/);
+      if (nameMatch) {
+        return nameMatch[1].trim();
+      }
+    }
+    return resume.name || '未知姓名';
+  };
+
+  /**
+   * 解析学历信息
+   */
+  const parseEducationLevel = (resume) => {
+    if (resume.parsedContent) {
+      const content = resume.parsedContent;
+      // 匹配教育经历中的学历
+      const eduMatch = content.match(/## 🎓 教育经历([\s\S]*?)(?=##|$)/);
+      if (eduMatch) {
+        const eduSection = eduMatch[1];
+        const degreeMatch = eduSection.match(/(博士|硕士|本科|大专|高中|中专)/);
+        if (degreeMatch) {
+          return degreeMatch[1];
+        }
+      }
+    }
+    return resume.education || '未知学历';
+  };
+
+  /**
+   * 解析工作年限
+   */
+  const parseWorkYears = (resume) => {
+    if (resume.parsedContent) {
+      const content = resume.parsedContent;
+      // 从自我评价中提取工作年限
+      const selfEvalMatch = content.match(/## 📌 自我评价([\s\S]*?)(?=##|$)/);
+      if (selfEvalMatch) {
+        const selfEval = selfEvalMatch[1];
+        const yearMatch = selfEval.match(/(\d+)年.*?经验/);
+        if (yearMatch) {
+          return yearMatch[1];
+        }
+      }
+    }
+    return resume.workYears || '0';
+  };
+
+  /**
+   * 解析求职岗位
+   */
+  const parseExpectedPosition = (resume) => {
+    if (resume.parsedContent) {
+      const content = resume.parsedContent;
+      // 匹配标题中的职位信息
+      const titleMatch = content.match(/# .*? - (.+?)\n/);
+      if (titleMatch) {
+        return titleMatch[1].trim();
+      }
+      // 匹配求职意向中的职位
+      const intentMatch = content.match(/## 🔍 求职意向([\s\S]*?)(?=##|$)/);
+      if (intentMatch) {
+        const intentSection = intentMatch[1];
+        const positionMatch = intentSection.match(/\*\*职位\*\*：(.+?)\n/);
+        if (positionMatch) {
+          return positionMatch[1].trim();
+        }
+      }
+    }
+    return resume.position || '未指定职位';
+  };
+
+  // 解析后的数据
+  const candidateName = parseCandidateName(resume);
+  const educationLevel = parseEducationLevel(resume);
+  const workYears = parseWorkYears(resume);
+  const expectedPosition = parseExpectedPosition(resume);
 
   // 生成亮点内容（基于技能和经验）
   const generateHighlights = (resume) => {
@@ -340,7 +496,7 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
   return (
     <BaseDrawer $visible={visible}>
       <BaseDrawerHeader>
-        <BaseDrawerTitle>简历详情 - {resume.name}</BaseDrawerTitle>
+        <BaseDrawerTitle>简历详情 - {candidateName}</BaseDrawerTitle>
         <BaseCloseButton onClick={onClose}>
           <CloseOutlined />
         </BaseCloseButton>
@@ -365,25 +521,25 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
               }}>
                 <UserOutlined />
               </div>
-              <Title level={3} style={{ margin: 0 }}>{resume.name}</Title>
+              <Title level={3} style={{ margin: 0 }}>{candidateName}</Title>
               <Tag color="blue" style={{ fontSize: '14px', padding: '4px 12px' }}>
-                {resume.position}
+                {expectedPosition}
               </Tag>
             </div>
             
             <Divider />
             
-            <Descriptions column={1} size="small" labelStyle={{ width: '80px', textAlign: 'left' }} contentStyle={{ textAlign: 'left' }}>
+            <Descriptions column={1} size="small" styles={{ label: { width: '80px', textAlign: 'left' }, content: { textAlign: 'left' } }}>
               {resume.age && (
                 <Descriptions.Item label="年龄">
                   <Tag color="cyan">{resume.age}</Tag>
                 </Descriptions.Item>
               )}
               <Descriptions.Item label="学历">
-                <Tag color="green">{resume.education || '未知学历'}</Tag>
+                <Tag color="green">{educationLevel}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="工作年限">
-                <Tag color="orange">{resume.workYears || '0'}年</Tag>
+                <Tag color="orange">{workYears}年</Tag>
               </Descriptions.Item>
               {resume.currentStatus && (
                 <Descriptions.Item label="目前状态">
@@ -414,8 +570,22 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
           </div>
         </BaseCard>
 
+        {/* Markdown格式简历内容 */}
+        {resume.parsedContent && resume.parseMethod === 'llm' && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>
+                <span>简历内容</span>
+              </SectionTitle>
+              <MarkdownContent>
+                <ReactMarkdown>{cleanMarkdownContent(resume.parsedContent)}</ReactMarkdown>
+              </MarkdownContent>
+            </div>
+          </BaseCard>
+        )}
+
         {/* 自我介绍 */}
-        {resume.selfIntroduction && (
+        {resume.selfIntroduction && !resume.parsedContent && (
           <BaseCard>
             <div style={{ padding: '20px' }}>
               <SectionTitle>自我介绍</SectionTitle>
@@ -427,7 +597,7 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
         )}
 
         {/* 期望职位 */}
-        {resume.expectedPosition && (
+        {resume.expectedPosition && !resume.parsedContent && (
           <BaseCard>
             <div style={{ padding: '20px' }}>
               <SectionTitle>期望职位</SectionTitle>
@@ -505,7 +675,7 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
         )}
 
         {/* 工作经历 */}
-        {resume.workExperience && resume.workExperience.length > 0 && (
+        {resume.workExperience && resume.workExperience.length > 0 && !resume.parsedContent && (
           <BaseCard>
             <div style={{ padding: '20px' }}>
               <SectionTitle>工作经历</SectionTitle>
@@ -538,7 +708,7 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
         )}
 
         {/* 教育经历 */}
-        {resume.educationExperience && resume.educationExperience.length > 0 && (
+        {resume.educationExperience && resume.educationExperience.length > 0 && !resume.parsedContent && (
           <BaseCard>
             <div style={{ padding: '20px' }}>
               <SectionTitle>教育经历</SectionTitle>
@@ -570,7 +740,7 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
         )}
 
         {/* 资格证书 */}
-        {resume.certificates && resume.certificates.length > 0 && (
+        {resume.certificates && resume.certificates.length > 0 && !resume.parsedContent && (
           <BaseCard>
             <div style={{ padding: '20px' }}>
               <SectionTitle>资格证书</SectionTitle>
@@ -608,7 +778,7 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
         )}
 
         {/* 志愿经历 */}
-        {resume.volunteerExperience && resume.volunteerExperience.length > 0 && (
+        {resume.volunteerExperience && resume.volunteerExperience.length > 0 && !resume.parsedContent && (
           <BaseCard>
             <div style={{ padding: '20px' }}>
               <SectionTitle>志愿经历</SectionTitle>
@@ -639,7 +809,7 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
         )}
 
         {/* 专业技能 */}
-        {resume.skills && resume.skills.length > 0 && (
+        {resume.skills && resume.skills.length > 0 && !resume.parsedContent && (
           <BaseCard>
             <div style={{ padding: '20px' }}>
               <SectionTitle>专业技能</SectionTitle>
@@ -655,18 +825,20 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
         )}
 
         {/* 亮点分析 */}
-        <BaseCard>
-          <div style={{ padding: '20px' }}>
-            <SectionTitle>亮点分析</SectionTitle>
-            <div>
-              {highlights.map((highlight, index) => (
-                <HighlightTag key={index}>
-                  {highlight}
-                </HighlightTag>
-              ))}
+        {!resume.parsedContent && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>亮点分析</SectionTitle>
+              <div>
+                {highlights.map((highlight, index) => (
+                  <HighlightTag key={index}>
+                    {highlight}
+                  </HighlightTag>
+                ))}
+              </div>
             </div>
-          </div>
-        </BaseCard>
+          </BaseCard>
+        )}
 
         {/* 操作按钮 */}
         <div style={{ padding: '20px', textAlign: 'center' }}>

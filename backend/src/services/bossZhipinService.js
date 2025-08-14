@@ -39,7 +39,13 @@ class BossZhipinService {
   /**
    * 执行候选人浏览任务 - 按照文档规范流程
    */
-  async executeBrowsingTask(mode, filters, targetCount = 50) {
+  /**
+   * 执行候选人浏览任务
+   * @param {string} mode - 浏览模式：'recommended'、'search'、'communication'
+   * @param {object} filters - 搜索筛选条件（仅在search模式下使用）
+   * @param {number} targetCount - 目标浏览候选人数量
+   */
+  async executeBrowsingTask(mode, filters, targetCount = 3) {
     try {
       logger.info(`开始执行候选人浏览任务，模式: ${mode}`);
       
@@ -63,9 +69,7 @@ class BossZhipinService {
         // 推荐牛人流程：直接在当前页面查找并点击"推荐牛人"按钮
         await this.browseRecommendedCandidates(targetCount);
       } else if (mode === 'search') {
-        // 搜索牛人流程：确保在招聘页面，然后配置筛选条件执行搜索
-        await this.navigateToRecruitmentPage();
-        await this.page.waitForTimeout(2000);
+        // 搜索牛人流程：直接在当前页面点击"搜索牛人"按钮，不需要额外导航
         await this.searchCandidates(filters, targetCount);
       } else if (mode === 'communication') {
         // 沟通版块浏览：直接在当前页面查找并点击"沟通"按钮
@@ -635,7 +639,7 @@ class BossZhipinService {
   /**
    * 启动候选人浏览
    */
-  async startBrowsing(mode = 'recommended', filters = {}, targetCount = 50) {
+  async startBrowsing(mode = 'recommended', filters = {}, targetCount = 3) {
     try {
       this.currentStatus = 'browsing';
       
@@ -673,15 +677,16 @@ class BossZhipinService {
 
   /**
    * 浏览推荐牛人 - 按照文档规范流程
+   * @param {number} targetCount - 目标浏览候选人数量
    */
-  async browseRecommendedCandidates(targetCount = 50) {
+  async browseRecommendedCandidates(targetCount = 3) {
     try {
       logger.info('开始浏览推荐牛人...');
       
       // 确保页面就绪
       await this.ensurePageReady();
       
-      // 尝试多种方式查找并点击"推荐牛人"按钮
+      // 尝试多种方式查找并点击"推荐牛人"按钮，直接在当前页面操作
       const recommendedSelectors = [
         'text=推荐牛人',
         '[data-testid="recommended-talents"]',
@@ -723,24 +728,35 @@ class BossZhipinService {
   }
 
   /**
-   * 搜索牛人 - 按照文档规范流程
+   * 搜索牛人 - 完整流程实现
+   * @param {object} filters - 筛选条件对象
+   * @param {number} targetCount - 目标浏览候选人数量
    */
-  async searchCandidates(filters, targetCount = 50) {
+  async searchCandidates(filters, targetCount = 3) {
     try {
       logger.info('开始搜索牛人...', filters);
       
-      // 点击"搜索牛人"按钮
+      // 导航到搜索牛人界面
       await this.page.click('text=搜索牛人');
-      await this.page.waitForTimeout(2000);
+      await this.page.waitForTimeout(3000);
       
-      // 按照文档要求：调用 Playwright 将用户配置的筛选条件应用到 Boss 直聘页面
-      await this.applySearchFilters(filters);
+      // 等待iframe加载完成
+      await this.waitForIframeLoad();
       
-      // 按照文档要求：自动点击"放大镜图标"执行搜索操作
-      await this.executeSearch();
+      // 获取iframe的locator
+      const iframe = await this.getSearchIframe();
+      if (!iframe) {
+        throw new Error('未找到搜索页面的iframe');
+      }
       
-      // 按照文档要求：后续操作与推荐牛人流程保持一致
-      await this.browseRecommendedCandidateList(targetCount);
+      // 在iframe上下文中应用筛选条件
+      await this.applyFiltersInIframe(iframe, filters);
+      
+      // 在iframe中执行搜索
+      await this.executeSearchInIframe(iframe);
+      
+      // 处理搜索结果中的候选人
+      await this.processSearchResults(iframe, targetCount);
       
     } catch (error) {
       logger.error('搜索牛人失败:', error);
@@ -750,12 +766,13 @@ class BossZhipinService {
 
   /**
    * 浏览沟通版块候选人 - 按照文档规范流程
+   * @param {number} targetCount - 目标浏览候选人数量
    */
-  async browseCommunicationCandidates(targetCount = 50) {
+  async browseCommunicationCandidates(targetCount = 3) {
     try {
       logger.info('开始浏览沟通版块候选人...');
       
-      // 点击"沟通"按钮
+      // 直接点击"沟通"按钮，导航到沟通界面
       await this.page.click('text=沟通');
       await this.page.waitForTimeout(2000);
       
@@ -781,7 +798,7 @@ class BossZhipinService {
    * 系统识别页面上的候选人卡片，按顺序从上到下依次点击候选人卡片
    * 当页面候选人浏览完毕时，自动向下滚动刷新更多候选人
    */
-  async browseRecommendedCandidateList(targetCount = 50) {
+  async browseRecommendedCandidateList(targetCount = 3) {
     try {
       let candidateCount = 0;
       const maxCandidates = targetCount; // 目标浏览数量
@@ -838,7 +855,7 @@ class BossZhipinService {
           if (candidateCount >= maxCandidates) break;
           
           try {
-            logger.info(`正在处理第 ${candidateCount + 1} 个候选人...`);
+            logger.info(`正在采集第 ${candidateCount + 1} 份简历...`);
             
             // 在候选人卡片内查找"打招呼"按钮
             const greetButton = await card.$('button:has-text("打招呼"), a:has-text("打招呼"), [class*="greet"], [class*="chat"]');
@@ -895,7 +912,7 @@ class BossZhipinService {
         previousGreetButtonCount = candidateCards.length;
       }
       
-      logger.info(`推荐候选人浏览完成，共处理 ${candidateCount} 人`);
+      logger.info(`简历采集完成，共采集 ${candidateCount} 份简历`);
       
     } catch (error) {
       logger.error('浏览推荐候选人列表失败:', error);
@@ -2032,74 +2049,674 @@ class BossZhipinService {
   /**
    * 应用搜索筛选条件
    */
-  async applySearchFilters(filters) {
+  /**
+   * 应用搜索筛选条件（旧版本，保留兼容性）
+   * @param {object} filters - 筛选条件对象
+   */
+  async applySearchFiltersLegacy(filters) {
     try {
       logger.info('应用搜索筛选条件:', filters);
       
-      // 职位筛选
-      if (filters.position) {
-        const positionInput = await this.page.$('input[placeholder*="职位"], input[placeholder*="岗位"]');
-        if (positionInput) {
-          await positionInput.fill(filters.position);
-          await this.page.waitForTimeout(500);
+      // 等待页面加载完成
+      await this.page.waitForLoadState('networkidle');
+      await this.page.waitForTimeout(2000);
+      
+      // 学历要求筛选
+      if (filters.education && filters.education !== '') {
+        logger.info(`设置学历要求筛选: ${filters.education}`);
+        try {
+          const educationSelectors = [
+            'text=学历',
+            'text=学历要求',
+            'text=最低学历',
+            '.filter-education',
+            '[data-filter="education"]'
+          ];
+          
+          for (const selector of educationSelectors) {
+            const element = await this.page.$(selector);
+            if (element) {
+              await element.click();
+              await this.page.waitForTimeout(500);
+              
+              const optionElement = await this.page.$(`text=${filters.education}`);
+              if (optionElement) {
+                await optionElement.click();
+                await this.page.waitForTimeout(500);
+                logger.info(`学历要求筛选设置成功: ${filters.education}`);
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          logger.warn('学历要求筛选设置失败:', error.message);
         }
       }
       
-      // 地区筛选
-      if (filters.location) {
-        const locationInput = await this.page.$('input[placeholder*="地区"], input[placeholder*="城市"]');
-        if (locationInput) {
-          await locationInput.fill(filters.location);
-          await this.page.waitForTimeout(500);
+      // 院校要求筛选
+      if (filters.university && filters.university !== '') {
+        logger.info(`设置院校要求筛选: ${filters.university}`);
+        try {
+          const universitySelectors = [
+            'text=院校',
+            'text=院校要求',
+            'text=毕业院校',
+            'text=学校类型',
+            '.filter-university',
+            '[data-filter="university"]'
+          ];
+          
+          for (const selector of universitySelectors) {
+            const element = await this.page.$(selector);
+            if (element) {
+              await element.click();
+              await this.page.waitForTimeout(500);
+              
+              const optionElement = await this.page.$(`text=${filters.university}`);
+              if (optionElement) {
+                await optionElement.click();
+                await this.page.waitForTimeout(500);
+                logger.info(`院校要求筛选设置成功: ${filters.university}`);
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          logger.warn('院校要求筛选设置失败:', error.message);
         }
       }
       
-      // 工作经验筛选
-      if (filters.experience) {
-        const experienceSelector = await this.page.$('select[name*="experience"], .experience-filter');
-        if (experienceSelector) {
-          await experienceSelector.selectOption(filters.experience);
-          await this.page.waitForTimeout(500);
+      // 经验要求筛选
+      if (filters.experience && filters.experience !== '') {
+        logger.info(`设置经验要求筛选: ${filters.experience}`);
+        try {
+          const experienceSelectors = [
+            'text=工作经验',
+            'text=经验要求',
+            'text=工作年限',
+            '.filter-experience',
+            '[data-filter="experience"]'
+          ];
+          
+          for (const selector of experienceSelectors) {
+            const element = await this.page.$(selector);
+            if (element) {
+              await element.click();
+              await this.page.waitForTimeout(500);
+              
+              const optionElement = await this.page.$(`text=${filters.experience}`);
+              if (optionElement) {
+                await optionElement.click();
+                await this.page.waitForTimeout(500);
+                logger.info(`经验要求筛选设置成功: ${filters.experience}`);
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          logger.warn('经验要求筛选设置失败:', error.message);
         }
       }
       
-      // 薪资筛选
-      if (filters.salary) {
-        const salarySelector = await this.page.$('select[name*="salary"], .salary-filter');
-        if (salarySelector) {
-          await salarySelector.selectOption(filters.salary);
-          await this.page.waitForTimeout(500);
+      // 年龄要求筛选
+      if (filters.age && filters.age !== '') {
+        logger.info(`设置年龄要求筛选: ${filters.age}`);
+        try {
+          const ageSelectors = [
+            'text=年龄',
+            'text=年龄要求',
+            'text=年龄范围',
+            '.filter-age',
+            '[data-filter="age"]'
+          ];
+          
+          for (const selector of ageSelectors) {
+            const element = await this.page.$(selector);
+            if (element) {
+              await element.click();
+              await this.page.waitForTimeout(500);
+              
+              const optionElement = await this.page.$(`text=${filters.age}`);
+              if (optionElement) {
+                await optionElement.click();
+                await this.page.waitForTimeout(500);
+                logger.info(`年龄要求筛选设置成功: ${filters.age}`);
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          logger.warn('年龄要求筛选设置失败:', error.message);
         }
       }
+      
+      logger.info('筛选条件应用完成');
       
     } catch (error) {
       logger.error('应用搜索筛选条件失败:', error);
       throw error;
     }
   }
+  
+
 
   /**
-   * 执行搜索操作
+   * 等待iframe加载完成
    */
-  async executeSearch() {
+  async waitForIframeLoad() {
     try {
-      logger.info('执行搜索操作...');
+      logger.info('等待iframe加载完成...');
+      await this.page.waitForTimeout(3000);
       
-      // 自动点击"放大镜图标"执行搜索操作
-      const searchButton = await this.page.$('button[type="submit"], .search-btn, button:has-text("搜索"), [class*="search-icon"]');
-      if (searchButton) {
-        await searchButton.click();
-        await this.page.waitForTimeout(3000); // 等待搜索结果加载
-        logger.info('搜索操作执行成功');
+      // 等待iframe元素出现
+      await this.page.waitForSelector('iframe', { timeout: 10000 });
+      logger.info('iframe加载完成');
+      
+    } catch (error) {
+      logger.warn('等待iframe加载超时:', error.message);
+    }
+  }
+
+  /**
+   * 获取搜索页面的iframe
+   */
+  async getSearchIframe() {
+    try {
+      logger.info('获取搜索页面iframe...');
+      
+      const iframes = await this.page.$$('iframe');
+      logger.info(`发现 ${iframes.length} 个iframe`);
+      
+      for (let i = 0; i < iframes.length; i++) {
+        const iframe = iframes[i];
+        const src = await iframe.getAttribute('src');
+        logger.info(`iframe ${i + 1} src: ${src}`);
+        
+        // 检查是否是搜索相关的iframe
+        if (src && (src.includes('geek') || src.includes('search') || src.includes('talent'))) {
+          const frame = await iframe.contentFrame();
+          if (frame) {
+            logger.info('找到搜索页面iframe');
+            return frame;
+          }
+        }
+      }
+      
+      // 如果没找到特定的iframe，返回第一个
+      if (iframes.length > 0) {
+        const frame = await iframes[0].contentFrame();
+        if (frame) {
+          logger.info('使用第一个iframe');
+          return frame;
+        }
+      }
+      
+      return null;
+      
+    } catch (error) {
+      logger.error('获取搜索iframe失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 在iframe中应用筛选条件
+   */
+  async applyFiltersInIframe(frame, filters) {
+    try {
+      logger.info('在iframe中应用筛选条件:', filters);
+      
+      // 等待筛选区域加载
+      await frame.waitForTimeout(2000);
+      
+      // 定位筛选区域
+      const filterContainer = await frame.$('div.check-params-options-content, div.check-params-options-content-1015gray, div.check-param-options-content-1013gray');
+      if (!filterContainer) {
+        logger.warn('未找到筛选区域容器');
+        return;
+      }
+      
+      logger.info('找到筛选区域容器');
+      
+      // 应用学历筛选
+      if (filters.education && filters.education !== '不限') {
+        await this.applyFilterOption(frame, filters.education, '学历');
+      }
+      
+      // 应用院校筛选
+      if (filters.university && filters.university !== '不限') {
+        await this.applyFilterOption(frame, filters.university, '院校');
+      }
+      
+      // 应用经验筛选
+      if (filters.experience && filters.experience !== '不限') {
+        await this.applyFilterOption(frame, filters.experience, '经验');
+      }
+      
+      // 应用年龄筛选
+      if (filters.age && filters.age !== '不限') {
+        await this.applyFilterOption(frame, filters.age, '年龄');
+      }
+      
+      logger.info('筛选条件应用完成');
+      
+    } catch (error) {
+      logger.error('在iframe中应用筛选条件失败:', error);
+    }
+  }
+
+  /**
+   * 应用单个筛选选项
+   */
+  async applyFilterOption(frame, optionText, filterType) {
+    try {
+      logger.info(`应用${filterType}筛选: ${optionText}`);
+      
+      // 等待页面稳定
+      await frame.waitForTimeout(1000);
+      
+      // 多种选择器策略查找筛选选项
+      const selectors = [
+        `text=${optionText}`,
+        `[title="${optionText}"]`,
+        `span:has-text("${optionText}")`,
+        `div:has-text("${optionText}")`,
+        `li:has-text("${optionText}")`,
+        `a:has-text("${optionText}")`
+      ];
+      
+      let optionElement = null;
+      for (const selector of selectors) {
+        try {
+          optionElement = await frame.$(selector);
+          if (optionElement) {
+            // 检查元素是否可见
+            const isVisible = await optionElement.isVisible();
+            if (isVisible) {
+              break;
+            } else {
+              optionElement = null;
+            }
+          }
+        } catch (e) {
+          // 继续尝试下一个选择器
+          continue;
+        }
+      }
+      
+      if (optionElement) {
+        // 滚动到元素可见位置
+        await optionElement.scrollIntoViewIfNeeded();
+        await frame.waitForTimeout(500);
+        
+        // 点击元素
+        await optionElement.click();
+        await frame.waitForTimeout(1000);
+        logger.info(`${filterType}筛选应用成功: ${optionText}`);
       } else {
-        logger.warn('未找到搜索按钮，尝试按回车键执行搜索');
-        await this.page.keyboard.press('Enter');
-        await this.page.waitForTimeout(3000);
+        logger.warn(`未找到${filterType}筛选选项: ${optionText}`);
       }
       
     } catch (error) {
-      logger.error('执行搜索操作失败:', error);
-      throw error;
+      logger.warn(`应用${filterType}筛选失败:`, error.message);
+    }
+  }
+
+  /**
+   * 在iframe中执行搜索
+   */
+  async executeSearchInIframe(frame) {
+    try {
+      logger.info('在iframe中执行搜索...');
+      
+      // 查找搜索图标并点击
+      const searchIcon = await frame.$('i.icon-search');
+      if (searchIcon) {
+        await searchIcon.click();
+        await frame.waitForTimeout(3000);
+        logger.info('搜索执行成功');
+      } else {
+        logger.warn('未找到搜索图标，尝试其他搜索按钮');
+        const searchButton = await frame.$('button[type="submit"], .search-btn, button:has-text("搜索")');
+        if (searchButton) {
+          await searchButton.click();
+          await frame.waitForTimeout(3000);
+          logger.info('搜索执行成功');
+        } else {
+          logger.error('未找到任何搜索按钮');
+        }
+      }
+      
+    } catch (error) {
+       logger.error('在iframe中执行搜索失败:', error);
+     }
+   }
+
+  /**
+   * 处理搜索结果中的候选人
+   */
+  async processSearchResults(frame, targetCount = 3) {
+    try {
+      logger.info('开始处理搜索结果中的候选人...');
+      
+      // 等待搜索结果加载
+      await frame.waitForTimeout(3000);
+      
+      // 查找候选人卡片
+      const candidateCards = await frame.$$('div.card-container');
+      logger.info(`找到 ${candidateCards.length} 个候选人卡片`);
+      
+      const processCount = Math.min(candidateCards.length, targetCount);
+      
+      for (let i = 0; i < processCount; i++) {
+        try {
+          logger.info(`处理第 ${i + 1} 个候选人...`);
+          
+          // 点击候选人卡片
+          await candidateCards[i].click();
+          await frame.waitForTimeout(2000);
+          
+          // 提取并导入简历
+          await this.extractAndImportResume(frame, i + 1);
+          
+          // 关闭简历页面，返回列表
+          await this.closeResumeAndReturnToList(frame);
+          
+          // 等待页面稳定
+          await frame.waitForTimeout(1000);
+          
+        } catch (error) {
+          logger.error(`处理第 ${i + 1} 个候选人失败:`, error.message);
+          continue;
+        }
+      }
+      
+      logger.info('搜索结果处理完成');
+      
+    } catch (error) {
+      logger.error('处理搜索结果失败:', error);
+    }
+  }
+
+  /**
+   * 提取并导入简历
+   */
+  async extractAndImportResume(frame, candidateIndex) {
+    try {
+      logger.info(`提取第 ${candidateIndex} 个候选人简历...`);
+      
+      // 等待在线简历加载
+      await frame.waitForTimeout(2000);
+      
+      // 在主页面中查找简历详情容器（不在iframe中）
+      const page = frame.page();
+      const resumeDetailWrap = await page.$('div.resume-detail-wrap');
+      if (!resumeDetailWrap) {
+        logger.warn('未找到简历详情容器 div.resume-detail-wrap，尝试其他选择器');
+        // 尝试其他可能的选择器
+        const alternativeSelectors = [
+          '.resume-detail',
+          '.resume-content',
+          '.resume-info',
+          '[class*="resume"][class*="detail"]',
+          '[class*="resume"][class*="wrap"]',
+          '.resume-container',
+          '.geek-resume'
+        ];
+        
+        let resumeContainer = null;
+        for (const selector of alternativeSelectors) {
+          resumeContainer = await page.$(selector);
+          if (resumeContainer) {
+            logger.info(`找到替代简历容器: ${selector}`);
+            break;
+          }
+        }
+        
+        if (!resumeContainer) {
+          logger.warn('未找到任何简历容器元素');
+          return;
+        }
+      }
+      
+      // 在主页面中提取简历内容
+      const resumeContent = await page.evaluate(() => {
+        const resumeWrap = document.querySelector('div.resume-detail-wrap') || 
+                          document.querySelector('.resume-detail') ||
+                          document.querySelector('.resume-content') ||
+                          document.querySelector('.resume-info') ||
+                          document.querySelector('.resume-container') ||
+                          document.querySelector('.geek-resume');
+        
+        if (!resumeWrap) return '';
+        
+        // 获取简历容器内的文本内容
+        const allText = resumeWrap.innerText || resumeWrap.textContent || '';
+        
+        return allText.trim();
+      });
+      
+      if (!resumeContent) {
+        logger.warn('未能提取到简历内容');
+        return;
+      }
+      
+      logger.info(`简历内容提取成功，长度: ${resumeContent.length}`);
+      
+      // 复制简历内容到剪贴板
+      await this.copyToClipboard(resumeContent);
+      
+      // 打开应用前端并导入简历
+      await this.importResumeToApp(resumeContent, candidateIndex);
+      
+    } catch (error) {
+      logger.error('提取并导入简历失败:', error);
+    }
+  }
+
+  /**
+   * 复制内容到剪贴板
+   */
+  async copyToClipboard(content) {
+    try {
+      await this.page.evaluate((text) => {
+        navigator.clipboard.writeText(text);
+      }, content);
+      logger.info('内容已复制到剪贴板');
+    } catch (error) {
+      logger.warn('复制到剪贴板失败:', error.message);
+    }
+  }
+
+  /**
+   * 导入简历到应用
+   */
+  async importResumeToApp(resumeContent, candidateIndex) {
+    try {
+      logger.info(`导入第 ${candidateIndex} 个候选人简历到应用...`);
+      
+      // 打开新标签页到应用前端
+      const appPage = await this.browser.newPage();
+      await appPage.goto('http://localhost:3000');
+      await appPage.waitForTimeout(2000);
+      
+      // 定位到"简历列表"
+      await appPage.click('text=简历列表');
+      await appPage.waitForTimeout(1000);
+      
+      // 点击"上传简历"按钮
+      await appPage.click('text=上传简历');
+      await appPage.waitForTimeout(1000);
+      
+      // 定位Boss直聘简历文本框并粘贴内容
+      const textArea = await appPage.$('textarea, .boss-resume-input, [placeholder*="Boss"], [placeholder*="简历"]');
+      if (textArea) {
+        await textArea.fill(resumeContent);
+        await appPage.waitForTimeout(500);
+        
+        // 点击"解析Boss直聘简历"按钮
+        await appPage.click('text=解析Boss直聘简历');
+        
+        // 等待解析开始（给系统一些时间开始处理）
+        await appPage.waitForTimeout(3000);
+        
+        // 点击"确认添加"按钮，带重试机制（每8秒重试一次，最多10次）
+        const addSuccess = await this.clickConfirmWithRetry(appPage);
+        
+        if (!addSuccess) {
+          logger.warn(`第 ${candidateIndex} 个候选人简历添加失败`);
+        }
+        
+        logger.info(`第 ${candidateIndex} 个候选人简历导入成功`);
+      } else {
+        logger.warn('未找到简历输入框');
+      }
+      
+      // 关闭应用页面
+      await appPage.close();
+      
+    } catch (error) {
+      logger.error('导入简历到应用失败:', error);
+    }
+  }
+
+  /**
+   * 带重试机制的确认添加按钮点击
+   * 增加重试次数和等待时间，适应简历解析的长时间处理
+   */
+  async clickConfirmWithRetry(page, maxRetries = 10) {
+    logger.info(`开始确认添加重试机制，最大重试次数: ${maxRetries}`);
+    
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        logger.info(`第 ${i + 1} 次尝试点击确认添加按钮...`);
+        
+        // 多种选择器策略查找确认添加按钮
+        const confirmSelectors = [
+          'text=确认添加',
+          'button:has-text("确认添加")',
+          '[class*="confirm"][class*="add"]',
+          'button[type="submit"]',
+          '.confirm-btn',
+          '.add-btn'
+        ];
+        
+        let confirmButton = null;
+        for (const selector of confirmSelectors) {
+          try {
+            confirmButton = await page.$(selector);
+            if (confirmButton) {
+              const isVisible = await confirmButton.isVisible();
+              const isEnabled = await confirmButton.isEnabled();
+              if (isVisible && isEnabled) {
+                logger.info(`找到可用的确认添加按钮: ${selector}`);
+                break;
+              } else {
+                confirmButton = null;
+              }
+            }
+          } catch (e) {
+            // 继续尝试下一个选择器
+            continue;
+          }
+        }
+        
+        if (confirmButton) {
+          await confirmButton.click();
+          await page.waitForTimeout(2000);
+          
+          // 检查是否出现新弹窗确认
+          const modalConfirm = await page.$('text=确认');
+          if (modalConfirm) {
+            await modalConfirm.click();
+            logger.info('简历添加确认完成');
+            return true;
+          }
+          
+          // 检查是否添加成功（页面跳转或出现成功提示）
+          const successIndicators = [
+            'text=添加成功',
+            'text=保存成功',
+            '.success-message',
+            '.toast-success'
+          ];
+          
+          for (const indicator of successIndicators) {
+            const successElement = await page.$(indicator);
+            if (successElement) {
+              logger.info('检测到成功提示，简历添加完成');
+              return true;
+            }
+          }
+        } else {
+          logger.warn(`第 ${i + 1} 次未找到确认添加按钮`);
+        }
+        
+        // 等待8秒后重试
+        logger.info('等待8秒后进行下一次重试...');
+        await page.waitForTimeout(8000);
+        
+      } catch (error) {
+        logger.warn(`第 ${i + 1} 次点击确认添加失败:`, error.message);
+        await page.waitForTimeout(8000);
+      }
+    }
+    
+    logger.error('确认添加按钮点击失败，已达到最大重试次数');
+    return false;
+  }
+
+  /**
+   * 关闭简历页面并返回列表
+   */
+  async closeResumeAndReturnToList(frame) {
+    try {
+      logger.info('关闭简历页面...');
+      
+      // 在主页面中查找关闭按钮（不在iframe中）
+      const page = frame.page();
+      const closeSelectors = [
+        'i.icon-close',
+        '.close-btn',
+        '[class*="close"]',
+        'button[title="关闭"]',
+        'button[aria-label="关闭"]',
+        '.modal-close',
+        '.dialog-close',
+        'i[class*="close"]',
+        'span[class*="close"]'
+      ];
+      
+      let closeButton = null;
+      for (const selector of closeSelectors) {
+        try {
+          closeButton = await page.$(selector);
+          if (closeButton) {
+            const isVisible = await closeButton.isVisible();
+            if (isVisible) {
+              break;
+            } else {
+              closeButton = null;
+            }
+          }
+        } catch (e) {
+          // 继续尝试下一个选择器
+          continue;
+        }
+      }
+      
+      if (closeButton) {
+        await closeButton.click();
+        await page.waitForTimeout(1000);
+        logger.info('简历页面已关闭');
+      } else {
+        logger.warn('未找到关闭按钮，尝试按ESC键');
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(1000);
+      }
+      
+    } catch (error) {
+      logger.error('关闭简历页面失败:', error);
     }
   }
 

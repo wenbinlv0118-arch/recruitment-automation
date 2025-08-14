@@ -62,7 +62,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
     return false; // 阻止默认上传行为
   }, []);
 
-  // 处理Boss直聘简历解析
+  // 处理Boss直聘简历解析（使用大模型）
   const handleBossResumeParseText = useCallback(async () => {
     const textValue = form.getFieldValue('bossResumeText');
     if (!textValue || textValue.trim().length < 50) {
@@ -72,7 +72,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
     
     setLoading(true);
     try {
-      const response = await fetch('/api/resume/parse-text', {
+      const response = await fetch('/api/resume/parse-boss-resume', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -83,8 +83,15 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       const result = await response.json();
       
       if (result.success) {
-        setParsedResume(result.data);
-        message.success('Boss直聘简历解析成功');
+        // 设置解析结果，包含大模型返回的markdown格式内容
+        setParsedResume({
+          name: '大模型解析结果',
+          parsedContent: result.data.parsedContent,
+          parseMethod: 'llm',
+          originalText: result.data.originalText,
+          timestamp: result.data.timestamp
+        });
+        message.success('Boss直聘简历解析成功（使用大模型）');
       } else {
         message.error(result.error || 'Boss直聘简历解析失败');
       }
@@ -216,7 +223,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
                   <>
                     <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f6f8fa' }}>
                       <Text type="secondary">
-                        请将Boss直聘上的候选人简历文本复制粘贴到下方文本框中，系统将自动解析并结构化存储。
+                        请将Boss直聘上的候选人简历文本复制粘贴到下方文本框中，系统将使用大模型AI自动解析并以Markdown格式输出结构化简历。
                       </Text>
                     </Card>
                     
@@ -251,6 +258,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
                 <Space>
                   <UserOutlined />
                   <span>解析结果</span>
+
                   {parsedResume.qualityScore && (
                     <Tag color={parsedResume.qualityScore >= 80 ? 'success' : parsedResume.qualityScore >= 60 ? 'warning' : 'error'}>
                       质量评分: {parsedResume.qualityScore}分
@@ -260,130 +268,158 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
               )}
               size="small" 
               style={{ marginTop: 16, marginBottom: 16, maxHeight: '600px', overflow: 'auto' }}
-              bodyStyle={{ padding: '16px' }}
+              styles={{ body: { padding: '16px' } }}
             >
-              <Descriptions column={1} size="small" labelStyle={{ width: '80px' }}>
-                <Descriptions.Item label="姓名">
-                  <Tag color="blue">{parsedResume.name || '未识别'}</Tag>
-                </Descriptions.Item>
-                {parsedResume.age && (
-                  <Descriptions.Item label="年龄">
-                    <Tag color="cyan">{parsedResume.age}</Tag>
-                  </Descriptions.Item>
-                )}
-                {parsedResume.workYears && (
-                  <Descriptions.Item label="工作年限">
-                    <Tag color="orange">{parsedResume.workYears}年</Tag>
-                  </Descriptions.Item>
-                )}
-                {(parsedResume.education || (parsedResume.educationExperience && parsedResume.educationExperience[0]?.degree)) && (
-                  <Descriptions.Item label="学历">
-                    <Tag color="green">
-                      {parsedResume.education || parsedResume.educationExperience[0]?.degree}
-                    </Tag>
-                  </Descriptions.Item>
-                )}
-                {parsedResume.currentStatus && (
-                  <Descriptions.Item label="目前状态">
-                    <Tag color={parsedResume.currentStatus === '在职' ? 'success' : 'warning'}>
-                      {parsedResume.currentStatus}
-                    </Tag>
-                  </Descriptions.Item>
-                )}
-                {parsedResume.phone && (
-                  <Descriptions.Item label="电话">
-                    <Space><PhoneOutlined />{parsedResume.phone}</Space>
-                  </Descriptions.Item>
-                )}
-                {parsedResume.email && (
-                  <Descriptions.Item label="邮箱">
-                    <Space><MailOutlined />{parsedResume.email}</Space>
-                  </Descriptions.Item>
-                )}
-              </Descriptions>
-              
-              {parsedResume.expectedPosition && (
-                <>
-                  <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>期望职位</Divider>
-                  <Space wrap>
-                    {parsedResume.expectedPosition.position && (
-                      <Tag color="purple">{parsedResume.expectedPosition.position}</Tag>
+              {/* 大模型解析结果显示 */}
+              {parsedResume.parseMethod === 'llm' ? (
+                <div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <Text type="secondary">解析时间: {new Date(parsedResume.timestamp).toLocaleString()}</Text>
+                  </div>
+                  <div style={{ 
+                    backgroundColor: '#f6f8fa', 
+                    padding: '16px', 
+                    borderRadius: '6px',
+                    border: '1px solid #e1e4e8',
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+                    fontSize: '13px',
+                    lineHeight: '1.6'
+                  }}>
+                    {parsedResume.parsedContent}
+                  </div>
+                </div>
+              ) : (
+                /* 原有的结构化显示 */
+                <div>
+                  <Descriptions column={1} size="small" labelStyle={{ width: '80px' }}>
+                    <Descriptions.Item label="姓名">
+                      <Tag color="blue">{parsedResume.name || '未识别'}</Tag>
+                    </Descriptions.Item>
+                    {parsedResume.age && (
+                      <Descriptions.Item label="年龄">
+                        <Tag color="cyan">{parsedResume.age}</Tag>
+                      </Descriptions.Item>
                     )}
-                    {parsedResume.expectedPosition.location && (
-                      <Tag color="blue"><EnvironmentOutlined /> {parsedResume.expectedPosition.location}</Tag>
+                    {parsedResume.workYears && (
+                      <Descriptions.Item label="工作年限">
+                        <Tag color="orange">{parsedResume.workYears}年</Tag>
+                      </Descriptions.Item>
                     )}
-                    {parsedResume.expectedPosition.salary && (
-                      <Tag color="gold">{parsedResume.expectedPosition.salary}</Tag>
+                    {(parsedResume.education || (parsedResume.educationExperience && parsedResume.educationExperience[0]?.degree)) && (
+                      <Descriptions.Item label="学历">
+                        <Tag color="green">
+                          {parsedResume.education || parsedResume.educationExperience[0]?.degree}
+                        </Tag>
+                      </Descriptions.Item>
                     )}
-                  </Space>
-                </>
-              )}
-              
-              {parsedResume.workExperience && parsedResume.workExperience.length > 0 && (
-                <>
-                  <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>工作经历</Divider>
-                  <List
-                    size="small"
-                    dataSource={parsedResume.workExperience}
-                    renderItem={(exp, index) => (
-                      <List.Item key={index} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-                        <div style={{ width: '100%' }}>
-                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                            <BuildOutlined style={{ marginRight: '4px' }} />
-                            {exp.company} - {exp.position}
-                          </div>
-                          <div style={{ color: '#666', fontSize: '12px', marginBottom: '4px' }}>
-                            <CalendarOutlined style={{ marginRight: '4px' }} />
-                            {exp.duration}
-                          </div>
-                          {exp.description && (
-                            <div style={{ fontSize: '12px', color: '#888' }}>
-                              {exp.description}
+                    {parsedResume.currentStatus && (
+                      <Descriptions.Item label="目前状态">
+                        <Tag color={parsedResume.currentStatus === '在职' ? 'success' : 'warning'}>
+                          {parsedResume.currentStatus}
+                        </Tag>
+                      </Descriptions.Item>
+                    )}
+                    {parsedResume.phone && (
+                      <Descriptions.Item label="电话">
+                        <Space><PhoneOutlined />{parsedResume.phone}</Space>
+                      </Descriptions.Item>
+                    )}
+                    {parsedResume.email && (
+                      <Descriptions.Item label="邮箱">
+                        <Space><MailOutlined />{parsedResume.email}</Space>
+                      </Descriptions.Item>
+                    )}
+                  </Descriptions>
+                  
+                  {parsedResume.expectedPosition && (
+                    <>
+                      <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>期望职位</Divider>
+                      <Space wrap>
+                        {parsedResume.expectedPosition.position && (
+                          <Tag color="purple">{parsedResume.expectedPosition.position}</Tag>
+                        )}
+                        {parsedResume.expectedPosition.location && (
+                          <Tag color="blue"><EnvironmentOutlined /> {parsedResume.expectedPosition.location}</Tag>
+                        )}
+                        {parsedResume.expectedPosition.salary && (
+                          <Tag color="gold">{parsedResume.expectedPosition.salary}</Tag>
+                        )}
+                      </Space>
+                    </>
+                  )}
+                  
+                  {parsedResume.workExperience && parsedResume.workExperience.length > 0 && (
+                    <>
+                      <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>工作经历</Divider>
+                      <List
+                        size="small"
+                        dataSource={parsedResume.workExperience.slice(0, 3)}
+                        renderItem={(item, index) => (
+                          <List.Item key={index}>
+                            <div style={{ width: '100%' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <Text strong>{item.company}</Text>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                  <CalendarOutlined /> {item.duration}
+                                </Text>
+                              </div>
+                              <div style={{ marginBottom: '4px' }}>
+                                <Tag color="blue">{item.position}</Tag>
+                                {item.department && <Tag color="cyan">{item.department}</Tag>}
+                              </div>
+                              {item.description && (
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                                  {item.description.length > 100 ? item.description.substring(0, 100) + '...' : item.description}
+                                </Text>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      </List.Item>
-                    )}
-                  />
-                </>
-              )}
-              
-              {parsedResume.educationExperience && parsedResume.educationExperience.length > 0 && (
-                <>
-                  <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>教育背景</Divider>
-                  <List
-                    size="small"
-                    dataSource={parsedResume.educationExperience}
-                    renderItem={(edu, index) => (
-                      <List.Item key={index} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-                        <div style={{ width: '100%' }}>
-                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                            <BookOutlined style={{ marginRight: '4px' }} />
-                            {edu.school} - {edu.major}
-                          </div>
-                          <div style={{ color: '#666', fontSize: '12px' }}>
-                            <CalendarOutlined style={{ marginRight: '4px' }} />
-                            {edu.duration} | {edu.degree}
-                          </div>
-                        </div>
-                      </List.Item>
-                    )}
-                  />
-                </>
-              )}
-              
-              {parsedResume.skills && parsedResume.skills.length > 0 && (
-                <>
-                  <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>技能标签</Divider>
-                  <Space wrap>
-                    {parsedResume.skills.slice(0, 12).map((skill, index) => (
-                      <Tag key={index} color="processing">{skill}</Tag>
-                    ))}
-                    {parsedResume.skills.length > 12 && (
-                      <Tag>+{parsedResume.skills.length - 12}</Tag>
-                    )}
-                  </Space>
-                </>
+                          </List.Item>
+                        )}
+                      />
+                    </>
+                  )}
+                  
+                  {parsedResume.educationExperience && parsedResume.educationExperience.length > 0 && (
+                    <>
+                      <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>教育经历</Divider>
+                      <List
+                        size="small"
+                        dataSource={parsedResume.educationExperience.slice(0, 2)}
+                        renderItem={(item, index) => (
+                          <List.Item key={index}>
+                            <div style={{ width: '100%' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <Text strong>{item.school}</Text>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                  <CalendarOutlined /> {item.duration}
+                                </Text>
+                              </div>
+                              <div>
+                                <Tag color="green"><BookOutlined /> {item.degree}</Tag>
+                                {item.major && <Tag color="blue">{item.major}</Tag>}
+                              </div>
+                            </div>
+                          </List.Item>
+                        )}
+                      />
+                    </>
+                  )}
+                  
+                  {parsedResume.skills && parsedResume.skills.length > 0 && (
+                    <>
+                      <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>技能标签</Divider>
+                      <Space wrap>
+                        {parsedResume.skills.slice(0, 12).map((skill, index) => (
+                          <Tag key={index} color="processing">{skill}</Tag>
+                        ))}
+                        {parsedResume.skills.length > 12 && (
+                          <Tag>+{parsedResume.skills.length - 12}</Tag>
+                        )}
+                      </Space>
+                    </>
+                  )}
+                </div>
               )}
             </Card>
           )}

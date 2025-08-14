@@ -77,6 +77,10 @@ router.post('/add', async (req, res) => {
       qualityScore: resumeData.qualityScore || 0,
       notes: resumeData.notes || '',
       originalText: resumeData.originalText || '',
+      // 大模型解析相关字段
+      parsedContent: resumeData.parsedContent || '',
+      parseMethod: resumeData.parseMethod || 'traditional',
+      parseTime: resumeData.parseTime || null,
       // 兼容旧字段
       position: resumeData.expectedPosition?.position || '',
       experience: resumeData.workYears || ''

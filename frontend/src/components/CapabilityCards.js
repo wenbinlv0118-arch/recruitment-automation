@@ -35,12 +35,13 @@ const StyledCard = styled(Card)`
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border-color: #1890ff;
   }
-  
-  .ant-card-body {
-    padding: 12px;
-    text-align: center;
-  }
 `;
+
+// 设置卡片内容样式
+const cardBodyStyle = {
+  padding: '12px',
+  textAlign: 'center'
+};
 
 const IconWrapper = styled.div`
   font-size: 24px;
@@ -116,6 +117,7 @@ const CapabilityCards = ({ onCapabilityClick }) => {
             <StyledCard
               onClick={() => handleCardClick(capability)}
               hoverable
+              styles={{ body: cardBodyStyle }}
             >
               <IconWrapper style={{ color: capability.color }}>
                 {capability.icon}
@@ -134,4 +136,4 @@ const CapabilityCards = ({ onCapabilityClick }) => {
   );
 };
 
-export default CapabilityCards; 
+export default CapabilityCards;
