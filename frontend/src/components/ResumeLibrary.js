@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, List, Typography, Button, Space, Select, message, Spin, Row, Col, Tag, Avatar, Divider, Input } from 'antd';
-import { DownloadOutlined, SearchOutlined, UploadOutlined, UserOutlined, MailOutlined, PhoneOutlined, StarOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, List, Typography, Button, Space, Select, message, Spin, Row, Col, Tag, Avatar, Divider, Input, Modal } from 'antd';
+import { DownloadOutlined, SearchOutlined, UploadOutlined, UserOutlined, MailOutlined, PhoneOutlined, StarOutlined, EyeOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
 import ResumeUploadModal from './ResumeUploadModal';
 import ResumeDetailModal from './ResumeDetailModal';
 
@@ -92,13 +92,21 @@ const ResumeLibrary = () => {
     
     // 按搜索文本筛选
     if (searchText) {
-      filteredResumes = filteredResumes.filter(resume => 
-        resume.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        resume.position.toLowerCase().includes(searchText.toLowerCase()) ||
-        (resume.skills && resume.skills.some(skill => 
-          skill.toLowerCase().includes(searchText.toLowerCase())
-        ))
-      );
+      filteredResumes = filteredResumes.filter(resume => {
+        const position = resume.expectedPosition?.position || '';
+        return resume.name.toLowerCase().includes(searchText.toLowerCase()) ||
+               position.toLowerCase().includes(searchText.toLowerCase()) ||
+               (resume.skills && Array.isArray(resume.skills) && resume.skills.some(skill => 
+                 skill.toLowerCase().includes(searchText.toLowerCase())
+               )) ||
+               (resume.selfIntroduction || '').toLowerCase().includes(searchText.toLowerCase()) ||
+               (resume.workExperience && Array.isArray(resume.workExperience) && 
+                 resume.workExperience.some(exp => 
+                   (exp.company || '').toLowerCase().includes(searchText.toLowerCase()) ||
+                   (exp.position || '').toLowerCase().includes(searchText.toLowerCase())
+                 )
+               );
+      });
     }
     
     // 排序
@@ -107,10 +115,16 @@ const ResumeLibrary = () => {
         case 'name':
           return a.name.localeCompare(b.name);
         case 'experience':
-          return b.experience - a.experience;
+          const aExp = parseInt(a.workYears) || 0;
+          const bExp = parseInt(b.workYears) || 0;
+          return bExp - aExp;
         case 'education':
           const educationOrder = { '博士': 5, '硕士': 4, '本科': 3, '大专': 2, '高中': 1 };
           return (educationOrder[b.education] || 0) - (educationOrder[a.education] || 0);
+        case 'age':
+          const aAge = parseInt(a.age) || 0;
+          const bAge = parseInt(b.age) || 0;
+          return aAge - bAge; // 年龄从小到大排序
         case 'createdAt':
         default:
           return new Date(b.createdAt) - new Date(a.createdAt);
@@ -125,6 +139,85 @@ const ResumeLibrary = () => {
     fetchResumes(selectedSource);
     setUploadModalVisible(false);
     message.success('简历上传成功');
+  };
+
+  /**
+   * 删除单个简历
+   * @param {string} resumeId - 简历ID
+   * @param {string} resumeName - 简历姓名
+   */
+  const handleDeleteResume = async (resumeId, resumeName) => {
+    try {
+      const response = await fetch(`/api/resume-library/${resumeId}`, {
+        method: 'DELETE'
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        message.success(`简历 "${resumeName}" 删除成功`);
+        fetchResumes(selectedSource); // 重新获取简历列表
+      } else {
+        message.error(result.error || '删除简历失败');
+      }
+    } catch (error) {
+      console.error('删除简历失败:', error);
+      message.error('删除简历失败');
+    }
+  };
+
+  /**
+   * 清空所有简历
+   */
+  const handleClearAllResumes = async () => {
+    try {
+      const response = await fetch('/api/resume-library', {
+        method: 'DELETE'
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        message.success(result.message);
+        fetchResumes(selectedSource); // 重新获取简历列表
+      } else {
+        message.error(result.error || '清空简历库失败');
+      }
+    } catch (error) {
+      console.error('清空简历库失败:', error);
+      message.error('清空简历库失败');
+    }
+  };
+
+  /**
+   * 确认清空所有简历
+   */
+  const confirmClearAllResumes = () => {
+    if (resumes.length === 0) {
+      message.info('简历库已经是空的');
+      return;
+    }
+    
+    Modal.confirm({
+      title: '确认清空简历库',
+      content: `确定要清空所有 ${resumes.length} 份简历吗？此操作不可恢复！`,
+      okText: '确认清空',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: handleClearAllResumes
+    });
+  };
+
+  /**
+   * 确认删除单个简历
+   */
+  const confirmDeleteResume = (resumeId, resumeName) => {
+    Modal.confirm({
+      title: '确认删除简历',
+      content: `确定要删除简历 "${resumeName}" 吗？此操作不可恢复！`,
+      okText: '确认删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => handleDeleteResume(resumeId, resumeName)
+    });
   };
   
   // 下载简历
@@ -183,6 +276,14 @@ const ResumeLibrary = () => {
             </Select>
           </div>
           <Button 
+            danger
+            icon={<ClearOutlined />}
+            onClick={confirmClearAllResumes}
+            disabled={resumes.length === 0}
+          >
+            清空简历库
+          </Button>
+          <Button 
             type="primary" 
             icon={<UploadOutlined />}
             onClick={() => setUploadModalVisible(true)}
@@ -191,10 +292,24 @@ const ResumeLibrary = () => {
           </Button>
         </Space>
       }
-      style={{ height: '100%', overflow: 'auto' }}
+      style={{ 
+        height: 'calc(100vh - 64px)', 
+        display: 'flex', 
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}
+      styles={{
+        body: { 
+          flex: 1, 
+          overflow: 'visible', 
+          display: 'flex', 
+          flexDirection: 'column',
+          padding: '16px'
+        }
+      }}
     >
-      <Spin spinning={loading}>
-        <div style={{ marginBottom: 16 }}>
+      <Spin spinning={loading} style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'visible' }}>
+        <div style={{ marginBottom: 16, flexShrink: 0 }}>
           <Row gutter={[16, 16]} align="middle">
             <Col span={8}>
               <Text type="secondary">共找到 {getFilteredAndSortedResumes().length} 份简历</Text>
@@ -218,14 +333,26 @@ const ResumeLibrary = () => {
                 <Option value="name">按姓名</Option>
                 <Option value="experience">按经验</Option>
                 <Option value="education">按学历</Option>
+                <Option value="age">按年龄</Option>
               </Select>
             </Col>
           </Row>
         </div>
         
-        <Row gutter={[16, 16]}>
+        <div style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          overflowX: 'hidden',
+          paddingRight: '4px',
+          minHeight: 0,
+          maxHeight: 'calc(100vh - 200px)',
+          border: '1px solid #f0f0f0',
+          borderRadius: '4px',
+          padding: '8px'
+        }}>
+          <Row gutter={[16, 16]}>
           {getFilteredAndSortedResumes().map(item => {
-            // 生成亮点内容
+            // 生成亮点内容（基于解析服务字段）
             const generateHighlights = (resume) => {
               const highlights = [];
               
@@ -234,19 +361,39 @@ const ResumeLibrary = () => {
                 highlights.push('高学历人才', '学术背景深厚');
               } else if (resume.education === '硕士') {
                 highlights.push('硕士学历', '专业素养高');
+              } else if (resume.education === '本科') {
+                highlights.push('本科学历');
               }
               
-              // 基于经验的亮点
-              if (resume.experience >= 10) {
+              // 基于工作年限的亮点
+              const workYears = parseInt(resume.workYears) || 0;
+              if (workYears >= 10) {
                 highlights.push('资深专家', '经验丰富');
-              } else if (resume.experience >= 5) {
+              } else if (workYears >= 5) {
                 highlights.push('中高级人才', '技术扎实');
-              } else if (resume.experience >= 2) {
+              } else if (workYears >= 2) {
                 highlights.push('成长型人才', '潜力巨大');
+              } else if (workYears >= 1) {
+                highlights.push('新锐人才');
+              }
+              
+              // 基于年龄的亮点
+              if (resume.age) {
+                const age = parseInt(resume.age);
+                if (age <= 28) {
+                  highlights.push('年轻有为');
+                } else if (age >= 35) {
+                  highlights.push('经验成熟');
+                }
+              }
+              
+              // 基于当前状态的亮点
+              if (resume.currentStatus === '离职') {
+                highlights.push('可立即到岗');
               }
               
               // 基于技能的亮点
-              if (resume.skills && resume.skills.length > 0) {
+              if (resume.skills && Array.isArray(resume.skills) && resume.skills.length > 0) {
                 const skillCount = resume.skills.length;
                 if (skillCount >= 8) {
                   highlights.push('技能全面', '技术栈丰富');
@@ -255,14 +402,27 @@ const ResumeLibrary = () => {
                 }
                 
                 // 特定技能亮点
-                if (resume.skills.includes('React') || resume.skills.includes('Vue') || resume.skills.includes('Angular')) {
-                  highlights.push('前端开发');
+                if (resume.skills.some(skill => ['React', 'Vue', 'Angular'].includes(skill))) {
+                  highlights.push('前端专家');
                 }
-                if (resume.skills.includes('Node.js') || resume.skills.includes('Spring Boot')) {
+                if (resume.skills.some(skill => ['Node.js', 'Spring Boot', 'Django'].includes(skill))) {
                   highlights.push('后端开发');
                 }
-                if (resume.skills.includes('Docker') || resume.skills.includes('Kubernetes')) {
+                if (resume.skills.some(skill => ['Docker', 'Kubernetes'].includes(skill))) {
                   highlights.push('云原生');
+                }
+                if (resume.skills.some(skill => ['Python', 'Java', 'C++'].includes(skill))) {
+                  highlights.push('编程语言');
+                }
+              }
+              
+              // 基于期望职位的亮点
+              if (resume.expectedPosition?.position) {
+                const position = resume.expectedPosition.position.toLowerCase();
+                if (position.includes('架构师') || position.includes('技术总监')) {
+                  highlights.push('高级职位');
+                } else if (position.includes('主管') || position.includes('经理')) {
+                  highlights.push('管理经验');
                 }
               }
               
@@ -277,7 +437,7 @@ const ResumeLibrary = () => {
                   hoverable
                   size="small"
                   style={{ height: 'auto', minHeight: '280px' }}
-                  bodyStyle={{ padding: '16px' }}
+                  styles={{ body: { padding: '16px' } }}
                   actions={[
                     <Button 
                       icon={<EyeOutlined />} 
@@ -286,6 +446,15 @@ const ResumeLibrary = () => {
                       onClick={() => handleViewDetail(item)}
                     >
                       查看详情
+                    </Button>,
+                    <Button 
+                      icon={<DeleteOutlined />} 
+                      size="small"
+                      type="link"
+                      danger
+                      onClick={() => confirmDeleteResume(item.id, item.name)}
+                    >
+                      删除
                     </Button>
                   ]}
                 >
@@ -304,7 +473,7 @@ const ResumeLibrary = () => {
                   {/* 应聘职位 */}
                   <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                     <Tag color="blue" style={{ fontSize: '14px', padding: '6px 12px', borderRadius: '16px' }}>
-                      {item.position}
+                      {item.expectedPosition?.position || '未指定职位'}
                     </Tag>
                   </div>
 
@@ -312,11 +481,25 @@ const ResumeLibrary = () => {
                   <div style={{ marginBottom: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <Tag color="green" style={{ fontSize: '12px' }}>
-                        {item.education}
+                        {item.education || '未知学历'}
                       </Tag>
                       <Tag color="orange" style={{ fontSize: '12px' }}>
-                        {item.experience}年经验
+                        {item.workYears || '0'}年经验
                       </Tag>
+                    </div>
+                    
+                    {/* 年龄和状态信息 */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      {item.age && (
+                        <Tag color="cyan" style={{ fontSize: '12px' }}>
+                          {item.age}
+                        </Tag>
+                      )}
+                      {item.currentStatus && (
+                        <Tag color={item.currentStatus === '在职' ? 'success' : 'warning'} style={{ fontSize: '12px' }}>
+                          {item.currentStatus}
+                        </Tag>
+                      )}
                     </div>
                     
                     <div style={{ marginBottom: '8px' }}>
@@ -335,26 +518,7 @@ const ResumeLibrary = () => {
                     </div>
                   </div>
 
-                  {/* 技能标签 */}
-                  {item.skills && item.skills.length > 0 && (
-                    <div style={{ marginBottom: '16px' }}>
-                      <Text type="secondary" style={{ fontSize: '11px', marginBottom: '6px', display: 'block' }}>
-                        技能标签:
-                      </Text>
-                      <div>
-                        {item.skills.slice(0, 4).map((skill, index) => (
-                          <Tag key={index} size="small" style={{ marginBottom: '4px', fontSize: '10px' }}>
-                            {skill}
-                          </Tag>
-                        ))}
-                        {item.skills.length > 4 && (
-                          <Tag size="small" style={{ marginBottom: '4px', fontSize: '10px' }}>
-                            +{item.skills.length - 4}
-                          </Tag>
-                        )}
-                      </div>
-                    </div>
-                  )}
+
 
                   {/* 亮点内容 */}
                   {highlights.length > 0 && (
@@ -401,13 +565,14 @@ const ResumeLibrary = () => {
               </Col>
             );
           })}
-        </Row>
-        
-        {resumes.length === 0 && !loading && (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Text type="secondary">暂无简历数据</Text>
-          </div>
-        )}
+          </Row>
+          
+          {resumes.length === 0 && !loading && (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <Text type="secondary">暂无简历数据</Text>
+            </div>
+          )}
+        </div>
       </Spin>
       
       <ResumeUploadModal

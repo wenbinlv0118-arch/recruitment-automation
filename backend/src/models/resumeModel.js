@@ -93,21 +93,23 @@ class ResumeModel {
     // 生成简历ID
     const resumeId = `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // 创建简历记录
+    // 创建简历记录，保留原始解析数据
     const resumeRecord = {
       id: resumeId,
-      name: resumeData.name || '',
-      phone: resumeData.phone || '',
-      email: resumeData.email || '',
-      position: resumeData.position || '',
-      experience: resumeData.experience || '',
-      education: resumeData.education || '',
-      skills: resumeData.skills || [],
+      
+      // 直接使用解析数据，避免覆盖有效内容
+      ...resumeData,
+      
+      // 确保必要的系统字段
       source: resumeData.source || 'manual',
-      notes: resumeData.notes || '',
       parseStatus: resumeData.parseStatus || 'pending',
       qualityScore: resumeData.qualityScore || 0,
-      filePath: resumeData.filePath || '',
+      
+      // 兼容旧字段（保留用于向后兼容）
+      position: resumeData.expectedPosition?.position || resumeData.position || resumeData.name || '',
+      experience: resumeData.workYears || resumeData.experience || '',
+      
+      // 时间戳
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -436,6 +438,69 @@ class ResumeModel {
       };
     } catch (error) {
       console.error('更新岗位失败:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * 删除简历
+   * @param {string} resumeId - 简历ID
+   * @returns {Object} 删除结果
+   */
+  async deleteResume(resumeId) {
+    try {
+      const db = this.readDatabase();
+      const resumeIndex = db.resumes.findIndex(r => r.id === resumeId);
+      
+      if (resumeIndex === -1) {
+        return {
+          success: false,
+          error: '简历不存在'
+        };
+      }
+
+      // 删除简历
+      const deletedResume = db.resumes[resumeIndex];
+      db.resumes.splice(resumeIndex, 1);
+      this.writeDatabase(db);
+
+      return {
+        success: true,
+        resume: deletedResume,
+        message: '简历删除成功'
+      };
+    } catch (error) {
+      console.error('删除简历失败:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * 清空所有简历
+   * @returns {Object} 清空结果
+   */
+  async clearAllResumes() {
+    try {
+      const db = this.readDatabase();
+      const resumeCount = db.resumes.length;
+      
+      // 清空简历数组
+      db.resumes = [];
+      this.writeDatabase(db);
+
+      return {
+        success: true,
+        count: resumeCount,
+        message: `成功清空 ${resumeCount} 份简历`
+      };
+    } catch (error) {
+      console.error('清空简历失败:', error);
       return {
         success: false,
         error: error.message

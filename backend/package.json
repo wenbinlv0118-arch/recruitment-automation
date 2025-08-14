@@ -11,6 +11,7 @@
     "@huggingface/inference": "^4.6.1",
     "@xenova/transformers": "^2.15.1",
     "axios": "^1.6.2",
+    "browser-use": "^0.0.1",
     "chromadb": "^3.0.10",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",

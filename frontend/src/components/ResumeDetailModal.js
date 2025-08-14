@@ -373,21 +373,25 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
             
             <Divider />
             
-            <Descriptions column={3} size="small">
-              <Descriptions.Item label="年龄">
-                <Tag color="cyan">{mockData.age}岁</Tag>
-              </Descriptions.Item>
+            <Descriptions column={1} size="small" labelStyle={{ width: '80px', textAlign: 'left' }} contentStyle={{ textAlign: 'left' }}>
+              {resume.age && (
+                <Descriptions.Item label="年龄">
+                  <Tag color="cyan">{resume.age}</Tag>
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="学历">
-                <Tag color="green">{resume.education}</Tag>
+                <Tag color="green">{resume.education || '未知学历'}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="工作年限">
-                <Tag color="orange">{resume.experience}年</Tag>
+                <Tag color="orange">{resume.workYears || '0'}年</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="目前状态">
-                <Tag color={mockData.status === '在职' ? 'success' : 'warning'}>
-                  {mockData.status}
-                </Tag>
-              </Descriptions.Item>
+              {resume.currentStatus && (
+                <Descriptions.Item label="目前状态">
+                  <Tag color={resume.currentStatus === '在职' ? 'success' : 'warning'}>
+                    {resume.currentStatus}
+                  </Tag>
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="来源">
                 <Tag color="purple">
                   {resume.source === 'boss' ? 'Boss直聘' :
@@ -399,43 +403,67 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
                    resume.source === 'manual' ? '手动添加' : '未知来源'}
                 </Tag>
               </Descriptions.Item>
+              {resume.qualityScore && (
+                <Descriptions.Item label="质量评分">
+                  <Tag color={resume.qualityScore >= 80 ? 'success' : resume.qualityScore >= 60 ? 'warning' : 'error'}>
+                    {resume.qualityScore}分
+                  </Tag>
+                </Descriptions.Item>
+              )}
             </Descriptions>
           </div>
         </BaseCard>
 
         {/* 自我介绍 */}
-        <BaseCard>
-          <div style={{ padding: '20px' }}>
-            <SectionTitle>自我介绍</SectionTitle>
-            <Paragraph style={{ color: '#666', lineHeight: 1.6, margin: 0 }}>
-              {mockData.selfIntro}
-            </Paragraph>
-          </div>
-        </BaseCard>
+        {resume.selfIntroduction && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>自我介绍</SectionTitle>
+              <Paragraph style={{ color: '#666', lineHeight: 1.6, margin: 0 }}>
+                {resume.selfIntroduction}
+              </Paragraph>
+            </div>
+          </BaseCard>
+        )}
 
         {/* 期望职位 */}
-        <BaseCard>
-          <div style={{ padding: '20px' }}>
-            <SectionTitle>期望职位</SectionTitle>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-              <InfoRow>
-                <EnvironmentOutlined />
-                <Text>工作地点：</Text>
-                <Tag color="blue">{mockData.workLocation}</Tag>
-              </InfoRow>
-              <InfoRow>
-                <DollarOutlined />
-                <Text>期望薪资：</Text>
-                <Tag color="green">{mockData.expectedSalary}</Tag>
-              </InfoRow>
-              <InfoRow>
-                <CalendarOutlined />
-                <Text>期望职位：</Text>
-                <Tag color="purple">{resume.position}</Tag>
-              </InfoRow>
+        {resume.expectedPosition && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>期望职位</SectionTitle>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {resume.expectedPosition.position && (
+                  <InfoRow>
+                    <CalendarOutlined />
+                    <Text>期望职位：</Text>
+                    <Tag color="purple">{resume.expectedPosition.position}</Tag>
+                  </InfoRow>
+                )}
+                {resume.expectedPosition.location && (
+                  <InfoRow>
+                    <EnvironmentOutlined />
+                    <Text>工作地点：</Text>
+                    <Tag color="blue">{resume.expectedPosition.location}</Tag>
+                  </InfoRow>
+                )}
+                {resume.expectedPosition.salary && (
+                  <InfoRow>
+                    <DollarOutlined />
+                    <Text>期望薪资：</Text>
+                    <Tag color="green">{resume.expectedPosition.salary}</Tag>
+                  </InfoRow>
+                )}
+                {resume.expectedPosition.workType && (
+                  <InfoRow>
+                    <CalendarOutlined />
+                    <Text>工作类型：</Text>
+                    <Tag color="orange">{resume.expectedPosition.workType}</Tag>
+                  </InfoRow>
+                )}
+              </div>
             </div>
-          </div>
-        </BaseCard>
+          </BaseCard>
+        )}
 
         {/* 联系方式 */}
         <BaseCard>
@@ -453,116 +481,178 @@ const ResumeDetailModal = ({ visible, onClose, resume }) => {
         </BaseCard>
 
         {/* 岗位经验 */}
-        <BaseCard>
-          <div style={{ padding: '20px' }}>
-            <SectionTitle>岗位经验</SectionTitle>
-            <div style={{ marginBottom: '12px' }}>
-              <Text strong>主要技能：</Text>
-            </div>
-            <div>
-              {resume.skills && resume.skills.map((skill, index) => (
-                <SkillTag key={index} color="blue">
-                  {skill}
-                </SkillTag>
-              ))}
-            </div>
-            <div style={{ marginTop: '12px' }}>
-              <Text type="secondary">
-                具备{resume.experience}年{resume.position}相关工作经验，熟悉行业最佳实践
-              </Text>
-            </div>
-          </div>
-        </BaseCard>
-
-        {/* 工作经历 */}
-        <BaseCard>
-          <div style={{ padding: '20px' }}>
-            <SectionTitle>工作经历</SectionTitle>
-            <Timeline>
-              {mockData.workExperience.map((work, index) => (
-                <Timeline.Item key={index}>
-                  <TimelineItem>
-                    <div className="company-name">{work.company}</div>
-                    <div className="position-title">{work.position}</div>
-                    <div className="time-period">{work.time}</div>
-                    <div className="work-content">{work.content}</div>
-                  </TimelineItem>
-                </Timeline.Item>
-              ))}
-            </Timeline>
-          </div>
-        </BaseCard>
-
-        {/* 项目经验 */}
-        <BaseCard>
-          <div style={{ padding: '20px' }}>
-            <SectionTitle>项目经验</SectionTitle>
-            {mockData.projectExperience.map((project, index) => (
-              <ProjectItem key={index}>
-                <div className="project-name">{project.name}</div>
-                <div className="project-role">{project.role}</div>
-                <div className="project-time">{project.time}</div>
-                <div className="project-description">{project.description}</div>
-                {index < mockData.projectExperience.length - 1 && <Divider />}
-              </ProjectItem>
-            ))}
-          </div>
-        </BaseCard>
-
-        {/* 教育经历 */}
-        <BaseCard>
-          <div style={{ padding: '20px' }}>
-            <SectionTitle>教育经历</SectionTitle>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-              <BookOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-              <Text strong>{mockData.education.school}</Text>
-            </div>
-            <div style={{ marginBottom: '8px' }}>
-              <Text>{mockData.education.major} · {mockData.education.degree}</Text>
-            </div>
-            <div>
-              <Text type="secondary">{mockData.education.time}</Text>
-            </div>
-          </div>
-        </BaseCard>
-
-        {/* 资格证书 */}
-        {mockData.certificates.length > 0 && (
+        {resume.positionExperience && resume.positionExperience.length > 0 && (
           <BaseCard>
             <div style={{ padding: '20px' }}>
-              <SectionTitle>资格证书</SectionTitle>
+              <SectionTitle>岗位经验</SectionTitle>
+              <div style={{ marginBottom: '12px' }}>
+                <Text strong>相关经验：</Text>
+              </div>
               <div>
-                {mockData.certificates.map((cert, index) => (
-                  <Tag key={index} color="gold" style={{ marginBottom: '8px' }}>
-                    <TrophyOutlined style={{ marginRight: '4px' }} />
-                    {cert}
-                  </Tag>
+                {resume.positionExperience.map((exp, index) => (
+                  <div key={index} style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text strong style={{ color: '#1890ff' }}>{exp.position}</Text>
+                      <Tag color="green" style={{ fontSize: '12px' }}>
+                        {exp.duration}
+                      </Tag>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
           </BaseCard>
         )}
 
-        {/* 专业技能 */}
-        <BaseCard>
-          <div style={{ padding: '20px' }}>
-            <SectionTitle>专业技能</SectionTitle>
-            <div>
-              <Text type="secondary" style={{ display: 'block', marginBottom: '8px' }}>
-                技术栈：{resume.skills ? resume.skills.join('、') : '暂无'}
-              </Text>
-              <Text type="secondary" style={{ display: 'block', marginBottom: '8px' }}>
-                编程语言：熟悉多种编程语言，具备良好的代码规范和架构设计能力
-              </Text>
-              <Text type="secondary" style={{ display: 'block', marginBottom: '8px' }}>
-                框架工具：熟练使用主流开发框架和工具，能够快速上手新技术
-              </Text>
-              <Text type="secondary" style={{ display: 'block' }}>
-                项目管理：具备良好的项目管理和团队协作能力，能够按时交付高质量产品
-              </Text>
+        {/* 工作经历 */}
+        {resume.workExperience && resume.workExperience.length > 0 && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>工作经历</SectionTitle>
+              <Timeline>
+                {resume.workExperience.map((work, index) => (
+                  <Timeline.Item key={index}>
+                    <TimelineItem>
+                      <div className="company-name">{work.company}</div>
+                      <div className="position-title">{work.position}</div>
+                      <div className="time-period">{work.startTime} - {work.endTime}</div>
+                      <div className="work-content">{work.description}</div>
+                      {work.achievements && work.achievements.length > 0 && (
+                        <div style={{ marginTop: '8px' }}>
+                          <Text strong style={{ fontSize: '12px' }}>主要成就：</Text>
+                          <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+                            {work.achievements.map((achievement, idx) => (
+                              <li key={idx} style={{ fontSize: '12px', color: '#666' }}>
+                                {achievement}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </TimelineItem>
+                  </Timeline.Item>
+                ))}
+              </Timeline>
             </div>
-          </div>
-        </BaseCard>
+          </BaseCard>
+        )}
+
+        {/* 教育经历 */}
+        {resume.educationExperience && resume.educationExperience.length > 0 && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>教育经历</SectionTitle>
+              <Timeline>
+                {resume.educationExperience.map((edu, index) => (
+                  <Timeline.Item key={index}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                        <BookOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                        <Text strong>{edu.school}</Text>
+                      </div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text>{edu.major} · {edu.degree}</Text>
+                      </div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text type="secondary">{edu.startTime} - {edu.endTime}</Text>
+                      </div>
+                      {edu.description && (
+                        <div>
+                          <Text type="secondary">{edu.description}</Text>
+                        </div>
+                      )}
+                    </div>
+                  </Timeline.Item>
+                ))}
+              </Timeline>
+            </div>
+          </BaseCard>
+        )}
+
+        {/* 资格证书 */}
+        {resume.certificates && resume.certificates.length > 0 && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>资格证书</SectionTitle>
+              <div>
+                {resume.certificates.map((cert, index) => (
+                  <div key={index} style={{ marginBottom: '12px' }}>
+                    <Tag color="gold" style={{ marginBottom: '4px' }}>
+                      <TrophyOutlined style={{ marginRight: '4px' }} />
+                      {cert.name}
+                    </Tag>
+                    {cert.category && (
+                      <Tag color="blue" style={{ marginLeft: '8px' }}>
+                        {cert.category}
+                      </Tag>
+                    )}
+                    {cert.issuer && (
+                      <div style={{ marginTop: '4px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          颁发机构：{cert.issuer}
+                        </Text>
+                      </div>
+                    )}
+                    {cert.date && (
+                      <div>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          获得时间：{cert.date}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </BaseCard>
+        )}
+
+        {/* 志愿经历 */}
+        {resume.volunteerExperience && resume.volunteerExperience.length > 0 && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>志愿经历</SectionTitle>
+              <Timeline>
+                {resume.volunteerExperience.map((vol, index) => (
+                  <Timeline.Item key={index}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
+                        {vol.organization}
+                      </div>
+                      <div style={{ color: '#1890ff', marginBottom: '4px' }}>
+                        {vol.role}
+                      </div>
+                      <div style={{ color: '#666', fontSize: '12px', marginBottom: '8px' }}>
+                        {vol.startTime} - {vol.endTime}
+                      </div>
+                      {vol.description && (
+                        <div style={{ color: '#666', fontSize: '13px', lineHeight: 1.6 }}>
+                          {vol.description}
+                        </div>
+                      )}
+                    </div>
+                  </Timeline.Item>
+                ))}
+              </Timeline>
+            </div>
+          </BaseCard>
+        )}
+
+        {/* 专业技能 */}
+        {resume.skills && resume.skills.length > 0 && (
+          <BaseCard>
+            <div style={{ padding: '20px' }}>
+              <SectionTitle>专业技能</SectionTitle>
+              <div>
+                {resume.skills.map((skill, index) => (
+                  <SkillTag key={index} color="blue">
+                    {skill}
+                  </SkillTag>
+                ))}
+              </div>
+            </div>
+          </BaseCard>
+        )}
 
         {/* 亮点分析 */}
         <BaseCard>

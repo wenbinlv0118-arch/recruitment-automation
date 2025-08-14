@@ -8,16 +8,22 @@ const BaseDrawer = styled.div`
   right: 0;
   bottom: 0;
   width: 33.33%;
+  min-width: 400px;
+  max-width: 600px;
   background: white;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
   z-index: 1001;
   display: flex;
   flex-direction: column;
   transform: translateX(${props => props.$visible ? '0' : '100%'});
-  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   will-change: transform;
   backface-visibility: hidden;
   perspective: 1000px;
+  visibility: ${props => props.$visible ? 'visible' : 'hidden'};
+  opacity: ${props => props.$visible ? '1' : '0'};
+  pointer-events: ${props => props.$visible ? 'auto' : 'none'};
+  user-select: none;
 `;
 
 const BaseDrawerHeader = styled.div`
@@ -63,8 +69,22 @@ const BaseCloseButton = styled.button`
 const BaseDrawerBody = styled.div`
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 24px;
   height: calc(100vh - 80px);
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
 `;
 
 // 基础卡片样式
@@ -164,11 +184,13 @@ const ModalBasePattern = ({
             // 添加关闭动画延迟
             const drawer = document.querySelector(`[data-drawer="${dataAttribute}"]`);
             if (drawer) {
-              drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+              drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+              drawer.style.transform = 'translateX(100%)';
+              drawer.style.opacity = '0';
             }
             setTimeout(() => {
               onClose();
-            }, 50);
+            }, 300);
           }}
         >
           ✕
@@ -205,4 +227,4 @@ export {
   slideInAnimation
 };
 
-export default ModalBasePattern; 
+export default ModalBasePattern;

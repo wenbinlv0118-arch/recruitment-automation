@@ -319,9 +319,10 @@ class ZhilianService {
         console.log('已更新页面引用');
       }
       
-      await this.popupHandler.detectPopups();
-      await this.popupHandler.closePopups(socket);
-      console.log('页面弹窗处理完成');
+      // 弹窗处理功能已被禁用
+      // await this.popupHandler.detectPopups();
+      // await this.popupHandler.closePopups(socket);
+      console.log('页面弹窗处理功能已被禁用');
       
       // 验证页面是否正确加载
       const pageTitle = await this.page.title();
@@ -407,8 +408,8 @@ class ZhilianService {
         console.log('已更新页面引用');
       }
       
-      // 处理简历下载相关的弹窗（选择普通简历类型）
-      await this.popupHandler.handleResumeDownloadPopups(socket);
+      // 处理简历下载相关的弹窗（选择普通简历类型） - 已禁用
+      // await this.popupHandler.handleResumeDownloadPopups(socket);
       
       // 查找"普通简历"下方的"立即下载"按钮
       socket.emit('statusUpdate', { status: 'finding_download_button', message: '正在查找立即下载按钮...' });

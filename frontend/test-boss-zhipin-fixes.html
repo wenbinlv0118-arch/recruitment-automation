@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss 直聘修复效果测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .fix-section {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #1890ff;
+        }
+        .fix-section.success {
+            border-left-color: #52c41a;
+            background: #f6ffed;
+        }
+        .fix-section.warning {
+            border-left-color: #faad14;
+            background: #fff7e6;
+        }
+        .feature-list {
+            margin: 15px 0;
+        }
+        .feature-item {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+        }
+        .code-block {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            border: 1px solid #d9d9d9;
+        }
+        .status-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .status-card {
+            border: 1px solid #d9d9d9;
+            border-radius: 8px;
+            padding: 16px;
+            background: white;
+        }
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 6px 0;
+        }
+        .status-label {
+            font-weight: 500;
+            color: #333;
+        }
+        .status-value {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: white;
+        }
+        .status-value.success {
+            background: #52c41a;
+        }
+        .status-value.default {
+            background: #d9d9d9;
+        }
+        .status-value.processing {
+            background: #1890ff;
+        }
+        .status-value.warning {
+            background: #faad14;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Boss 直聘修复效果测试</h1>
+        <p>这个页面展示了修复后的效果和新增功能。</p>
+        
+        <div class="fix-section success">
+            <h2>✅ 问题1：控制台字体和排版修复</h2>
+            <p><strong>修复内容：</strong></p>
+            <ul>
+                <li>统一使用 Ant Design Typography 组件</li>
+                <li>修复字体大小不一致问题</li>
+                <li>优化状态显示区域的排版</li>
+                <li>添加分隔线和边框样式</li>
+            </ul>
+            
+            <h3>修复后的状态显示效果：</h3>
+            <div class="status-preview">
+                <div class="status-card">
+                    <div class="status-header">
+                        <span style="color: #1890ff; font-size: 18px;">📊</span>
+                        <h4 style="margin: 0;">当前状态</h4>
+                        <span class="status-value processing">已初始化</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">浏览器状态:</span>
+                        <span class="status-value success">已启动</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">页面状态:</span>
+                        <span class="status-value success">已加载</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">登录状态:</span>
+                        <span class="status-value default">未登录</span>
+                    </div>
+                </div>
+                
+                <div class="status-card">
+                    <div class="status-header">
+                        <span style="color: #faad14; font-size: 18px;">⏳</span>
+                        <h4 style="margin: 0;">当前状态</h4>
+                        <span class="status-value warning">等待登录</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">浏览器状态:</span>
+                        <span class="status-value success">已启动</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">页面状态:</span>
+                        <span class="status-value success">已加载</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">登录状态:</span>
+                        <span class="status-value default">未登录</span>
+                    </div>
+                </div>
+                
+                <div class="status-card">
+                    <div class="status-header">
+                        <span style="color: #52c41a; font-size: 18px;">✅</span>
+                        <h4 style="margin: 0;">当前状态</h4>
+                        <span class="status-value success">已登录</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">浏览器状态:</span>
+                        <span class="status-value success">已启动</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">页面状态:</span>
+                        <span class="status-value success">已加载</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">登录状态:</span>
+                        <span class="status-value success">已登录</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="fix-section warning">
+            <h2>🆕 问题2：智能关闭弹窗功能</h2>
+            <p><strong>新增功能：</strong></p>
+            
+            <h3>1. 弹窗类型识别和关闭</h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <strong>模态弹窗：</strong>自动识别并关闭 modal、popup、dialog 等弹窗
+                </div>
+                <div class="feature-item">
+                    <strong>通知提示：</strong>自动关闭 notification、message、toast 等提示
+                </div>
+                <div class="feature-item">
+                    <strong>广告弹窗：</strong>自动关闭广告、横幅、推广等弹窗
+                </div>
+                <div class="feature-item">
+                    <strong>ESC 键处理：</strong>使用 ESC 键尝试关闭弹窗
+                </div>
+            </div>
+            
+            <h3>2. 页面跳转跟随</h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <strong>事件监听：</strong>监听 framenavigated 事件，检测页面跳转
+                </div>
+                <div class="feature-item">
+                    <strong>弹窗重新设置：</strong>页面跳转后自动重新设置弹窗处理
+                </div>
+                <div class="feature-item">
+                    <strong>状态同步：</strong>确保所有操作都在最新页面上执行
+                </div>
+            </div>
+            
+            <h3>3. 页面就绪检查</h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <strong>网络状态：</strong>等待页面网络空闲状态
+                </div>
+                <div class="feature-item">
+                    <strong>弹窗清理：</strong>自动清理页面上的弹窗
+                </div>
+                <div class="feature-item">
+                    <strong>稳定性等待：</strong>等待页面稳定后再执行操作
+                </div>
+            </div>
+        </div>
+        
+        <div class="fix-section">
+            <h2>🔧 技术实现细节</h2>
+            
+            <h3>弹窗处理设置</h3>
+            <div class="code-block">
+// 设置弹窗处理
+async setupPopupHandling() {
+  // 监听页面弹窗事件
+  this.page.on('dialog', async (dialog) => {
+    await dialog.dismiss(); // 自动关闭弹窗
+  });
+  
+  // 监听新页面打开事件
+  this.page.on('popup', async (popup) => {
+    await popup.close();
+  });
+  
+  // 监听页面跳转事件
+  this.page.on('framenavigated', async (frame) => {
+    if (frame === this.page.mainFrame()) {
+      await this.setupPopupHandling(); // 重新设置弹窗处理
+    }
+  });
+}
+            </div>
+            
+            <h3>智能弹窗关闭</h3>
+            <div class="code-block">
+// 智能关闭弹窗
+async closePopups() {
+  // 1. 关闭常见的模态弹窗
+  const modalSelectors = [
+    '[class*="modal"]', '[class*="popup"]', '[class*="dialog"]',
+    '.ant-modal', '.el-dialog', '.ant-popover'
+  ];
+  
+  // 2. 关闭通知提示
+  const notificationSelectors = [
+    '[class*="notification"]', '[class*="message"]',
+    '.ant-notification', '.ant-message'
+  ];
+  
+  // 3. 关闭广告弹窗
+  const adSelectors = [
+    '[class*="ad"]', '[class*="banner"]',
+    '.ad-close', '.banner-close'
+  ];
+  
+  // 4. 处理 ESC 键关闭弹窗
+  await this.page.keyboard.press('Escape');
+}
+            </div>
+            
+            <h3>页面就绪检查</h3>
+            <div class="code-block">
+// 确保页面就绪
+async ensurePageReady() {
+  // 等待页面加载完成
+  await this.page.waitForLoadState('networkidle');
+  
+  // 关闭弹窗
+  await this.closePopups();
+  
+  // 等待页面稳定
+  await this.page.waitForTimeout(1000);
+}
+            </div>
+        </div>
+        
+        <div class="fix-section success">
+            <h2>📋 修复总结</h2>
+            <ul>
+                <li><strong>字体问题：</strong>统一使用 Ant Design 组件，修复大小不一致</li>
+                <li><strong>排版问题：</strong>优化状态显示区域，添加分隔线和边框</li>
+                <li><strong>弹窗处理：</strong>智能识别和关闭各种类型弹窗</li>
+                <li><strong>页面跟随：</strong>确保所有操作都在最新页面上执行</li>
+                <li><strong>稳定性提升：</strong>添加页面就绪检查，提高自动化稳定性</li>
+            </ul>
+        </div>
+        
+        <div class="fix-section">
+            <h2>🧪 测试建议</h2>
+            <p>现在您可以：</p>
+            <ol>
+                <li><strong>测试控制台界面：</strong>访问前端应用，查看修复后的字体和排版</li>
+                <li><strong>测试弹窗处理：</strong>启动 Boss 直聘自动化，观察弹窗自动关闭</li>
+                <li><strong>测试页面跟随：</strong>在页面跳转后，验证弹窗处理是否正常工作</li>
+                <li><strong>测试稳定性：</strong>观察自动化流程是否更加稳定</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

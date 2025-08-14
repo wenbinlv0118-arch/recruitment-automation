@@ -397,14 +397,40 @@ app.get('/api/resume-library', async (req, res) => {
 });
 
 // API路由：添加简历到简历库
+// API路由：获取简历库列表
+app.get('/api/resume-library', async (req, res) => {
+  try {
+    const { positionId, source } = req.query;
+    const resumes = await resumeModel.getResumes();
+    
+    // 根据查询参数过滤
+    let filteredResumes = resumes;
+    if (positionId) {
+      filteredResumes = filteredResumes.filter(resume => resume.positionId === positionId);
+    }
+    if (source) {
+      filteredResumes = filteredResumes.filter(resume => resume.source === source);
+    }
+    
+    res.json({
+      success: true,
+      data: filteredResumes
+    });
+  } catch (error) {
+    console.error('获取简历库列表失败:', error);
+    res.status(500).json({ success: false, error: '获取简历库列表失败' });
+  }
+});
+
+// API路由：添加简历到简历库
 app.post('/api/resume-library', async (req, res) => {
   try {
     const resumeData = req.body;
     const resume = await resumeModel.addResume(resumeData);
-    res.json(resume);
+    res.json({ success: true, data: resume });
   } catch (error) {
     console.error('添加简历到简历库失败:', error);
-    res.status(500).json({ error: '添加简历到简历库失败' });
+    res.status(500).json({ success: false, error: '添加简历到简历库失败' });
   }
 });
 
@@ -433,6 +459,31 @@ app.post('/api/resume-library/upload', upload.single('file'), async (req, res) =
 });
 
 
+// API路由：解析简历文本
+app.post('/api/resume-library/parse-text', async (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text || text.trim().length < 10) {
+      return res.status(400).json({ success: false, error: '请提供有效的简历文本内容' });
+    }
+    
+    // 导入简历解析服务
+    const resumeParserService = require('./services/resumeParserService');
+    
+    // 解析文本简历
+    const parsedResume = resumeParserService.parseResumeText(text);
+    
+    res.json({ 
+      success: true, 
+      data: parsedResume 
+    });
+  } catch (error) {
+    console.error('文本解析失败:', error);
+    res.status(500).json({ success: false, error: '文本解析失败', message: error.message });
+  }
+});
+
 // API路由：对简历进行评分
 app.post('/api/resume-library/:resumeId/score', async (req, res) => {
   try {
@@ -447,12 +498,47 @@ app.post('/api/resume-library/:resumeId/score', async (req, res) => {
   }
 });
 
+// API路由：删除单个简历
+app.delete('/api/resume-library/:resumeId', async (req, res) => {
+  try {
+    const resumeId = req.params.resumeId;
+    const result = await resumeModel.deleteResume(resumeId);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('删除简历失败:', error);
+    res.status(500).json({ success: false, error: '删除简历失败', message: error.message });
+  }
+});
+
+// API路由：清空所有简历
+app.delete('/api/resume-library', async (req, res) => {
+  try {
+    const result = await resumeModel.clearAllResumes();
+    res.json(result);
+  } catch (error) {
+    console.error('清空简历库失败:', error);
+    res.status(500).json({ success: false, error: '清空简历库失败', message: error.message });
+  }
+});
+
+
 // 注册知识库路由
 app.use('/api/knowledge', knowledgeRoutes);
 // 注册任务管理路由
 app.use('/api/tasks', taskRoutes);
 // 注册岗位路由
 app.use('/api/positions', positionRoutes);
+// 注册 Boss 直聘路由
+const bossZhipinRoutes = require('./routes/bossZhipin');
+app.use('/api/boss-zhipin', bossZhipinRoutes);
+// 注册简历路由
+const resumeRoutes = require('./routes/resumeRoutes');
+app.use('/api/resume', resumeRoutes);
 
 // 公司搜索路由已删除
 

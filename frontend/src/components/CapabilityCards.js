@@ -55,10 +55,10 @@ const CapabilityCards = ({ onCapabilityClick }) => {
     {
       id: 'smart-recruitment',
       title: '智能寻聘',
-      description: '多平台智能招聘，支持智联招聘、Boss直聘等',
+      description: '自动化招聘流程，智能筛选候选人',
       icon: <RobotOutlined />,
       color: '#1890ff',
-      keywords: ['招聘', '寻聘', '智能招聘', '自动化招聘', '多平台']
+      keywords: ['招聘', '寻聘', '智能招聘', '自动化招聘']
     },
     {
       id: 'resume-recommendation',

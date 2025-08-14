@@ -142,7 +142,7 @@ const KnowledgeSearchResult = ({ results, query, onViewDocument }) => {
                 borderRadius: 8,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
               }}
-              bodyStyle={{ padding: 16 }}
+              styles={{ body: { padding: 16 } }}
             >
               {/* 结果头部 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -285,4 +285,4 @@ const KnowledgeSearchResult = ({ results, query, onViewDocument }) => {
   );
 };
 
-export default KnowledgeSearchResult; 
+export default KnowledgeSearchResult;

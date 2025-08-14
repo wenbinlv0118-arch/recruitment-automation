@@ -132,7 +132,7 @@ const AIChat = () => {
           </Space>
         }
         style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-        bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16 }}
+        styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column', padding: 16 } }}
       >
         {/* 聊天历史 */}
         <div style={{ flex: 1, overflowY: 'auto', marginBottom: 16 }}>

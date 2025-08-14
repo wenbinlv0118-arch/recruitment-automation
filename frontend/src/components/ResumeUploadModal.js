@@ -1,11 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { Form, Input, Select, Upload, Button, Space, Typography, Card, Tabs, message, Spin } from 'antd';
-import { UploadOutlined, FileTextOutlined, InboxOutlined } from '@ant-design/icons';
+import { Form, Input, Select, Upload, Button, Space, Typography, Card, Tabs, message, Spin, Descriptions, List, Tag, Divider } from 'antd';
+import { UploadOutlined, FileTextOutlined, InboxOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, CalendarOutlined, BuildOutlined, BookOutlined, TrophyOutlined } from '@ant-design/icons';
 import ModalBasePattern from './ModalBasePattern';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 const { TextArea } = Input;
-const { TabPane } = Tabs;
 const { Dragger } = Upload;
 
 /**
@@ -16,8 +15,11 @@ const { Dragger } = Upload;
 const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('file');
+  const [activeTab, setActiveTab] = useState('boss');
   const [parsedResume, setParsedResume] = useState(null);
+  
+  // 监听Boss直聘简历文本字段的变化
+  const bossResumeText = Form.useWatch('bossResumeText', form);
   
   // 简历来源选项
   const resumeSources = [
@@ -60,17 +62,17 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
     return false; // 阻止默认上传行为
   }, []);
 
-  // 处理文本解析
-  const handleTextParse = useCallback(async () => {
-    const textValue = form.getFieldValue('resumeText');
+  // 处理Boss直聘简历解析
+  const handleBossResumeParseText = useCallback(async () => {
+    const textValue = form.getFieldValue('bossResumeText');
     if (!textValue || textValue.trim().length < 50) {
-      message.warning('请输入足够的简历文本内容（至少50字符）');
+      message.warning('请输入足够的Boss直聘简历文本内容（至少50字符）');
       return;
     }
     
     setLoading(true);
     try {
-      const response = await fetch('/api/resume-library/parse-text', {
+      const response = await fetch('/api/resume/parse-text', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -82,13 +84,13 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       
       if (result.success) {
         setParsedResume(result.data);
-        message.success('简历文本解析成功');
+        message.success('Boss直聘简历解析成功');
       } else {
-        message.error(result.error || '文本解析失败');
+        message.error(result.error || 'Boss直聘简历解析失败');
       }
     } catch (error) {
-      console.error('文本解析失败:', error);
-      message.error('文本解析失败，请重试');
+      console.error('Boss直聘简历解析失败:', error);
+      message.error('Boss直聘简历解析失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -112,6 +114,8 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
         notes: values.notes
       };
       
+      console.log('提交的简历数据:', resumeData);
+      
       const response = await fetch('/api/resume-library', {
         method: 'POST',
         headers: {
@@ -120,13 +124,24 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
         body: JSON.stringify(resumeData)
       });
       
+      console.log('响应状态:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('HTTP错误:', response.status, errorText);
+        message.error(`请求失败: ${response.status} ${response.statusText}`);
+        return;
+      }
+      
       const result = await response.json();
+      console.log('服务器响应:', result);
       
       if (result.success) {
         message.success('简历添加成功');
         onSuccess && onSuccess(result.data);
         handleClose();
       } else {
+        console.error('业务错误:', result.error);
         message.error(result.error || '简历添加失败');
       }
     } catch (error) {
@@ -141,7 +156,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
   const handleClose = useCallback(() => {
     form.resetFields();
     setParsedResume(null);
-    setActiveTab('file');
+    setActiveTab('boss');
     onClose();
   }, [form, onClose]);
 
@@ -161,70 +176,215 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       title="上传简历"
       dataAttribute="resume-upload-drawer"
     >
-      <Spin spinning={loading}>
-        <Form form={form} layout="vertical">
-          <Tabs activeKey={activeTab} onChange={setActiveTab}>
-            <TabPane 
-              tab={
-                <span>
-                  <UploadOutlined />
-                  文件上传
-                </span>
-              } 
-              key="file"
-            >
-              <Dragger {...uploadProps} style={{ marginBottom: 16 }}>
-                <p className="ant-upload-drag-icon">
-                  <InboxOutlined />
-                </p>
-                <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-                <p className="ant-upload-hint">
-                  支持 PDF、DOC、DOCX 格式，文件大小不超过 10MB
-                </p>
-              </Dragger>
-            </TabPane>
-            
-            <TabPane 
-              tab={
-                <span>
-                  <FileTextOutlined />
-                  文本粘贴
-                </span>
-              } 
-              key="text"
-            >
-              <Form.Item 
-                name="resumeText" 
-                label="简历文本"
-                rules={[{ required: true, message: '请输入简历文本' }]}
-              >
-                <TextArea 
-                  rows={8} 
-                  placeholder="请粘贴简历文本内容，系统将自动解析关键信息..."
-                />
-              </Form.Item>
-              
-              <Button 
-                type="primary" 
-                onClick={handleTextParse}
-                loading={loading}
-              >
-                解析文本
-              </Button>
-            </TabPane>
-          </Tabs>
+      <Spin spinning={loading} style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Form form={form} layout="vertical" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <Tabs 
+            activeKey={activeTab} 
+            onChange={setActiveTab}
+            style={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            tabBarStyle={{ flexShrink: 0 }}
+            items={[
+              {
+                key: 'file',
+                label: (
+                  <span>
+                    <UploadOutlined />
+                    文件上传
+                  </span>
+                ),
+                children: (
+                  <Dragger {...uploadProps} style={{ marginBottom: 16, height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <p className="ant-upload-drag-icon">
+                      <InboxOutlined />
+                    </p>
+                    <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+                    <p className="ant-upload-hint">
+                      支持 PDF、DOC、DOCX 格式，文件大小不超过 10MB
+                    </p>
+                  </Dragger>
+                )
+              },
+              {
+                key: 'boss',
+                label: (
+                  <span>
+                    <FileTextOutlined />
+                    Boss直聘简历解析
+                  </span>
+                ),
+                children: (
+                  <>
+                    <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f6f8fa' }}>
+                      <Text type="secondary">
+                        请将Boss直聘上的候选人简历文本复制粘贴到下方文本框中，系统将自动解析并结构化存储。
+                      </Text>
+                    </Card>
+                    
+                    <Form.Item 
+                      name="bossResumeText" 
+                      label="Boss直聘简历文本"
+                      rules={[{ required: true, message: '请输入Boss直聘简历文本' }]}
+                    >
+                      <TextArea 
+                        rows={10} 
+                        placeholder="请粘贴Boss直聘简历文本...\n\n示例格式：\n张伟 28岁 5年 本科 离职\n\n我是一名有着5年工作经验的解决方案经理...\n\n期望职位：解决方案经理\n工作地点：北京\n行业：互联网\n薪资：15k-25k/月\n\n岗位经验\n解决方案经理 5年\n\n工作经历\n2019-03-2024-10 北京科技有限公司 解决方案经理\n负责企业级解决方案的设计和实施..."
+                      />
+                    </Form.Item>
+                    
+                    <Button 
+                      type="primary" 
+                      onClick={handleBossResumeParseText}
+                      loading={loading}
+                      disabled={!bossResumeText?.trim()}
+                    >
+                      解析Boss直聘简历
+                    </Button>
+                  </>
+                )
+              }
+            ]}
+          />
           
           {parsedResume && (
-            <Card title="解析结果" size="small" style={{ marginTop: 16, marginBottom: 16 }}>
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <Text><strong>姓名：</strong>{parsedResume.name || '未识别'}</Text>
-                <Text><strong>电话：</strong>{parsedResume.phone || '未识别'}</Text>
-                <Text><strong>邮箱：</strong>{parsedResume.email || '未识别'}</Text>
-                <Text><strong>应聘职位：</strong>{parsedResume.position || '未识别'}</Text>
-                <Text><strong>工作经验：</strong>{parsedResume.experience || '未识别'}</Text>
-                <Text><strong>学历：</strong>{parsedResume.education || '未识别'}</Text>
-                <Text><strong>技能：</strong>{parsedResume.skills?.join(', ') || '未识别'}</Text>
-              </Space>
+            <Card 
+              title={(
+                <Space>
+                  <UserOutlined />
+                  <span>解析结果</span>
+                  {parsedResume.qualityScore && (
+                    <Tag color={parsedResume.qualityScore >= 80 ? 'success' : parsedResume.qualityScore >= 60 ? 'warning' : 'error'}>
+                      质量评分: {parsedResume.qualityScore}分
+                    </Tag>
+                  )}
+                </Space>
+              )}
+              size="small" 
+              style={{ marginTop: 16, marginBottom: 16, maxHeight: '600px', overflow: 'auto' }}
+              bodyStyle={{ padding: '16px' }}
+            >
+              <Descriptions column={1} size="small" labelStyle={{ width: '80px' }}>
+                <Descriptions.Item label="姓名">
+                  <Tag color="blue">{parsedResume.name || '未识别'}</Tag>
+                </Descriptions.Item>
+                {parsedResume.age && (
+                  <Descriptions.Item label="年龄">
+                    <Tag color="cyan">{parsedResume.age}</Tag>
+                  </Descriptions.Item>
+                )}
+                {parsedResume.workYears && (
+                  <Descriptions.Item label="工作年限">
+                    <Tag color="orange">{parsedResume.workYears}年</Tag>
+                  </Descriptions.Item>
+                )}
+                {(parsedResume.education || (parsedResume.educationExperience && parsedResume.educationExperience[0]?.degree)) && (
+                  <Descriptions.Item label="学历">
+                    <Tag color="green">
+                      {parsedResume.education || parsedResume.educationExperience[0]?.degree}
+                    </Tag>
+                  </Descriptions.Item>
+                )}
+                {parsedResume.currentStatus && (
+                  <Descriptions.Item label="目前状态">
+                    <Tag color={parsedResume.currentStatus === '在职' ? 'success' : 'warning'}>
+                      {parsedResume.currentStatus}
+                    </Tag>
+                  </Descriptions.Item>
+                )}
+                {parsedResume.phone && (
+                  <Descriptions.Item label="电话">
+                    <Space><PhoneOutlined />{parsedResume.phone}</Space>
+                  </Descriptions.Item>
+                )}
+                {parsedResume.email && (
+                  <Descriptions.Item label="邮箱">
+                    <Space><MailOutlined />{parsedResume.email}</Space>
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+              
+              {parsedResume.expectedPosition && (
+                <>
+                  <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>期望职位</Divider>
+                  <Space wrap>
+                    {parsedResume.expectedPosition.position && (
+                      <Tag color="purple">{parsedResume.expectedPosition.position}</Tag>
+                    )}
+                    {parsedResume.expectedPosition.location && (
+                      <Tag color="blue"><EnvironmentOutlined /> {parsedResume.expectedPosition.location}</Tag>
+                    )}
+                    {parsedResume.expectedPosition.salary && (
+                      <Tag color="gold">{parsedResume.expectedPosition.salary}</Tag>
+                    )}
+                  </Space>
+                </>
+              )}
+              
+              {parsedResume.workExperience && parsedResume.workExperience.length > 0 && (
+                <>
+                  <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>工作经历</Divider>
+                  <List
+                    size="small"
+                    dataSource={parsedResume.workExperience}
+                    renderItem={(exp, index) => (
+                      <List.Item key={index} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                        <div style={{ width: '100%' }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                            <BuildOutlined style={{ marginRight: '4px' }} />
+                            {exp.company} - {exp.position}
+                          </div>
+                          <div style={{ color: '#666', fontSize: '12px', marginBottom: '4px' }}>
+                            <CalendarOutlined style={{ marginRight: '4px' }} />
+                            {exp.duration}
+                          </div>
+                          {exp.description && (
+                            <div style={{ fontSize: '12px', color: '#888' }}>
+                              {exp.description}
+                            </div>
+                          )}
+                        </div>
+                      </List.Item>
+                    )}
+                  />
+                </>
+              )}
+              
+              {parsedResume.educationExperience && parsedResume.educationExperience.length > 0 && (
+                <>
+                  <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>教育背景</Divider>
+                  <List
+                    size="small"
+                    dataSource={parsedResume.educationExperience}
+                    renderItem={(edu, index) => (
+                      <List.Item key={index} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                        <div style={{ width: '100%' }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                            <BookOutlined style={{ marginRight: '4px' }} />
+                            {edu.school} - {edu.major}
+                          </div>
+                          <div style={{ color: '#666', fontSize: '12px' }}>
+                            <CalendarOutlined style={{ marginRight: '4px' }} />
+                            {edu.duration} | {edu.degree}
+                          </div>
+                        </div>
+                      </List.Item>
+                    )}
+                  />
+                </>
+              )}
+              
+              {parsedResume.skills && parsedResume.skills.length > 0 && (
+                <>
+                  <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>技能标签</Divider>
+                  <Space wrap>
+                    {parsedResume.skills.slice(0, 12).map((skill, index) => (
+                      <Tag key={index} color="processing">{skill}</Tag>
+                    ))}
+                    {parsedResume.skills.length > 12 && (
+                      <Tag>+{parsedResume.skills.length - 12}</Tag>
+                    )}
+                  </Space>
+                </>
+              )}
             </Card>
           )}
           
@@ -233,6 +393,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
             label="简历来源" 
             rules={[{ required: true, message: '请选择简历来源' }]}
             style={{ marginBottom: 16 }}
+            initialValue="boss"
           >
             <Select 
               placeholder="请选择简历来源"
@@ -244,17 +405,19 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
             <TextArea rows={2} placeholder="添加备注信息（可选）" />
           </Form.Item>
           
-          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-            <Button onClick={handleClose}>取消</Button>
-            <Button 
-              type="primary" 
-              onClick={handleSubmit}
-              loading={loading}
-              disabled={!parsedResume}
-            >
-              确认添加
-            </Button>
-          </Space>
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '16px', borderTop: '1px solid #f0f0f0', paddingTop: '16px', position: 'sticky', bottom: 0, background: 'white' }}>
+            <Space>
+              <Button onClick={handleClose}>取消</Button>
+              <Button 
+                type="primary" 
+                onClick={handleSubmit}
+                loading={loading}
+                disabled={!parsedResume}
+              >
+                确认添加
+              </Button>
+            </Space>
+          </div>
         </Form>
       </Spin>
     </ModalBasePattern>
