@@ -5,6 +5,12 @@ const logger = require('../utils/logger');
 
 // 创建 Boss 直聘服务实例
 let bossZhipinService = null;
+let io = null;
+
+// 设置Socket.IO实例
+router.setIO = function(socketIO) {
+  io = socketIO;
+};
 
 /**
  * 启动 Boss 直聘智能寻聘
@@ -18,8 +24,8 @@ router.post('/start', async (req, res) => {
       await bossZhipinService.closeBrowser();
     }
     
-    // 创建新的服务实例
-    bossZhipinService = new BossZhipinService();
+    // 创建新的服务实例，传递io实例以支持页面切换保护
+    bossZhipinService = new BossZhipinService(io);
     
     // 启动初始化流程
     await bossZhipinService.initializeFullProcess();

@@ -2,12 +2,13 @@ const { chromium } = require('playwright');
 const logger = require('../utils/logger');
 
 class BossZhipinService {
-  constructor() {
+  constructor(io = null) {
     this.browser = null;
     this.page = null;
     this.isLoggedIn = false;
     this.currentStatus = 'idle'; // idle, navigating, logging_in, browsing
     this.popupHandler = null;
+    this.io = io; // Socket.IO实例，用于发送页面切换保护消息
     
     // 候选人浏览状态跟踪
     this.browsingStatus = {
@@ -33,7 +34,10 @@ class BossZhipinService {
       settings: {},
       startTime: null,
       currentStatus: 'idle' // 'idle', 'collecting', 'quality_checking', 'parsing', 'storing', 'completed'
-    }
+    };
+    
+    // 页面切换调度器
+    this.pageSwitchTimeout = null;
   }
 
   /**
@@ -114,10 +118,13 @@ class BossZhipinService {
           '--disable-features=VizDisplayCompositor',
           '--disable-web-security',
           '--disable-features=TranslateUI',
-          '--disable-ipc-flooding-protection'
+          '--disable-ipc-flooding-protection',
+          '--disable-popup-blocking', // 禁用弹窗阻止，确保新标签页能正常打开
+          '--disable-background-tab-throttling' // 禁用后台标签页限制
         ]
       });
 
+      // 使用默认浏览器上下文，确保所有页面在同一窗口的不同标签页中
       this.page = await this.browser.newPage();
       
       // 设置随机视口大小，模拟真实用户
@@ -891,9 +898,24 @@ class BossZhipinService {
             
             if (isDetailPage) {
               logger.info('成功打开候选人详情页面');
-              // 处理候选人详情
-              await this.processCandidateDetail();
-              candidateCount++;
+              
+              // 等待简历页面加载
+              await this.waitForResumePageLoad();
+              
+              // 提取简历内容
+              const resumeContent = await this.extractResumeContentFromPage();
+              
+              if (resumeContent) {
+                logger.info(`成功提取第 ${candidateCount + 1} 个候选人的简历内容`);
+                
+                // 上传简历到应用（包含确认添加逻辑）
+                await this.uploadResumeToApp(resumeContent, candidateCount);
+                
+                candidateCount++;
+                logger.info(`已成功处理第 ${candidateCount} 个候选人，目标: ${maxCandidates}`);
+              } else {
+                logger.warn(`第 ${candidateCount + 1} 个候选人简历内容提取失败`);
+              }
               
               // 返回列表页
               await this.page.goBack();
@@ -1347,27 +1369,79 @@ class BossZhipinService {
         return;
       }
       
-      // 检查是否已有应用页面，如果没有则创建新的
+      // 检查浏览器连接状态，如果断开则尝试重启
+      if (!this.browser || !this.browser.isConnected()) {
+        logger.warn('浏览器连接已断开，尝试重新初始化浏览器...');
+        try {
+          await this.initializeBrowser();
+          logger.info('浏览器重新初始化成功');
+        } catch (restartError) {
+          logger.error('浏览器重启失败:', restartError);
+          return;
+        }
+      }
+      
+      // 检查是否已有应用页面，如果没有则在同一浏览器窗口中创建新标签页
       if (!this.appPage || this.appPage.isClosed()) {
+        // 直接使用浏览器创建新页面，确保在同一窗口的不同标签页中
         this.appPage = await this.browser.newPage();
-        // 导航到应用页面
-        await this.appPage.goto('http://localhost:3000', { waitUntil: 'networkidle' });
-        await this.appPage.waitForTimeout(2000);
-        logger.info('创建新的应用页面并导航到 http://localhost:3000');
+        
+        // 设置页面不会被自动关闭
+        this.appPage.on('close', () => {
+          logger.warn('应用页面被意外关闭，将在下次使用时重新创建');
+          this.appPage = null;
+        });
+        
+        // 导航到应用页面，添加超时控制
+        await this.appPage.goto('http://localhost:3000', { 
+          waitUntil: 'networkidle',
+          timeout: 15000
+        });
+        await this.appPage.waitForTimeout(1500);
+        logger.info('在同一浏览器窗口中创建应用页面并导航到 http://localhost:3000');
       } else {
-        // 如果应用页面已存在，直接导航到应用页面
-        await this.appPage.bringToFront();
-        await this.appPage.goto('http://localhost:3000', { waitUntil: 'networkidle' });
-        await this.appPage.waitForTimeout(1000);
-        logger.info('使用现有应用页面并导航到 http://localhost:3000');
+        // 如果应用页面已存在，切换到应用页面并刷新到首页
+        try {
+          await this.appPage.bringToFront();
+          // 检查当前URL，如果不在首页则导航到首页
+          const currentUrl = this.appPage.url();
+          if (!currentUrl.includes('localhost:3000') || currentUrl !== 'http://localhost:3000/') {
+            await this.appPage.goto('http://localhost:3000', { 
+              waitUntil: 'networkidle',
+              timeout: 10000
+            });
+          }
+          await this.appPage.waitForTimeout(1000);
+          logger.info('切换到现有应用页面');
+        } catch (navError) {
+          logger.warn('切换到应用页面失败，尝试重新创建页面:', navError.message);
+          this.appPage = await this.browser.newPage();
+          
+          // 设置页面关闭监听
+          this.appPage.on('close', () => {
+            logger.warn('应用页面被意外关闭，将在下次使用时重新创建');
+            this.appPage = null;
+          });
+          
+          await this.appPage.goto('http://localhost:3000', { 
+            waitUntil: 'networkidle',
+            timeout: 15000
+          });
+          await this.appPage.waitForTimeout(1500);
+          logger.info('重新创建应用页面成功');
+        }
       }
       
       // 点击简历列表菜单项
-      const resumeListButton = await this.appPage.$('text=简历列表');
-      if (resumeListButton) {
-        await resumeListButton.click();
-        await this.appPage.waitForTimeout(1000);
-        logger.info('成功导航到简历列表页面');
+      try {
+        const resumeListButton = await this.appPage.$('text=简历列表');
+        if (resumeListButton) {
+          await resumeListButton.click();
+          await this.appPage.waitForTimeout(1000);
+          logger.info('成功导航到简历列表页面');
+        }
+      } catch (menuError) {
+        logger.warn('点击简历列表菜单失败:', menuError.message);
       }
       
       // 点击上传简历按钮
@@ -1395,32 +1469,59 @@ class BossZhipinService {
       }
       
       // 选择简历来源为Boss直聘
-      const sourceDropdown = await this.appPage.$('.ant-select-selector');
-      if (sourceDropdown) {
-        await sourceDropdown.click();
-        await this.appPage.waitForTimeout(500);
-        
-        // 选择Boss直聘选项
-        const bossZhipinOption = await this.appPage.$('text=Boss直聘');
-        if (bossZhipinOption) {
-          await bossZhipinOption.click();
+      try {
+        const sourceDropdown = await this.appPage.$('.ant-select-selector');
+        if (sourceDropdown) {
+          await sourceDropdown.click();
           await this.appPage.waitForTimeout(500);
-          logger.info('选择简历来源为Boss直聘');
+          
+          // 选择Boss直聘选项
+          const bossZhipinOption = await this.appPage.$('text=Boss直聘');
+          if (bossZhipinOption) {
+            await bossZhipinOption.click();
+            await this.appPage.waitForTimeout(500);
+            logger.info('选择简历来源为Boss直聘');
+          }
         }
+      } catch (sourceError) {
+        logger.warn('选择简历来源失败:', sourceError.message);
       }
       
       // 点击解析文本按钮
       const parseButton = await this.appPage.$('text=解析文本');
       if (parseButton) {
         await parseButton.click();
-        await this.appPage.waitForTimeout(3000); // 等待解析完成
+        await this.appPage.waitForTimeout(2000); // 减少等待时间
         logger.info('点击解析文本按钮，等待解析完成');
+        
+        // 调用确认添加逻辑，确保简历成功入库
+        const addSuccess = await this.clickConfirmWithRetry(this.appPage, 20); // 最大重试次数20次
+        if (addSuccess) {
+          logger.info(`第 ${candidateIndex + 1} 个候选人的简历添加成功`);
+          // 等待一下确保操作完全完成
+          await this.appPage.waitForTimeout(1500);
+        } else {
+          logger.error(`第 ${candidateIndex + 1} 个候选人的简历添加失败，已达到最大重试次数`);
+        }
+      } else {
+        logger.error('未找到解析文本按钮');
       }
       
-      logger.info(`第 ${candidateIndex + 1} 个候选人的简历上传和解析完成，应用页面保持打开状态`);
+      logger.info(`第 ${candidateIndex + 1} 个候选人的简历处理完成`);
+      
+      // 简历处理完成后，应用页面和Boss直聘页面都保持打开状态，便于后续操作
       
     } catch (error) {
       logger.error('上传简历到应用失败:', error);
+      
+      // 检查是否是连接相关错误
+      if (error.message.includes('Target closed') ||
+          error.message.includes('Protocol error') ||
+          error.message.includes('Session closed') ||
+          error.message.includes('Navigation timeout')) {
+        logger.error('检测到连接或超时问题，尝试恢复连接');
+        await this.recoverFromConnectionError();
+      }
     }
   }
   
@@ -2560,14 +2661,17 @@ class BossZhipinService {
         // 等待解析开始（给系统一些时间开始处理）
         await appPage.waitForTimeout(3000);
         
-        // 点击"确认添加"按钮，带重试机制（每8秒重试一次，最多10次）
-        const addSuccess = await this.clickConfirmWithRetry(appPage);
+        // 点击"确认添加"按钮，带重试机制（每8秒重试一次，最多20次）
+        const addSuccess = await this.clickConfirmWithRetry(appPage, 20);
         
-        if (!addSuccess) {
-          logger.warn(`第 ${candidateIndex} 个候选人简历添加失败`);
+        if (addSuccess) {
+          logger.info(`第 ${candidateIndex} 个候选人简历添加成功`);
+          // 等待一下确保操作完全完成
+          await appPage.waitForTimeout(2000);
+        } else {
+          logger.error(`第 ${candidateIndex} 个候选人简历添加失败，已达到最大重试次数`);
+          // 即使失败也要关闭页面，避免资源泄露
         }
-        
-        logger.info(`第 ${candidateIndex} 个候选人简历导入成功`);
       } else {
         logger.warn('未找到简历输入框');
       }
@@ -2582,14 +2686,20 @@ class BossZhipinService {
 
   /**
    * 带重试机制的确认添加按钮点击
-   * 增加重试次数和等待时间，适应简历解析的长时间处理
+   * 找到"确认添加"按钮即表示简历解析完成，点击后等待2秒自动完成
    */
-  async clickConfirmWithRetry(page, maxRetries = 10) {
+  async clickConfirmWithRetry(page, maxRetries = 20) {
     logger.info(`开始确认添加重试机制，最大重试次数: ${maxRetries}`);
     
     for (let i = 0; i < maxRetries; i++) {
       try {
-        logger.info(`第 ${i + 1} 次尝试点击确认添加按钮...`);
+        logger.info(`第 ${i + 1} 次尝试查找确认添加按钮...`);
+        
+        // 检查页面连接状态
+        if (page.isClosed()) {
+          logger.error('页面已关闭，无法继续操作');
+          return false;
+        }
         
         // 多种选择器策略查找确认添加按钮
         const confirmSelectors = [
@@ -2609,8 +2719,24 @@ class BossZhipinService {
               const isVisible = await confirmButton.isVisible();
               const isEnabled = await confirmButton.isEnabled();
               if (isVisible && isEnabled) {
-                logger.info(`找到可用的确认添加按钮: ${selector}`);
-                break;
+                logger.info(`找到可用的确认添加按钮: ${selector}，简历解析已完成`);
+                
+                // 添加点击前的稳定性检查
+                await page.waitForTimeout(1000);
+                
+                await confirmButton.click();
+                logger.info('已点击确认添加按钮，等待2秒后自动完成...');
+                
+                // 等待2秒后立即返回Boss直聘，不处理弹窗
+                await page.waitForTimeout(2000);
+                logger.info('简历上传完成，准备返回Boss直聘继续下一个候选人');
+                
+                // 使用Promise延迟切换页面，避免在关键时刻触发连接断开
+                this.schedulePageSwitch();
+                
+
+                
+                return true;
               } else {
                 confirmButton = null;
               }
@@ -2621,49 +2747,170 @@ class BossZhipinService {
           }
         }
         
-        if (confirmButton) {
-          await confirmButton.click();
-          await page.waitForTimeout(2000);
-          
-          // 检查是否出现新弹窗确认
-          const modalConfirm = await page.$('text=确认');
-          if (modalConfirm) {
-            await modalConfirm.click();
-            logger.info('简历添加确认完成');
-            return true;
-          }
-          
-          // 检查是否添加成功（页面跳转或出现成功提示）
-          const successIndicators = [
-            'text=添加成功',
-            'text=保存成功',
-            '.success-message',
-            '.toast-success'
-          ];
-          
-          for (const indicator of successIndicators) {
-            const successElement = await page.$(indicator);
-            if (successElement) {
-              logger.info('检测到成功提示，简历添加完成');
-              return true;
-            }
-          }
-        } else {
-          logger.warn(`第 ${i + 1} 次未找到确认添加按钮`);
+        if (!confirmButton) {
+          logger.warn(`第 ${i + 1} 次未找到确认添加按钮，简历可能还在解析中`);
         }
         
-        // 等待8秒后重试
+        // 等待8秒后进行下一次重试
         logger.info('等待8秒后进行下一次重试...');
         await page.waitForTimeout(8000);
         
       } catch (error) {
-        logger.warn(`第 ${i + 1} 次点击确认添加失败:`, error.message);
+        logger.warn(`第 ${i + 1} 次查找确认添加按钮失败:`, error.message);
+        
+        // 检查是否是连接相关错误
+        if (error.message.includes('Target closed') || 
+            error.message.includes('Protocol error') ||
+            error.message.includes('Session closed')) {
+          logger.error('检测到连接断开，尝试恢复连接');
+          const recovered = await this.recoverFromConnectionError();
+          if (!recovered) {
+            logger.error('连接恢复失败，停止重试');
+            return false;
+          }
+          // 恢复成功后继续重试
+          continue;
+        }
+        
         await page.waitForTimeout(8000);
       }
     }
     
-    logger.error('确认添加按钮点击失败，已达到最大重试次数');
+    logger.error('确认添加按钮查找失败，已达到最大重试次数');
     return false;
+  }
+
+
+
+  /**
+   * 安全地调度页面切换，避免在WebSocket连接敏感期间进行操作
+   */
+  schedulePageSwitch() {
+    // 清除之前的调度
+    if (this.pageSwitchTimeout) {
+      clearTimeout(this.pageSwitchTimeout);
+    }
+    
+    // 激活页面切换保护机制
+    if (this.io) {
+      this.io.emit('activatePageSwitchProtection');
+      logger.info('已发送页面切换保护激活信号');
+    }
+    
+    // 使用更长的延迟，确保WebSocket连接稳定
+    this.pageSwitchTimeout = setTimeout(async () => {
+      try {
+        logger.info('开始执行调度的页面切换...');
+        
+        // 检查连接状态，只有在连接稳定时才进行切换
+        if (this.browser && this.browser.isConnected()) {
+          await this.switchToBossZhipinPageSafely();
+          logger.info('调度的页面切换已完成');
+        } else {
+          logger.warn('浏览器连接不稳定，跳过页面切换');
+        }
+      } catch (error) {
+        logger.warn('调度的页面切换失败，但不影响后续流程:', error.message);
+      } finally {
+        this.pageSwitchTimeout = null;
+      }
+    }, 3000); // 增加到3秒延迟
+  }
+
+  /**
+   * 安全的页面切换实现
+   */
+  async switchToBossZhipinPageSafely() {
+    try {
+      if (this.page && !this.page.isClosed()) {
+        logger.info('正在安全切换回Boss直聘页面...');
+        
+        // 检查页面状态
+        const pageState = await this.page.evaluate(() => {
+          return {
+            hidden: document.hidden,
+            visibilityState: document.visibilityState,
+            readyState: document.readyState
+          };
+        });
+        
+        logger.info('页面状态检查:', pageState);
+        
+        // 只有在页面完全加载且不可见时才进行切换
+        if (pageState.readyState === 'complete' && pageState.hidden) {
+          await this.page.bringToFront();
+          await this.page.waitForTimeout(500);
+          logger.info('已安全切换回Boss直聘页面');
+        } else {
+          logger.info('页面已可见或未完全加载，跳过切换操作');
+        }
+      } else {
+        logger.warn('Boss直聘页面不可用，需要重新初始化');
+        await this.reinitializeBossZhipinPage();
+      }
+    } catch (error) {
+      logger.error('安全页面切换失败:', error.message);
+      // 不抛出异常，避免影响后续流程
+    }
+  }
+
+  /**
+   * 重新初始化Boss直聘页面
+   */
+  async reinitializeBossZhipinPage() {
+    try {
+      if (this.browser && this.browser.isConnected()) {
+        this.page = await this.browser.newPage();
+        await this.openBossZhipinWebsite();
+        logger.info('Boss直聘页面已重新初始化');
+      } else {
+        logger.warn('浏览器连接不可用，无法重新初始化页面');
+      }
+    } catch (error) {
+      logger.error('重新初始化Boss直聘页面失败:', error.message);
+    }
+  }
+
+  /**
+   * 切换回Boss直聘页面（旧版本，保持兼容性）
+   */
+  async switchToBossZhipinPage() {
+    try {
+      if (this.page && !this.page.isClosed()) {
+        // 温和的页面切换，避免触发连接断开
+        logger.info('正在切换回Boss直聘页面...');
+        
+        // 使用更温和的方式切换页面，避免强制前置
+        try {
+          // 先检查页面是否可见
+          const isVisible = await this.page.evaluate(() => {
+            return !document.hidden;
+          });
+          
+          if (!isVisible) {
+            // 只有在页面不可见时才进行切换
+            await this.page.bringToFront();
+          }
+          
+          // 减少等待时间，避免长时间阻塞
+          await this.page.waitForTimeout(200);
+          logger.info('已切换回Boss直聘页面');
+        } catch (switchError) {
+          logger.warn('页面切换过程中出现问题，但继续执行:', switchError.message);
+        }
+      } else {
+        logger.warn('Boss直聘页面不可用，需要重新初始化');
+        // 如果Boss直聘页面不可用，尝试重新创建
+        if (this.browser && this.browser.isConnected()) {
+          this.page = await this.browser.newPage();
+          await this.openBossZhipinWebsite();
+          logger.info('Boss直聘页面已重新创建');
+        }
+      }
+    } catch (error) {
+      logger.error('切换回Boss直聘页面失败:', error.message);
+      // 即使切换失败也不抛出异常，避免影响后续流程
+    }
   }
 
   /**
@@ -3131,6 +3378,13 @@ class BossZhipinService {
    */
   async closeBrowser() {
     try {
+      // 清理页面切换定时器
+      if (this.pageSwitchTimeout) {
+        clearTimeout(this.pageSwitchTimeout);
+        this.pageSwitchTimeout = null;
+        logger.info('页面切换定时器已清理');
+      }
+      
       if (this.browser) {
         // 关闭应用页面
         if (this.appPage && !this.appPage.isClosed()) {
@@ -3145,10 +3399,45 @@ class BossZhipinService {
         this.isLoggedIn = false;
         this.currentStatus = 'idle';
         this.popupHandler = null;
-        logger.info('Boss 直聘自动化浏览器已关闭');
+        logger.info('Boss直聘自动化浏览器已关闭，所有页面和上下文已清理');
       }
     } catch (error) {
       logger.error('关闭浏览器失败:', error);
+    }
+  }
+
+  /**
+   * 连接错误恢复机制
+   * 检测到连接断开或严重错误时，重置浏览器状态并重新初始化
+   */
+  async recoverFromConnectionError() {
+    try {
+      logger.warn('检测到连接错误，开始执行恢复机制...');
+      
+      // 关闭现有浏览器
+      await this.closeBrowser();
+      
+      // 重置状态
+      this.currentStatus = 'recovering';
+      this.isLoggedIn = false;
+      this.page = null;
+      this.appPage = null;
+      this.browser = null;
+      
+      // 等待一段时间后重新初始化
+      logger.info('等待5秒后重新初始化浏览器...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // 重新初始化浏览器
+      await this.initializeBrowser();
+      
+      logger.info('浏览器恢复完成');
+      return true;
+      
+    } catch (error) {
+      logger.error('连接错误恢复失败:', error);
+      this.currentStatus = 'error';
+      return false;
     }
   }
 

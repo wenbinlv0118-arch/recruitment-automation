@@ -346,14 +346,15 @@ function App() {
     
     const newSocket = io('http://localhost:5001', {
       transports: ['websocket', 'polling'], // 优先使用WebSocket，降级到polling
-      timeout: 30000,
+      timeout: 20000, // 减少超时时间
       forceNew: true,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 10, // 增加重连次数
+      reconnectionDelay: 2000, // 增加重连延迟
+      reconnectionDelayMax: 10000, // 增加最大重连延迟
       upgrade: true,
-      rememberUpgrade: true
+      rememberUpgrade: true,
+      autoConnect: true
     });
     
     newSocket.on('connect', () => {
@@ -363,18 +364,44 @@ function App() {
     });
 
     newSocket.on('disconnect', (reason) => {
-      // console.log('Socket.IO连接断开:', reason);
+      console.log('Socket.IO连接断开:', reason);
       setIsConnected(false);
+      
+      // 根据断开原因显示不同的提示
+      if (reason === 'io server disconnect') {
+        message.warning('服务器主动断开连接，正在尝试重连...');
+      } else if (reason === 'transport close') {
+        message.warning('网络连接中断，正在尝试重连...');
+      } else if (reason === 'transport error') {
+        message.error('网络传输错误，正在尝试重连...');
+      }
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket.IO连接错误:', error);
-      message.error('连接服务器失败: ' + error.message);
+      setIsConnected(false);
+      
+      // 根据错误类型显示不同的提示
+      if (error.message.includes('timeout')) {
+        message.error('连接超时，请检查网络连接');
+      } else if (error.message.includes('ECONNREFUSED')) {
+        message.error('无法连接到服务器，请确认服务器已启动');
+      } else {
+        message.error('连接服务器失败: ' + error.message);
+      }
     });
 
     newSocket.on('reconnect', (attemptNumber) => {
-              // console.log('Socket.IO重连成功，尝试次数:', attemptNumber);
+      console.log('Socket.IO重连成功，尝试次数:', attemptNumber);
       setIsConnected(true);
+      message.success('重连成功！');
+    });
+
+    newSocket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('Socket.IO重连尝试:', attemptNumber);
+      if (attemptNumber <= 3) {
+        message.info(`正在尝试重连... (${attemptNumber}/10)`);
+      }
     });
 
     newSocket.on('reconnect_error', (error) => {
@@ -383,7 +410,8 @@ function App() {
 
     newSocket.on('reconnect_failed', () => {
       console.error('Socket.IO重连失败，已达到最大尝试次数');
-      message.error('无法连接到服务器，请刷新页面重试');
+      setIsConnected(false);
+      message.error('无法连接到服务器，请检查网络连接或刷新页面重试');
     });
 
     newSocket.on('statusUpdate', (data) => {

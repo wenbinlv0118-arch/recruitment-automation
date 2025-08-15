@@ -20,19 +20,64 @@ const io = socketIo(server, {
   },
   transports: ['websocket', 'polling'],
   allowEIO3: true,
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 10000,
+  // 大幅增加ping超时时间，防止页面切换时断开
+  pingTimeout: 180000, // 3分钟
+  pingInterval: 45000, // 45秒
+  upgradeTimeout: 20000,
   maxHttpBufferSize: 1e8,
-  // 添加更多配置选项
-  connectTimeout: 45000,
+  // 增加连接超时时间
+  connectTimeout: 90000,
   // 改进重连处理
   allowUpgrades: true,
   // 启用连接稳定性配置
   forceNew: false,
-  // 启用心跳检测，提高连接稳定性
-  heartbeat: true
+  // 添加连接保持配置
+  serveClient: false,
+  // 启用压缩以减少传输开销
+  compression: true,
+  // 添加页面切换保护配置
+  destroyUpgrade: false,
+  destroyUpgradeTimeout: 1000,
+  // 增强连接稳定性
+  perMessageDeflate: {
+    threshold: 1024,
+    concurrencyLimit: 10,
+    memLevel: 7
+  }
 });
+
+// 页面切换保护机制
+let pageSwitchProtection = {
+  isActive: false,
+  startTime: null,
+  duration: 5000 // 5秒保护期
+};
+
+// 激活页面切换保护
+function activatePageSwitchProtection() {
+  pageSwitchProtection.isActive = true;
+  pageSwitchProtection.startTime = Date.now();
+  console.log('页面切换保护已激活');
+  
+  // 自动取消保护
+  setTimeout(() => {
+    pageSwitchProtection.isActive = false;
+    console.log('页面切换保护已取消');
+  }, pageSwitchProtection.duration);
+}
+
+// 检查是否在保护期内
+function isInPageSwitchProtection() {
+  if (!pageSwitchProtection.isActive) return false;
+  
+  const elapsed = Date.now() - pageSwitchProtection.startTime;
+  if (elapsed > pageSwitchProtection.duration) {
+    pageSwitchProtection.isActive = false;
+    return false;
+  }
+  
+  return true;
+}
 
 // 添加 Socket.IO 连接事件监听
 io.on('connection', (socket) => {
@@ -48,25 +93,46 @@ io.on('connection', (socket) => {
 
   // 监听断开连接
   socket.on('disconnect', (reason) => {
-    console.log('客户端断开连接:', socket.id, '原因:', reason);
-    
     // 记录断开连接的详细信息
-    console.log('断开连接详情:', {
+    const disconnectDetails = {
       socketId: socket.id,
       reason: reason,
       timestamp: new Date().toISOString(),
-      transport: socket.conn?.transport?.name || 'unknown'
-    });
+      transport: socket.conn?.transport?.name || 'unknown',
+      inProtection: isInPageSwitchProtection()
+    };
     
-    // 如果是意外断开，尝试保持连接
-    if (reason === 'transport close' || reason === 'ping timeout') {
-      console.log('检测到意外断开，尝试保持连接...');
+    console.log('客户端断开连接:', socket.id, '原因:', reason);
+    console.log('断开连接详情:', disconnectDetails);
+    
+    // 根据断开原因进行不同处理
+    if (reason === 'transport close') {
+      if (isInPageSwitchProtection()) {
+        console.log('⚡ 页面切换保护期内的传输层关闭，这是预期的正常断开，忽略处理');
+        return; // 在保护期内忽略transport close
+      } else {
+        console.log('检测到传输层关闭，这可能是由于页面切换或网络问题导致的断开');
+      }
+    } else if (reason === 'ping timeout') {
+      console.log('检测到ping超时，可能是网络延迟或客户端无响应');
+    } else if (reason === 'client namespace disconnect') {
+      console.log('客户端主动断开连接');
+    } else if (reason === 'server namespace disconnect') {
+      console.log('服务器主动断开连接');
+    } else {
+      console.log('其他原因的连接断开:', reason);
     }
   });
 
   // 监听重连尝试
   socket.on('reconnect_attempt', (attemptNumber) => {
     console.log('客户端重连尝试:', socket.id, '次数:', attemptNumber);
+  });
+
+  // 监听页面切换保护激活请求
+  socket.on('activatePageSwitchProtection', () => {
+    console.log('收到页面切换保护激活请求，激活5秒保护期');
+    activatePageSwitchProtection();
   });
 
   // 处理智能寻聘请求
@@ -660,6 +726,8 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/positions', positionRoutes);
 // 注册 Boss 直聘路由
 const bossZhipinRoutes = require('./routes/bossZhipin');
+// 将io实例传递给Boss直聘路由
+bossZhipinRoutes.setIO(io);
 app.use('/api/boss-zhipin', bossZhipinRoutes);
 // 注册简历路由
 const resumeRoutes = require('./routes/resumeRoutes');
