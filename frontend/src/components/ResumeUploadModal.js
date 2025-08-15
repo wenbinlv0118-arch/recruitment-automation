@@ -83,15 +83,25 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       const result = await response.json();
       
       if (result.success) {
-        // 设置解析结果，包含大模型返回的markdown格式内容
-        setParsedResume({
-          name: '大模型解析结果',
-          parsedContent: result.data.parsedContent,
-          parseMethod: 'llm',
-          originalText: result.data.originalText,
-          timestamp: result.data.timestamp
-        });
-        message.success('Boss直聘简历解析成功（使用大模型）');
+        // 处理新的结构化JSON数据格式
+        if (result.data.name && result.data.name !== '未知') {
+          // 新格式：直接使用结构化数据
+          setParsedResume({
+            ...result.data,
+            name: result.data.name || '大模型解析结果'
+          });
+          message.success('Boss直聘简历解析成功（结构化数据）');
+        } else {
+          // 旧格式：兼容Markdown格式
+          setParsedResume({
+            name: '大模型解析结果',
+            parsedContent: result.data.parsedContent,
+            parseMethod: 'llm',
+            originalText: result.data.originalText || result.data.text,
+            timestamp: result.data.timestamp
+          });
+          message.success('Boss直聘简历解析成功（Markdown格式）');
+        }
       } else {
         message.error(result.error || 'Boss直聘简历解析失败');
       }

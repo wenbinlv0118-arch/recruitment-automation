@@ -355,153 +355,143 @@ const ResumeLibrary = () => {
           <Row gutter={[16, 16]}>
           {getFilteredAndSortedResumes().map(item => {
             // 解析候选人姓名
+            // 直接使用后端返回的结构化数据
             const parseCandidateName = (resume) => {
-              if (resume.parsedContent) {
-                const content = resume.parsedContent;
-                // 匹配 # 姓名 - 职位 格式
-                const nameMatch = content.match(/# ([^-\n]+)/);
-                if (nameMatch) {
-                  return nameMatch[1].trim();
-                }
-              }
-              return resume.name !== '大模型解析结果' ? resume.name : '未知姓名';
+              // 优先使用结构化数据字段
+              return resume.name || '未知姓名';
             };
 
             // 解析学历信息
+            // 直接使用后端返回的结构化数据
             const parseEducationLevel = (resume) => {
-              if (resume.parsedContent) {
-                const content = resume.parsedContent;
-                // 匹配基本信息中的学历
-                const basicInfoMatch = content.match(/\*\*.*?\|.*?\|.*?\*\*/);
-                if (basicInfoMatch) {
-                  const basicInfo = basicInfoMatch[0];
-                  if (basicInfo.includes('大专')) return '大专';
-                  if (basicInfo.includes('本科')) return '本科';
-                  if (basicInfo.includes('硕士')) return '硕士';
-                  if (basicInfo.includes('博士')) return '博士';
-                }
-              }
-              return '未知学历';
+              // 优先使用结构化数据字段
+              return resume.education || '未知学历';
             };
 
             // 解析工作年限
+            // 直接使用后端返回的结构化数据
              const parseWorkYears = (resume) => {
-               if (resume.parsedContent) {
-                 const content = resume.parsedContent;
-                 // 从自我评价中提取工作年限
-                 const selfEvalMatch = content.match(/## 📌 自我评价([\s\S]*?)(?=##|$)/);
-                 if (selfEvalMatch) {
-                   const selfEval = selfEvalMatch[1];
-                   const yearMatch = selfEval.match(/(\d+)年.*?经验/);
-                   if (yearMatch) {
-                     return yearMatch[1];
-                   }
-                 }
-               }
-               return '0';
+               // 优先使用结构化数据字段
+               return resume.workYears || resume.experience || '0';
              };
 
              // 解析求职岗位
+             // 直接使用后端返回的结构化数据
              const parseExpectedPosition = (resume) => {
-               if (resume.parsedContent) {
-                 const content = resume.parsedContent;
-                 // 匹配基本信息中的求职意向
-                 const basicInfoMatch = content.match(/## 基本信息([\s\S]*?)(?=##|---)/i);
-                 if (basicInfoMatch) {
-                   const basicSection = basicInfoMatch[1];
-                   const intentMatch = basicSection.match(/\*\*求职意向\*\*：(.+?)(?=\n|$)/i);
-                   if (intentMatch) {
-                     // 提取职位部分，去掉地点和薪资信息
-                     const fullIntent = intentMatch[1].trim();
-                     const positionMatch = fullIntent.match(/^([^|]+)/);
-                     if (positionMatch) {
-                       return positionMatch[1].trim();
-                     }
-                     return fullIntent;
-                   }
+               // 优先使用结构化数据字段，确保返回字符串类型
+               let position = resume.expectedPosition || resume.position || '未指定职位';
+               
+               // 如果是对象类型，尝试提取position字段或转换为字符串
+               if (typeof position === 'object' && position !== null) {
+                 if (position.position) {
+                   position = position.position;
+                 } else {
+                   position = JSON.stringify(position);
                  }
                }
-               return '未指定职位';
-             };
+               
+               return typeof position === 'string' ? position : '未指定职位';
+              };
 
             // 解析工作经历数据
+            // 直接使用后端返回的结构化数据
             const parseWorkExperience = (resume) => {
-              // 从parsedContent中提取工作经历
-              if (resume.parsedContent) {
-                const content = resume.parsedContent;
-                const experiences = [];
-                
-                // 先找到工作经历部分
-                const workStart = content.indexOf('## 工作经历');
-                const nextSectionStart = content.indexOf('## 项目经验');
-                if (workStart !== -1) {
-                  const workSection = content.substring(workStart, nextSectionStart !== -1 ? nextSectionStart : content.length);
-                  
-                  // 匹配工作经历格式：### 公司名称 | 职位 \n **部门** | 时间段
-                  const workMatches = workSection.match(/### ([^|]+) \| ([^\n]+)\s*\n\*\*([^\*]+)\*\* \| ([^\n]+)\s*\n([\s\S]*?)(?=###|$)/g);
-                  if (workMatches) {
-                    workMatches.forEach(match => {
-                      const lines = match.split('\n');
-                      const titleLine = lines[0]; // ### 公司名称 | 职位
-                      const deptLine = lines[1]; // **部门** | 时间段
-                      
-                      const titleMatch = titleLine.match(/### ([^|]+) \| (.+)/);
-                      const deptMatch = deptLine.match(/\*\*([^\*]+)\*\* \| (.+)/);
-                      
-                      if (titleMatch && deptMatch) {
-                        const company = titleMatch[1].trim();
-                        const position = titleMatch[2].trim();
-                        const department = deptMatch[1].trim();
-                        const duration = deptMatch[2].trim();
-                        
-                        // 提取工作描述（从第3行开始）并清理markdown格式
-                        const descriptionLines = lines.slice(2);
-                        let description = '';
-                        for (let line of descriptionLines) {
-                          if (line.trim() && !line.startsWith('###')) {
-                            // 清理markdown格式符号
-                            const cleanLine = line
-                              .replace(/\*\*([^*]+)\*\*/g, '$1') // 移除粗体标记
-                              .replace(/\*([^*]+)\*/g, '$1')     // 移除斜体标记
-                              .replace(/^[-*+]\s+/gm, '')       // 移除列表标记
-                              .replace(/^\s*\d+\.\s+/gm, '')    // 移除数字列表标记
-                              .replace(/^#+\s+/gm, '')         // 移除标题标记
-                              .trim();
-                            if (cleanLine) {
-                              description += cleanLine + ' ';
-                            }
-                          }
-                        }
-                        description = description.trim();
-                        
-                        experiences.push({ company, position, duration, description });
-                      }
-                    });
-                  }
-                }
-                return experiences.slice(0, 3); // 最多显示3段经历
+              // 优先使用结构化数据字段
+              if (resume.workExperience && Array.isArray(resume.workExperience)) {
+                return resume.workExperience.slice(0, 3); // 最多显示3段经历
               }
+              
+              // 如果没有工作经历数据，返回空数组
               return [];
             };
             
             // 解析教育经历数据
             const parseEducation = (resume) => {
+              // 优先使用 educationExperience 数组
+              if (resume.educationExperience && Array.isArray(resume.educationExperience) && resume.educationExperience.length > 0) {
+                const edu = resume.educationExperience[0]; // 取第一个教育经历
+                return {
+                  school: edu.school || edu.university || '未知学校',
+                  major: edu.major || edu.specialty || '未知专业',
+                  degree: edu.degree || edu.education || '未知学历',
+                  duration: edu.duration || edu.period || edu.time || 
+                           (edu.startDate && edu.endDate ? `${edu.startDate} - ${edu.endDate}` : '未知时间')
+                };
+              }
+              
+              // 其次使用 education 数组
+              if (resume.education && Array.isArray(resume.education) && resume.education.length > 0) {
+                const edu = resume.education[0];
+                return {
+                  school: edu.school || edu.university || '未知学校',
+                  major: edu.major || edu.specialty || '未知专业',
+                  degree: edu.degree || edu.education || '未知学历',
+                  duration: edu.duration || edu.period || edu.time || '未知时间'
+                };
+              }
+              
+              // 处理字符串形式的教育信息
+              if (resume.education && typeof resume.education === 'string') {
+                return {
+                  school: resume.school || '未知学校',
+                  major: resume.major || '未知专业',
+                  degree: resume.education,
+                  duration: resume.graduationYear ? `${resume.graduationYear}年毕业` : '未知时间'
+                };
+              }
+              
+              // 从解析内容中提取
               if (resume.parsedContent) {
-                const content = resume.parsedContent;
-                const eduSectionMatch = content.match(/## 教育经历([\s\S]*?)(?=##|---)/i);
-                if (eduSectionMatch) {
-                  const eduSection = eduSectionMatch[1];
-                  const eduMatch = eduSection.match(/\*\*(.+?) \| (.+?) \| (.+?)\*\*\s*\n\*\*(.+?)\*\*/);
-                  if (eduMatch) {
+                try {
+                  const parsedData = JSON.parse(resume.parsedContent);
+                  if (parsedData.educationExperiences && Array.isArray(parsedData.educationExperiences) && parsedData.educationExperiences.length > 0) {
+                    const edu = parsedData.educationExperiences[0];
                     return {
-                      school: eduMatch[1].trim(),
-                      major: eduMatch[2].trim(),
-                      degree: eduMatch[3].trim(),
-                      duration: eduMatch[4].trim()
+                      school: edu.school || '未知学校',
+                      major: edu.major || '未知专业',
+                      degree: edu.degree || '未知学历',
+                      duration: edu.startDate && edu.endDate ? `${edu.startDate} - ${edu.endDate}` : '未知时间'
                     };
+                  }
+                } catch (e) {
+                  // 如果解析失败，尝试文本匹配
+                  const content = resume.parsedContent;
+                  const eduSectionMatch = content.match(/## 教育经历([\s\S]*?)(?=##|---)/i);
+                  if (eduSectionMatch) {
+                    const eduSection = eduSectionMatch[1];
+                    const eduMatch = eduSection.match(/\*\*(.+?) \| (.+?) \| (.+?)\*\*\s*\n\*\*(.+?)\*\*/);
+                    if (eduMatch) {
+                      return {
+                        school: eduMatch[1].trim(),
+                        major: eduMatch[2].trim(),
+                        degree: eduMatch[3].trim(),
+                        duration: eduMatch[4].trim()
+                      };
+                    }
                   }
                 }
               }
+              
+              // 从基本字段中提取
+              if (resume.school || resume.major || resume.degree || resume.education) {
+                return {
+                  school: resume.school || '未知学校',
+                  major: resume.major || '未知专业', 
+                  degree: resume.degree || resume.education || '未知学历',
+                  duration: resume.graduationYear ? `${resume.graduationYear}年毕业` : '未知时间'
+                };
+              }
+              
+              // 如果都没有，尝试从其他可能的字段中提取
+              if (resume.university || resume.specialty) {
+                return {
+                  school: resume.university || '未知学校',
+                  major: resume.specialty || '未知专业',
+                  degree: '未知学历',
+                  duration: '未知时间'
+                };
+              }
+              
               return null;
             };
             
@@ -603,19 +593,31 @@ const ResumeLibrary = () => {
                       <Text strong style={{ fontSize: '12px', color: '#333', display: 'block', marginBottom: '6px' }}>
                         💼 工作经历
                       </Text>
-                      {workExperiences.slice(0, 2).map((exp, index) => (
-                        <div key={index} style={{ marginBottom: '8px', padding: '6px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#333' }}>
-                            {exp.company} | {exp.position}
+                      {workExperiences.slice(0, 2).map((exp, index) => {
+                        // 确保所有字段都是字符串类型，避免React渲染错误
+                        const company = typeof exp.company === 'string' ? exp.company : 
+                                       (typeof exp.company === 'object' && exp.company ? JSON.stringify(exp.company) : '未知公司');
+                        const position = typeof exp.position === 'string' ? exp.position : 
+                                        (typeof exp.position === 'object' && exp.position ? JSON.stringify(exp.position) : '未知职位');
+                        const duration = typeof exp.duration === 'string' ? exp.duration : 
+                                        (typeof exp.duration === 'object' && exp.duration ? JSON.stringify(exp.duration) : '未知时间');
+                        const description = typeof exp.description === 'string' ? exp.description : 
+                                           (typeof exp.description === 'object' && exp.description ? JSON.stringify(exp.description) : '暂无描述');
+                        
+                        return (
+                          <div key={index} style={{ marginBottom: '8px', padding: '6px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#333' }}>
+                              {company} | {position}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#666', marginBottom: '2px' }}>
+                              {duration}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.3' }}>
+                              {description.length > 50 ? description.substring(0, 50) + '...' : description}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '10px', color: '#666', marginBottom: '2px' }}>
-                            {exp.duration}
-                          </div>
-                          <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.3' }}>
-                            {exp.description.length > 50 ? exp.description.substring(0, 50) + '...' : exp.description}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {workExperiences.length > 2 && (
                         <Text type="secondary" style={{ fontSize: '10px' }}>
                           还有 {workExperiences.length - 2} 段工作经历...
@@ -632,9 +634,9 @@ const ResumeLibrary = () => {
                       <Text strong style={{ fontSize: '12px', color: '#333', display: 'block', marginBottom: '6px' }}>
                         🎓 教育经历
                       </Text>
-                      <div style={{ padding: '6px', backgroundColor: '#f0f8ff', borderRadius: '4px' }}>
-                        <div style={{ fontSize: '11px', color: '#333' }}>
-                          {education.school} | {education.major} | {education.degree} | {education.duration}
+                      <div style={{ padding: '8px', backgroundColor: '#f0f8ff', borderRadius: '6px', border: '1px solid #e6f7ff' }}>
+                        <div style={{ fontSize: '10px', color: '#1890ff', lineHeight: '1.4' }}>
+                          {typeof education.school === 'string' ? education.school : '未知学校'} | {typeof education.major === 'string' ? education.major : '未知专业'} | {typeof education.degree === 'string' ? education.degree : '未知学历'} | {typeof education.duration === 'string' ? education.duration : '未知时间'}
                         </div>
                       </div>
                     </div>

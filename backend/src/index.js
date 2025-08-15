@@ -566,8 +566,94 @@ app.post('/api/resume/parse-boss-resume', async (req, res) => {
     // 构建简历解析提示词
     const messages = [{
       role: 'user',
-      content: `帮我把这段话解析成结构化的简历，采用 markdown 的形式输出：\n\n${text}`
-    }];
+      content: `请将以下简历文本解析为标准化格式。请按照以下要求输出两部分内容：
+
+第一部分：JSON格式的结构化数据（用于系统处理）
+第二部分：Markdown格式的简历内容（用于页面展示）
+
+请严格按照以下格式输出：
+
+\`\`\`json
+{
+  "name": "候选人姓名",
+  "age": "年龄（数字）",
+  "workYears": "工作年限（数字）",
+  "education": "学历（本科/硕士/博士等）",
+  "currentStatus": "当前状态（在职/离职/待业）",
+  "phone": "手机号码",
+  "email": "邮箱地址",
+  "selfIntroduction": "个人简介",
+  "expectedPosition": {
+    "position": "期望职位",
+    "location": "工作地点",
+    "industry": "期望行业",
+    "salary": "期望薪资"
+  },
+  "workExperience": [
+    {
+      "company": "公司名称",
+      "position": "职位名称",
+      "department": "部门",
+      "duration": "工作时间",
+      "description": "工作描述"
+    }
+  ],
+  "educationExperience": [
+    {
+      "school": "学校名称",
+      "degree": "学历",
+      "major": "专业",
+      "duration": "就读时间"
+    }
+  ],
+  "skills": ["技能1", "技能2", "技能3"],
+  "certificates": ["证书1", "证书2"]
+}
+\`\`\`
+
+\`\`\`markdown
+# 个人简历
+
+## 基本信息
+- **姓名**：候选人姓名
+- **年龄**：XX岁
+- **工作年限**：X年
+- **学历**：本科/硕士/博士
+- **当前状态**：在职/离职/待业
+- **联系电话**：手机号码
+- **邮箱**：邮箱地址
+
+## 求职意向
+- **期望职位**：期望职位名称
+- **期望地点**：工作地点
+- **期望行业**：期望行业
+- **期望薪资**：期望薪资范围
+
+## 个人简介
+个人简介内容...
+
+## 工作经历
+### 公司名称 | 职位名称 | 工作时间
+**部门**：部门名称
+
+工作描述和主要职责...
+
+## 教育经历
+### 学校名称 | 专业 | 学历 | 就读时间
+教育相关描述...
+
+## 专业技能
+- 技能1
+- 技能2
+- 技能3
+
+## 证书资质
+- 证书1
+- 证书2
+\`\`\`
+
+请解析以下简历文本：\n\n${text}`
+     }];
     
     console.log('开始调用大模型解析Boss直聘简历...');
     
@@ -576,15 +662,79 @@ app.post('/api/resume/parse-boss-resume', async (req, res) => {
     
     console.log('大模型解析完成，结果长度:', parsedContent.length);
     
-    res.json({ 
-      success: true, 
-      data: {
-        originalText: text,
+    // 解析包含JSON和Markdown两部分的响应
+    let parsedData;
+    let markdownContent = '';
+    
+    try {
+      // 提取JSON部分
+      const jsonMatch = parsedContent.match(/```json\s*([\s\S]*?)\s*```/);
+      // 提取Markdown部分
+      const markdownMatch = parsedContent.match(/```markdown\s*([\s\S]*?)\s*```/);
+      
+      if (jsonMatch && jsonMatch[1]) {
+        // 解析JSON数据
+        parsedData = JSON.parse(jsonMatch[1].trim());
+        console.log('JSON数据解析成功');
+      } else {
+        // 如果没有找到JSON块，尝试直接解析整个内容
+        parsedData = JSON.parse(parsedContent);
+        console.log('直接JSON解析成功（向后兼容）');
+      }
+      
+      if (markdownMatch && markdownMatch[1]) {
+        markdownContent = markdownMatch[1].trim();
+        console.log('Markdown内容提取成功，长度:', markdownContent.length);
+      } else {
+        // 如果没有Markdown部分，使用原始内容作为备用
+        markdownContent = parsedContent;
+        console.log('使用原始内容作为Markdown（向后兼容）');
+      }
+      
+      // 数据清洗和验证
+      const cleanedData = {
+        name: parsedData.name || '未知',
+        age: parsedData.age || null,
+        workYears: parsedData.workYears || null,
+        education: parsedData.education || '未知',
+        currentStatus: parsedData.currentStatus || '未知',
+        phone: parsedData.phone || null,
+        email: parsedData.email || null,
+        selfIntroduction: parsedData.selfIntroduction || null,
+        expectedPosition: parsedData.expectedPosition || {},
+        workExperience: Array.isArray(parsedData.workExperience) ? parsedData.workExperience : [],
+        educationExperience: Array.isArray(parsedData.educationExperience) ? parsedData.educationExperience : [],
+        skills: Array.isArray(parsedData.skills) ? parsedData.skills : [],
+        certificates: Array.isArray(parsedData.certificates) ? parsedData.certificates : [],
+        // 新增Markdown格式的简历内容
+        markdownContent: markdownContent,
+        // 保持向后兼容性
         parsedContent: parsedContent,
         parseMethod: 'llm',
         timestamp: new Date().toISOString()
-      }
-    });
+      };
+      
+      console.log('数据处理完成，返回结构化数据和Markdown内容');
+      
+      res.json({ 
+        success: true, 
+        data: cleanedData
+      });
+    } catch (jsonError) {
+      console.warn('数据解析失败，返回原始格式:', jsonError.message);
+      
+      // 如果解析失败，返回原始格式（向后兼容）
+      res.json({ 
+        success: true, 
+        data: {
+          originalText: text,
+          parsedContent: parsedContent,
+          markdownContent: parsedContent, // 将原始内容也作为markdown内容
+          parseMethod: 'llm',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
   } catch (error) {
     console.error('大模型简历解析失败:', error);
     res.status(500).json({ 
