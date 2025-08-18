@@ -180,18 +180,7 @@ const ModalBasePattern = ({
       <BaseDrawerHeader>
         <BaseDrawerTitle>{title}</BaseDrawerTitle>
         <BaseCloseButton 
-          onClick={() => {
-            // 添加关闭动画延迟
-            const drawer = document.querySelector(`[data-drawer="${dataAttribute}"]`);
-            if (drawer) {
-              drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-              drawer.style.transform = 'translateX(100%)';
-              drawer.style.opacity = '0';
-            }
-            setTimeout(() => {
-              onClose();
-            }, 300);
-          }}
+          onClick={onClose}
         >
           ✕
         </BaseCloseButton>

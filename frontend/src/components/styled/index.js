@@ -1,5 +1,12 @@
 import styled from 'styled-components';
-import { Layout, Header, Content, Sider } from 'antd';
+import { Layout } from 'antd';
+const { Header, Content, Sider } = Layout;
+
+// 导出新的组件样式库
+export * from './BaseComponents';
+export * from './LayoutComponents';
+export * from './FormComponents';
+export * from './AnimationComponents';
 
 // 样式组件
 export const StyledSider = styled(Sider)`
@@ -153,4 +160,4 @@ export const ResumeList = styled.div`
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 4px 16px rgba(30, 58, 138, 0.1);
-`; 
+`;

@@ -12,42 +12,86 @@ import {
   CheckSquareOutlined,
   PlusOutlined
 } from '@ant-design/icons';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
+import { GlassCard, AnimatedContainer, HoverEffect } from './styled';
 
 const { Title, Text } = Typography;
 
 const CapabilityCardsContainer = styled.div`
-  padding: 12px 16px;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 20px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--grid-background);
+    opacity: 0.02;
+    pointer-events: none;
+  }
 `;
 
-const StyledCard = styled(Card)`
+const StyledCard = styled(GlassCard)`
   cursor: pointer;
-  transition: all 0.3s ease;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   height: 100%;
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left var(--duration-normal) ease;
+  }
+  
+  &:hover::after {
+    left: 100%;
+  }
   
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-color: #1890ff;
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: var(--shadow-xl), 0 0 30px rgba(0, 122, 255, 0.2);
+    border-color: var(--electric-blue);
+  }
+  
+  &:active {
+    transform: translateY(-2px) scale(0.98);
   }
 `;
 
 // 设置卡片内容样式
 const cardBodyStyle = {
-  padding: '12px',
-  textAlign: 'center'
+  padding: '16px',
+  textAlign: 'center',
+  position: 'relative',
+  zIndex: 1
 };
 
 const IconWrapper = styled.div`
-  font-size: 24px;
-  color: #1890ff;
-  margin-bottom: 8px;
+  font-size: 28px;
+  color: var(--primary-blue);
+  margin-bottom: 12px;
   display: flex;
+  transition: all var(--duration-fast) ease;
+  filter: drop-shadow(0 0 8px rgba(0, 122, 255, 0.3));
+  
+  ${StyledCard}:hover & {
+    color: var(--electric-blue);
+    transform: scale(1.1) rotate(5deg);
+    filter: drop-shadow(0 0 12px rgba(0, 122, 255, 0.5));
+  }
   justify-content: center;
 `;
 
@@ -86,14 +130,6 @@ const CapabilityCards = ({ onCapabilityClick }) => {
       keywords: ['数据', '分析', '统计', '报告']
     },
     {
-      id: 'task-management',
-      title: '任务管理',
-      description: '创建和管理招聘任务流程',
-      icon: <CheckSquareOutlined />,
-      color: '#722ed1',
-      keywords: ['任务', '管理', '招聘任务', '流程管理']
-    },
-    {
       id: 'position-creation',
       title: '岗位创建',
       description: '通过对话创建岗位并生成JD',
@@ -111,24 +147,30 @@ const CapabilityCards = ({ onCapabilityClick }) => {
 
   return (
     <CapabilityCardsContainer>
-      <Row gutter={[12, 12]} justify="center">
-        {capabilities.map((capability) => (
-          <Col xs={12} sm={8} md={6} lg={4} key={capability.id}>
-            <StyledCard
-              onClick={() => handleCardClick(capability)}
-              hoverable
-              styles={{ body: cardBodyStyle }}
+      <Row gutter={[16, 16]} justify="center">
+        {capabilities.map((capability, index) => (
+          <Col flex={1} style={{ minWidth: '200px', maxWidth: '300px' }} key={capability.id}>
+            <AnimatedContainer 
+              fadeIn
+              duration="0.6s"
+              delay={`${index * 0.1}s`}
             >
-              <IconWrapper style={{ color: capability.color }}>
-                {capability.icon}
-              </IconWrapper>
-              <Title level={5} style={{ marginBottom: 8 }}>
-                {capability.title}
-              </Title>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                {capability.description}
-              </Text>
-            </StyledCard>
+              <StyledCard
+                onClick={() => handleCardClick(capability)}
+                hoverable
+                styles={{ body: cardBodyStyle }}
+              >
+                <IconWrapper style={{ color: capability.color }}>
+                  {capability.icon}
+                </IconWrapper>
+                <Title level={5} style={{ marginBottom: 8, color: capability.color, fontWeight: 600 }}>
+                  {capability.title}
+                </Title>
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  {capability.description}
+                </Text>
+              </StyledCard>
+            </AnimatedContainer>
           </Col>
         ))}
       </Row>
