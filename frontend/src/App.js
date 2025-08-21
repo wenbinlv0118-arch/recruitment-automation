@@ -27,8 +27,10 @@ import JDDetailDrawer from './components/JDDetailModal';
 import Browser from './components/Browser';
 import SmartRecruitmentEntry from './components/SmartRecruitmentEntry';
 import BossZhipinControl from './components/BossZhipinControl';
+import ZhilianControl from './components/ZhilianControl';
 // 公司搜索组件已删除
 import PositionManagement from './components/PositionManagement';
+
 
 import { createCOTResponse } from './utils/cotUtils';
 import './App.css';
@@ -491,9 +493,10 @@ function App() {
   const [showSmartRecruitment, setShowSmartRecruitment] = useState(false);
   const [selectedRecruitmentPlatform, setSelectedRecruitmentPlatform] = useState(null);
   const [showBossZhipinControl, setShowBossZhipinControl] = useState(false);
+  const [showZhilianControl, setShowZhilianControl] = useState(false);
   
   // 计算是否有任何弹窗显示
-  const hasAnyModal = recommendationVisible || jdDetailVisible || positionManagementVisible || companyRecommendationVisible || showSmartRecruitment || showBossZhipinControl;
+  const hasAnyModal = recommendationVisible || jdDetailVisible || positionManagementVisible || companyRecommendationVisible || showSmartRecruitment || showBossZhipinControl || showZhilianControl;
   
   const messagesEndRef = useRef(null);
   const messageIdCounter = useRef(0); // 用于生成唯一消息ID
@@ -1215,15 +1218,10 @@ function App() {
     addMessage('用户', message, true);
     setInputValue('');
 
-    // 检查是否是启动智能寻聘的命令
-    if (message.includes('智能寻聘') || message.includes('开始招聘') || message.includes('启用智能寻聘')) {
-      setShowSmartRecruitment(true);
-    } else if (isWaitingForCode && /^\d{6}$/.test(message)) {
+    // 移除智联招聘关键词触发逻辑，统一使用入口组件
+    if (isWaitingForCode && /^\d{6}$/.test(message)) {
       // 验证码输入
       handleVerificationCode(message);
-    } else if (message.includes('手机号') || /^1[3-9]\d{9}$/.test(message)) {
-      // 手机号输入
-      handlePhoneNumber(message);
     } else if (isPositionCreationQuery(message)) {
       // 岗位创建查询 - 优先检查
       handlePositionCreationQuery(message);
@@ -1512,33 +1510,8 @@ function App() {
     return taskInfo;
   };
 
-  // 处理手机号输入
-  const handlePhoneNumber = (message) => {
-    const phoneMatch = message.match(/1[3-9]\d{9}/);
-    if (phoneMatch) {
-      const phone = phoneMatch[0];
-      addMessage('AI', `收到您的手机号：${phone}。正在启动智能寻聘流程...`, false);
-      handleStartRecruitment(phone);
-    } else {
-      addMessage('AI', '请提供正确的手机号码格式，例如：13812345678', false);
-    }
-  };
-
-  // 启动智能寻聘（原有功能）
-  const handleStartRecruitment = (phone = null) => {
-    if (!socket) return;
-
-    setIsLoading(true);
-    const phoneNumber = phone || extractPhoneFromMessages();
-    
-    if (!phoneNumber) {
-      addMessage('AI', '请先提供您的手机号码', false);
-      setIsLoading(false);
-      return;
-    }
-
-    socket.emit('startRecruitment', { phone: phoneNumber });
-  };
+  // 移除了原有的handlePhoneNumber和handleStartRecruitment函数
+  // 这些功能针对求职者端，现在统一通过企业端入口组件启动
 
   // 启动新的智能寻聘系统
   const handleStartNewRecruitment = (platform) => {
@@ -1548,11 +1521,11 @@ function App() {
     // 根据平台显示相应的提示信息
     let platformInfo = '';
     switch (platform.id) {
-      case 'zhilian':
-        platformInfo = '智联招聘智能寻聘系统';
-        break;
       case 'boss':
         platformInfo = 'Boss 直聘智能寻聘系统';
+        break;
+      case 'zhilian':
+        platformInfo = '智联招聘智能寻聘系统';
         break;
       case 'wuyou':
         platformInfo = '前程无忧智能寻聘系统';
@@ -1572,16 +1545,7 @@ function App() {
     setIsWaitingForCode(false);
   };
 
-  // 从消息历史中提取手机号
-  const extractPhoneFromMessages = () => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const phoneMatch = messages[i].content.match(/1[3-9]\d{9}/);
-      if (phoneMatch) {
-        return phoneMatch[0];
-      }
-    }
-    return null;
-  };
+  // 移除了extractPhoneFromMessages函数 - 针对求职者端的功能
 
   // 下载简历
   const downloadResume = async (filename) => {
@@ -1655,6 +1619,7 @@ function App() {
               icon: <GlobalOutlined />,
               label: '浏览器',
             },
+
           ]}
         />
       </StyledSider>
@@ -1745,6 +1710,7 @@ function App() {
             <KnowledgeBase selectedMenu="upload" />
           ) : selectedMenuKey === '6' ? (
             <Browser />
+
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ textAlign: 'center' }}>
@@ -1795,6 +1761,10 @@ function App() {
         <SmartRecruitmentEntry 
           onStartRecruitment={handleStartNewRecruitment}
           onOpenBossZhipinControl={() => setShowBossZhipinControl(true)}
+          onOpenZhilianControl={() => {
+            setShowSmartRecruitment(false);
+            setShowZhilianControl(true);
+          }}
         />
       </Modal>
       
@@ -1809,6 +1779,19 @@ function App() {
         destroyOnHidden
       >
         <BossZhipinControl />
+      </Modal>
+
+      {/* 智联招聘控制弹窗 */}
+      <Modal
+        title="智联招聘智能寻聘控制台"
+        open={showZhilianControl}
+        onCancel={() => setShowZhilianControl(false)}
+        footer={null}
+        width={1200}
+        style={{ top: 20 }}
+        destroyOnHidden
+      >
+        <ZhilianControl />
       </Modal>
     </StyledLayout>
   );

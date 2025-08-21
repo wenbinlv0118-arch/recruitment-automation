@@ -184,7 +184,13 @@ export const blink = keyframes`
 `;
 
 // 动画组件
-export const AnimatedContainer = styled.div`
+export const AnimatedContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => ![
+    'animation', 'duration', 'easing', 'delay', 'iterations', 'direction', 'fillMode',
+    'fadeIn', 'slideInLeft', 'slideInRight', 'slideInUp', 'slideInDown', 
+    'scaleIn', 'rotateIn', 'bounce', 'pulse', 'float', 'glow'
+  ].includes(prop)
+})`
   ${props => props.animation && css`
     animation: ${props.animation} ${props.duration || '0.6s'} ${props.easing || 'ease-out'} ${props.delay || '0s'} ${props.iterations || '1'} ${props.direction || 'normal'} ${props.fillMode || 'both'};
   `}

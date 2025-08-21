@@ -25,7 +25,6 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
   const resumeSources = [
     { value: 'boss', label: 'Boss直聘' },
     { value: 'qcwy', label: '前程无忧' },
-    { value: 'zlzp', label: '智联招聘' },
     { value: 'lagou', label: '拉勾网' },
     { value: 'liepin', label: '猎聘网' },
     { value: 'linkedin', label: 'LinkedIn' },

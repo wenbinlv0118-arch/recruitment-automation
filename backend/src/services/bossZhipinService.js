@@ -1495,13 +1495,13 @@ class BossZhipinService {
         logger.info('点击解析文本按钮，等待解析完成');
         
         // 调用确认添加逻辑，确保简历成功入库
-        const addSuccess = await this.clickConfirmWithRetry(this.appPage, 20); // 最大重试次数20次
+        const addSuccess = await this.clickConfirmWithRetry(this.appPage);
         if (addSuccess) {
           logger.info(`第 ${candidateIndex + 1} 个候选人的简历添加成功`);
           // 等待一下确保操作完全完成
           await this.appPage.waitForTimeout(1500);
         } else {
-          logger.error(`第 ${candidateIndex + 1} 个候选人的简历添加失败，已达到最大重试次数`);
+          logger.error(`第 ${candidateIndex + 1} 个候选人的简历添加失败`);
         }
       } else {
         logger.error('未找到解析文本按钮');
@@ -2661,8 +2661,8 @@ class BossZhipinService {
         // 等待解析开始（给系统一些时间开始处理）
         await appPage.waitForTimeout(3000);
         
-        // 点击"确认添加"按钮，带重试机制（每8秒重试一次，最多20次）
-        const addSuccess = await this.clickConfirmWithRetry(appPage, 20);
+        // 点击"确认添加"按钮，带重试机制（持续检测直到按钮可用）
+        const addSuccess = await this.clickConfirmWithRetry(appPage);
         
         if (addSuccess) {
           logger.info(`第 ${candidateIndex} 个候选人简历添加成功`);
@@ -2686,14 +2686,16 @@ class BossZhipinService {
 
   /**
    * 带重试机制的确认添加按钮点击
-   * 找到"确认添加"按钮即表示简历解析完成，点击后等待2秒自动完成
+   * 检测"确认添加"按钮是否可用，当出现可点击按钮时立即点击，等待2秒后视为成功
    */
-  async clickConfirmWithRetry(page, maxRetries = 20) {
-    logger.info(`开始确认添加重试机制，最大重试次数: ${maxRetries}`);
+  async clickConfirmWithRetry(page) {
+    logger.info('开始确认添加重试机制，持续检测直到按钮可用');
     
-    for (let i = 0; i < maxRetries; i++) {
+    let attemptCount = 0;
+    while (true) {
+      attemptCount++;
       try {
-        logger.info(`第 ${i + 1} 次尝试查找确认添加按钮...`);
+        logger.info(`第 ${attemptCount} 次尝试检测确认添加按钮状态...`);
         
         // 检查页面连接状态
         if (page.isClosed()) {
@@ -2719,25 +2721,25 @@ class BossZhipinService {
               const isVisible = await confirmButton.isVisible();
               const isEnabled = await confirmButton.isEnabled();
               if (isVisible && isEnabled) {
-                logger.info(`找到可用的确认添加按钮: ${selector}，简历解析已完成`);
+                logger.info(`检测到可用的确认添加按钮: ${selector}，简历解析已完成，立即点击`);
                 
-                // 添加点击前的稳定性检查
-                await page.waitForTimeout(1000);
-                
+                // 立即点击确认添加按钮
                 await confirmButton.click();
-                logger.info('已点击确认添加按钮，等待2秒后自动完成...');
+                logger.info('已点击确认添加按钮，等待2秒后视为本次简历添加成功');
                 
-                // 等待2秒后立即返回Boss直聘，不处理弹窗
+                // 等待2秒后视为成功，准备返回Boss直聘
                 await page.waitForTimeout(2000);
-                logger.info('简历上传完成，准备返回Boss直聘继续下一个候选人');
+                logger.info('简历添加成功，准备返回Boss直聘继续下一个候选人');
                 
                 // 使用Promise延迟切换页面，避免在关键时刻触发连接断开
                 this.schedulePageSwitch();
                 
-
-                
                 return true;
               } else {
+                // 按钮存在但不可用，记录状态并继续检测
+                const visibleStatus = isVisible ? '可见' : '不可见';
+                const enabledStatus = isEnabled ? '可用' : '不可用';
+                logger.debug(`确认添加按钮状态: ${visibleStatus}, ${enabledStatus}`);
                 confirmButton = null;
               }
             }
@@ -2748,15 +2750,14 @@ class BossZhipinService {
         }
         
         if (!confirmButton) {
-          logger.warn(`第 ${i + 1} 次未找到确认添加按钮，简历可能还在解析中`);
+          logger.debug(`第 ${attemptCount} 次检测：确认添加按钮尚未可用，简历仍在解析中`);
         }
         
-        // 等待8秒后进行下一次重试
-        logger.info('等待8秒后进行下一次重试...');
-        await page.waitForTimeout(8000);
+        // 短暂等待后继续检测（减少等待时间，提高响应速度）
+        await page.waitForTimeout(1000);
         
       } catch (error) {
-        logger.warn(`第 ${i + 1} 次查找确认添加按钮失败:`, error.message);
+        logger.warn(`第 ${attemptCount} 次检测确认添加按钮失败:`, error.message);
         
         // 检查是否是连接相关错误
         if (error.message.includes('Target closed') || 
@@ -2772,12 +2773,10 @@ class BossZhipinService {
           continue;
         }
         
-        await page.waitForTimeout(8000);
+        // 出错时也短暂等待
+        await page.waitForTimeout(1000);
       }
     }
-    
-    logger.error('确认添加按钮查找失败，已达到最大重试次数');
-    return false;
   }
 
 

@@ -173,7 +173,7 @@ const QualityIndicator = styled.div`
   }
 `;
 
-const ResumeProcessor = () => {
+const ResumeProcessor = ({ platform = 'boss' }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [resumes, setResumes] = useState([]);

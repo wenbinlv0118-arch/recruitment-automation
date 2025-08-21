@@ -188,21 +188,12 @@ export class QueryHandler {
     }
   }
 
-  // 从消息历史中提取手机号
-  static extractPhoneFromMessages(messages) {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const phoneMatch = messages[i].content.match(/1[3-9]\d{9}/);
-      if (phoneMatch) {
-        return phoneMatch[0];
-      }
-    }
-    return null;
-  }
+  // 移除了extractPhoneFromMessages函数 - 针对求职者端的功能
 
   // 处理能力卡片点击
   static getCapabilityMessage(capability) {
     const capabilityMessages = {
-      'smart-recruitment': '请输入您的手机号，我将为您启动智能寻聘流程',
+      'smart-recruitment': '智能寻聘功能已通过统一入口组件启动，请使用智能寻聘入口',
       'resume-recommendation': '我需要简历推荐功能，请帮我推荐合适的候选人',
       'company-search': '公司搜索功能已删除',
       'knowledge-search': '我想搜索企业知识库，请帮我查找相关文档',

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Card, Button, Typography, Alert, Steps, message, Tag, Tabs, Space } from 'antd';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Card, Button, Typography, Alert, Steps, message, Tag, Tabs } from 'antd';
 import { 
   PlayCircleOutlined, 
   StopOutlined, 
@@ -7,7 +7,7 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
-  RobotOutlined,
+  SearchOutlined,
   UserOutlined,
   FileTextOutlined,
   DashboardOutlined
@@ -17,8 +17,10 @@ import CandidateBrowser from './CandidateBrowser';
 import ResumeProcessor from './ResumeProcessor';
 
 const { Title, Text } = Typography;
-const { Step } = Steps;
 
+/**
+ * 样式组件定义 - 与Boss直聘控制台完全一致
+ */
 const Container = styled.div`
   padding: 24px;
   max-width: 1000px;
@@ -127,7 +129,12 @@ const LogContainer = styled.div`
   }
 `;
 
-const BossZhipinControl = () => {
+/**
+ * 智联招聘控制组件
+ * 与Boss直聘控制台界面和功能完全一致
+ */
+const ZhilianControl = () => {
+  // 状态管理 - 与Boss直聘保持一致
   const [currentStatus, setCurrentStatus] = useState('not_initialized');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasBrowser, setHasBrowser] = useState(false);
@@ -141,41 +148,23 @@ const BossZhipinControl = () => {
   const statusPollingRef = useRef(null);
   const loginPollingRef = useRef(null);
 
-  // 添加日志
-  const addLog = (message, type = 'info') => {
+  /**
+   * 添加操作日志
+   */
+  const addLog = useCallback((message, type = 'info') => {
     const logItem = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // 确保唯一性
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       time: new Date().toLocaleTimeString(),
       message,
       type
     };
-    setLogs(prev => [logItem, ...prev].slice(0, 50)); // 保留最近50条日志
-  };
+    setLogs(prev => [logItem, ...prev].slice(0, 50));
+  }, []);
 
-  // 获取状态
-  const fetchStatus = async () => {
-    try {
-      const response = await fetch('/api/boss-zhipin/status');
-      const result = await response.json();
-      
-      if (result.success) {
-        const { status, isLoggedIn, hasBrowser, hasPage } = result.data;
-        setCurrentStatus(status);
-        setIsLoggedIn(isLoggedIn);
-        setHasBrowser(hasBrowser);
-        setHasPage(hasPage);
-        
-        // 根据状态设置当前步骤
-        updateCurrentStep(status, isLoggedIn);
-      }
-    } catch (error) {
-      console.error('获取状态失败:', error);
-      addLog('获取状态失败: ' + error.message, 'error');
-    }
-  };
-
-  // 更新当前步骤
-  const updateCurrentStep = (status, isLoggedIn) => {
+  /**
+   * 更新当前步骤
+   */
+  const updateCurrentStep = useCallback((status, isLoggedIn) => {
     switch (status) {
       case 'not_initialized':
         setCurrentStep(0);
@@ -196,33 +185,117 @@ const BossZhipinControl = () => {
       default:
         setCurrentStep(0);
     }
-  };
+  }, []);
 
-  // 启动 Boss 直聘智能寻聘
-  const startBossZhipin = async () => {
+  /**
+   * 获取智联招聘服务状态
+   */
+  const fetchStatus = useCallback(async () => {
+    try {
+      const response = await fetch('/api/zhilian/status');
+      const result = await response.json();
+      
+      if (result.success) {
+        const statusData = result.data;
+        
+        // 更新状态变量
+        setCurrentStatus(statusData.status);
+        setIsLoggedIn(statusData.loggedIn);
+        setHasBrowser(statusData.hasBrowser);
+        setHasPage(statusData.hasPage);
+        
+        // 更新当前步骤
+        updateCurrentStep(statusData.status, statusData.loggedIn);
+        
+        // 如果已登录且正在轮询登录状态，停止轮询
+        if (statusData.loggedIn && loginPollingRef.current) {
+          clearInterval(loginPollingRef.current);
+          loginPollingRef.current = null;
+          addLog('检测到用户已登录，停止登录状态轮询', 'success');
+        }
+      }
+    } catch (error) {
+      console.error('获取状态失败:', error);
+      addLog('获取状态失败: ' + error.message, 'error');
+    }
+  }, [addLog, updateCurrentStep]);
+
+  /**
+   * 启动智联招聘智能寻聘 - 优化版本
+   */
+  const startZhilian = async () => {
     try {
       setIsLoading(true);
-      addLog('正在启动 Boss 直聘智能寻聘...', 'info');
+      addLog('正在启动智联招聘智能寻聘...', 'info');
       
-      const response = await fetch('/api/boss-zhipin/start', {
+      // 第一步：初始化浏览器
+      addLog('正在初始化浏览器...', 'info');
+      const initResponse = await fetch('/api/zhilian/init', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         }
       });
       
-      const result = await response.json();
+      const initResult = await initResponse.json();
       
-      if (result.success) {
-        message.success('Boss 直聘智能寻聘启动成功！');
-        addLog(result.message, 'success');
+      if (!initResult.success) {
+        message.error(initResult.message);
+        addLog('初始化失败: ' + initResult.message, 'error');
+        return;
+      }
+      
+      addLog('浏览器初始化成功', 'success');
+      
+      // 更新状态
+      if (initResult.data) {
+        const statusData = initResult.data;
+        setCurrentStatus(statusData.status);
+        setIsLoggedIn(statusData.loggedIn);
+        setHasBrowser(statusData.hasBrowser);
+        setHasPage(statusData.hasPage);
+        updateCurrentStep(statusData.status, statusData.loggedIn);
+      } else {
         setCurrentStep(1);
+      }
+      
+      // 第二步：打开智联招聘网站
+      addLog('正在打开智联招聘网站...', 'info');
+      const openResponse = await fetch('/api/zhilian/execute-step', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ step: 'open_website' })
+      });
+      
+      const openResult = await openResponse.json();
+      
+      if (openResult.success) {
+        message.success('智联招聘网站已打开，请登录！');
+        addLog('智联招聘网站已打开，等待用户登录', 'success');
+        setCurrentStep(2);
         
         // 开始轮询状态
         startStatusPolling();
+        
+        // 检查是否已经登录
+        const statusResponse = await fetch('/api/zhilian/status');
+        const statusResult = await statusResponse.json();
+        
+        if (statusResult.success && !statusResult.data.loggedIn) {
+          // 如果还未登录，开始等待登录
+          setTimeout(() => {
+            waitForLogin();
+          }, 2000);
+        } else if (statusResult.success && statusResult.data.loggedIn) {
+          addLog('检测到用户已登录，跳过登录等待', 'success');
+          setCurrentStep(3);
+          setActiveTab('candidates');
+        }
       } else {
-        message.error(result.message);
-        addLog('启动失败: ' + result.message, 'error');
+        message.error(openResult.message);
+        addLog('打开网站失败: ' + openResult.message, 'error');
       }
     } catch (error) {
       console.error('启动失败:', error);
@@ -233,13 +306,15 @@ const BossZhipinControl = () => {
     }
   };
 
-  // 停止服务
-  const stopBossZhipin = async () => {
+  /**
+   * 停止智联招聘服务
+   */
+  const stopZhilian = async () => {
     try {
       setIsLoading(true);
-      addLog('正在停止 Boss 直聘智能寻聘...', 'info');
+      addLog('正在停止智联招聘智能寻聘...', 'info');
       
-      const response = await fetch('/api/boss-zhipin/stop', {
+      const response = await fetch('/api/zhilian/stop', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -249,13 +324,23 @@ const BossZhipinControl = () => {
       const result = await response.json();
       
       if (result.success) {
-        message.success('Boss 直聘智能寻聘已停止');
+        message.success('智联招聘智能寻聘已停止');
         addLog(result.message, 'success');
-        setCurrentStep(0);
         setCurrentStatus('not_initialized');
         setIsLoggedIn(false);
         setHasBrowser(false);
         setHasPage(false);
+        setCurrentStep(0);
+        
+        // 停止轮询
+        if (statusPollingRef.current) {
+          clearInterval(statusPollingRef.current);
+          statusPollingRef.current = null;
+        }
+        if (loginPollingRef.current) {
+          clearInterval(loginPollingRef.current);
+          loginPollingRef.current = null;
+        }
       } else {
         message.error(result.message);
         addLog('停止失败: ' + result.message, 'error');
@@ -269,27 +354,33 @@ const BossZhipinControl = () => {
     }
   };
 
-  // 检查登录状态
-  const checkLoginStatus = async () => {
+  // 移除未使用的checkLoginStatus函数，其功能已整合到fetchStatus中
+
+  /**
+   * 手动检查登录状态
+   */
+  const checkLogin = async () => {
     try {
-      const response = await fetch('/api/boss-zhipin/check-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      addLog('正在检查登录状态...', 'info');
       
+      // 使用专门的登录状态检查API
+      const response = await fetch('/api/zhilian/login-status');
       const result = await response.json();
       
       if (result.success) {
-        const { isLoggedIn, status, hasBrowser, hasPage } = result.data;
-        setIsLoggedIn(isLoggedIn);
+        const statusData = result.data;
+        const { isLoggedIn, loggedIn, status, hasBrowser, hasPage } = statusData;
+        
+        // 兼容两种字段名
+        const actualLoginStatus = isLoggedIn !== undefined ? isLoggedIn : loggedIn;
+        
+        setIsLoggedIn(actualLoginStatus);
         setCurrentStatus(status);
         setHasBrowser(hasBrowser);
         setHasPage(hasPage);
-        updateCurrentStep(status, isLoggedIn);
+        updateCurrentStep(status, actualLoginStatus);
         
-        if (isLoggedIn) {
+        if (actualLoginStatus) {
           // 清除登录轮询
           if (loginPollingRef.current) {
             clearInterval(loginPollingRef.current);
@@ -305,44 +396,31 @@ const BossZhipinControl = () => {
           // 触发后续自动化流程
           await triggerPostLoginFlow();
         } else {
-          addLog('用户尚未登录', 'info');
+          message.warning('用户尚未登录，请在浏览器中完成登录');
+          addLog('用户尚未登录', 'warning');
         }
         
-        return isLoggedIn;
+        return actualLoginStatus;
       }
     } catch (error) {
       console.error('检查登录状态失败:', error);
+      message.error('检查登录状态失败: ' + error.message);
       addLog('检查登录状态失败: ' + error.message, 'error');
       return false;
     }
   };
 
-  // 等待用户登录
+  /**
+   * 等待用户登录
+   */
   const waitForLogin = async () => {
     try {
       setIsLoading(true);
       addLog('正在等待用户扫码登录...', 'info');
+      message.info('正在等待用户扫码登录，请使用智联招聘App扫描二维码');
       
-      const response = await fetch('/api/boss-zhipin/wait-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ timeout: 300000 }) // 5分钟超时
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        message.info('正在等待用户扫码登录，请使用 Boss 直聘 App 扫描二维码');
-        addLog(result.message, 'info');
-        
-        // 开始轮询登录状态
-        startLoginPolling();
-      } else {
-        message.error(result.message);
-        addLog('等待登录失败: ' + result.message, 'error');
-      }
+      // 开始登录状态轮询
+      startLoginPolling();
     } catch (error) {
       console.error('等待登录失败:', error);
       message.error('等待用户登录失败: ' + error.message);
@@ -352,68 +430,105 @@ const BossZhipinControl = () => {
     }
   };
 
-  // 登录成功后触发的自动化流程
-  const triggerPostLoginFlow = async () => {
-    try {
-      addLog('登录成功，开始自动化流程...', 'info');
-      
-      // 可以在这里添加登录成功后的自动化操作
-      // 例如：自动导航到招聘页面、处理弹窗等
-      
-      addLog('自动化流程已启动', 'success');
-    } catch (error) {
-      console.error('自动化流程启动失败:', error);
-      addLog('自动化流程启动失败: ' + error.message, 'error');
-    }
-  };
-
-  // 开始状态轮询
+  /**
+   * 启动状态轮询 - 优化版本，避免状态重置
+   */
   const startStatusPolling = () => {
-    // 清除之前的轮询
+    // 如果已经在轮询，不要重复启动
     if (statusPollingRef.current) {
-      clearInterval(statusPollingRef.current);
+      return;
     }
     
+    addLog('启动状态轮询监控', 'info');
+    
+    // 开始新的轮询
     statusPollingRef.current = setInterval(() => {
       fetchStatus();
-    }, 2000); // 每2秒检查一次状态
+    }, 2000); // 每2秒检查一次
     
     // 5分钟后停止轮询
     setTimeout(() => {
       if (statusPollingRef.current) {
         clearInterval(statusPollingRef.current);
         statusPollingRef.current = null;
+        addLog('状态轮询已超时停止', 'warning');
       }
-    }, 300000);
+    }, 300000); // 5分钟
   };
 
-  // 开始登录状态轮询
+  /**
+   * 登录成功后的自动化流程处理
+   */
+  const triggerPostLoginFlow = async () => {
+    try {
+      addLog('开始执行登录后自动化流程...', 'info');
+      
+      // 这里可以添加登录成功后需要执行的自动化操作
+      // 例如：获取用户信息、初始化候选人浏览等
+      
+      addLog('登录后自动化流程执行完成', 'success');
+    } catch (error) {
+      console.error('登录后自动化流程执行失败:', error);
+      addLog('登录后自动化流程执行失败: ' + error.message, 'error');
+    }
+  };
+
+  /**
+   * 启动登录状态轮询 - 优化版本
+   */
   const startLoginPolling = () => {
-    // 清除之前的轮询
+    // 如果已经在轮询，不要重复启动
     if (loginPollingRef.current) {
-      clearInterval(loginPollingRef.current);
+      return;
     }
     
-    loginPollingRef.current = setInterval(async () => {
-      const loginStatus = await checkLoginStatus();
-      
-      // 如果已登录，停止轮询
-      if (loginStatus) {
-        clearInterval(loginPollingRef.current);
-        loginPollingRef.current = null;
-      }
-    }, 3000); // 每3秒检查一次登录状态
+    addLog('开始监控登录状态，请在浏览器中完成扫码登录', 'info');
     
-    // 5分钟后停止轮询
+    loginPollingRef.current = setInterval(async () => {
+      try {
+        // 直接调用fetchStatus来更新所有状态
+        await fetchStatus();
+        
+        // 检查是否已登录，如果已登录则停止轮询
+        const response = await fetch('/api/zhilian/status');
+        const result = await response.json();
+        
+        if (result.success && result.data.loggedIn) {
+          // 登录成功，停止轮询
+          clearInterval(loginPollingRef.current);
+          loginPollingRef.current = null;
+          addLog('检测到用户已登录，停止轮询', 'success');
+          
+          // 显示登录成功消息
+          message.success('用户已登录！');
+          addLog('用户登录成功！', 'success');
+          setCurrentStep(3);
+          
+          // 登录成功后自动切换到候选人浏览选项卡
+          setActiveTab('candidates');
+          
+          // 触发后续自动化流程
+          await triggerPostLoginFlow();
+        }
+      } catch (error) {
+        console.error('登录状态轮询出错:', error);
+        addLog('登录状态轮询出错: ' + error.message, 'error');
+      }
+    }, 3000); // 每3秒检查一次
+    
+    // 2分钟后停止登录轮询
     setTimeout(() => {
       if (loginPollingRef.current) {
         clearInterval(loginPollingRef.current);
         loginPollingRef.current = null;
+        addLog('登录轮询已超时停止，请手动检查登录状态', 'warning');
       }
-    }, 300000);
+    }, 120000); // 2分钟
   };
 
-  // 获取状态显示信息
+  /**
+   * 获取状态显示信息
+   */
   const getStatusInfo = () => {
     switch (currentStatus) {
       case 'not_initialized':
@@ -433,7 +548,9 @@ const BossZhipinControl = () => {
     }
   };
 
-  // 获取步骤信息 - 使用useMemo优化
+  /**
+   * 获取步骤信息
+   */
   const steps = useMemo(() => [
     {
       key: 'init',
@@ -443,12 +560,12 @@ const BossZhipinControl = () => {
     {
       key: 'website',
       title: '打开官网',
-      description: '访问 Boss 直聘官网'
+      description: '访问智联招聘官网'
     },
     {
       key: 'login',
       title: '等待登录',
-      description: '用户扫码登录'
+      description: '用户登录智联招聘'
     },
     {
       key: 'complete',
@@ -457,7 +574,9 @@ const BossZhipinControl = () => {
     }
   ], []);
 
-  // 标签页配置 - 使用useMemo优化
+  /**
+   * 标签页配置
+   */
   const tabItems = useMemo(() => [
     {
       key: 'dashboard',
@@ -477,7 +596,7 @@ const BossZhipinControl = () => {
           候选人浏览
         </span>
       ),
-      children: <CandidateBrowser />
+      children: <CandidateBrowser platform="zhilian" />
     },
     {
       key: 'resumes',
@@ -487,13 +606,13 @@ const BossZhipinControl = () => {
           简历处理
         </span>
       ),
-      children: <ResumeProcessor platform="boss" />
+      children: <ResumeProcessor platform="zhilian" />
     }
   ], []);
 
   useEffect(() => {
     fetchStatus();
-    addLog('Boss 直聘控制界面已加载', 'info');
+    addLog('智联招聘控制界面已加载', 'info');
     
     // 组件卸载时清理定时器
     return () => {
@@ -506,7 +625,7 @@ const BossZhipinControl = () => {
         loginPollingRef.current = null;
       }
     };
-  }, []);
+  }, [fetchStatus, addLog]);
 
   const statusInfo = getStatusInfo();
 
@@ -514,11 +633,11 @@ const BossZhipinControl = () => {
     <Container>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <Title level={2}>
-          <RobotOutlined style={{ marginRight: 12, color: '#1890ff' }} />
-          Boss 直聘智能寻聘控制台
+          <SearchOutlined style={{ marginRight: 12, color: '#1890ff' }} />
+          智联招聘智能寻聘控制台
         </Title>
         <Text type="secondary" style={{ fontSize: '16px' }}>
-          管理 Boss 直聘自动化流程
+          管理智联招聘自动化流程
         </Text>
       </div>
 
@@ -561,17 +680,17 @@ const BossZhipinControl = () => {
         <ControlButton
           type="primary"
           icon={<PlayCircleOutlined />}
-          onClick={startBossZhipin}
+          onClick={startZhilian}
           loading={isLoading}
-          disabled={currentStatus !== 'not_initialized'}
+          disabled={isLoading || (currentStatus !== 'not_initialized' && currentStatus !== 'idle')}
         >
           启动智能寻聘
         </ControlButton>
         
         <ControlButton
           icon={<ReloadOutlined />}
-          onClick={checkLoginStatus}
-          disabled={!hasBrowser}
+          onClick={checkLogin}
+          disabled={isLoading || !hasBrowser || currentStatus === 'not_initialized'}
         >
           检查登录状态
         </ControlButton>
@@ -580,7 +699,7 @@ const BossZhipinControl = () => {
           icon={<ClockCircleOutlined />}
           onClick={waitForLogin}
           loading={isLoading}
-          disabled={currentStatus === 'not_initialized' || isLoggedIn}
+          disabled={isLoading || currentStatus === 'not_initialized' || isLoggedIn || !hasBrowser}
         >
           等待用户登录
         </ControlButton>
@@ -588,9 +707,9 @@ const BossZhipinControl = () => {
         <ControlButton
           danger
           icon={<StopOutlined />}
-          onClick={stopBossZhipin}
+          onClick={stopZhilian}
           loading={isLoading}
-          disabled={currentStatus === 'not_initialized'}
+          disabled={isLoading || currentStatus === 'not_initialized'}
         >
           停止服务
         </ControlButton>
@@ -598,7 +717,7 @@ const BossZhipinControl = () => {
 
       <Alert
         message="操作说明"
-        description="1. 点击'启动智能寻聘'开始自动化流程；2. 系统会自动打开 Boss 直聘官网并导航到招聘页面；3. 选择 App 扫码登录方式；4. 使用 Boss 直聘 App 扫描二维码完成登录；5. 登录成功后即可开始自动化操作。"
+        description="1. 点击'启动智能寻聘'开始自动化流程；2. 系统会自动打开智联招聘官网并导航到招聘页面；3. 请在智联招聘网站上完成登录；4. 登录成功后即可开始自动化操作。"
         type="info"
         showIcon
         style={{ marginBottom: 24 }}
@@ -637,4 +756,4 @@ const BossZhipinControl = () => {
   );
 };
 
-export default BossZhipinControl;
+export default ZhilianControl;

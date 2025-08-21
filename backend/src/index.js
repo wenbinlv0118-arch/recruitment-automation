@@ -354,8 +354,7 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 const storageDir = path.join(__dirname, '../storage/resumes');
 fs.ensureDirSync(storageDir);
 
-// 智联招聘自动化服务
-const zhilianService = require('./services/zhilianService');
+// 智联招聘自动化服务已删除
 // 候选人智能服务已删除
 // 大语言模型服务
 const LLMService = require('./services/llmService');
@@ -879,9 +878,20 @@ const bossZhipinRoutes = require('./routes/bossZhipin');
 // 将io实例传递给Boss直聘路由
 bossZhipinRoutes.setIO(io);
 app.use('/api/boss-zhipin', bossZhipinRoutes);
+
+// 注册智联招聘路由
+const { router: zhilianRoutes, initializeZhilianService } = require('./routes/zhilian');
+// 初始化智联招聘服务
+initializeZhilianService(io);
+// 将io实例传递给智联招聘路由
+app.set('io', io);
+app.use('/api/zhilian', zhilianRoutes);
+
 // 注册简历路由
 const resumeRoutes = require('./routes/resumeRoutes');
 app.use('/api/resume', resumeRoutes);
+
+
 
 // 公司搜索路由已删除
 

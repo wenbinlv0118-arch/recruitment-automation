@@ -289,7 +289,6 @@ const TaskManagement = () => {
   // 获取招聘平台配置
   const getPlatformConfig = (platform) => {
     const configs = {
-      '智联招聘': { color: 'blue', icon: '🔵' },
       '前程无忧': { color: 'green', icon: '🟢' },
       'BOSS直聘': { color: 'orange', icon: '🟠' },
       '拉勾网': { color: 'purple', icon: '🟣' },

@@ -34,15 +34,7 @@ export const useMessages = () => {
     messageIdCounter.current = 0;
   }, []);
 
-  const extractPhoneFromMessages = useCallback(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const phoneMatch = messages[i].content.match(/1[3-9]\d{9}/);
-      if (phoneMatch) {
-        return phoneMatch[0];
-      }
-    }
-    return null;
-  }, [messages]);
+  // 移除了extractPhoneFromMessages函数 - 针对求职者端的功能
 
   return {
     messages,
@@ -53,7 +45,6 @@ export const useMessages = () => {
     updateMessageWithContent,
     addKnowledgeSearchMessage,
     clearMessages,
-    extractPhoneFromMessages,
     messageService
   };
-}; 
+};

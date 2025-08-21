@@ -125,7 +125,7 @@ const ActionButtons = styled.div`
   }
 `;
 
-const SmartRecruitmentEntry = ({ onStartRecruitment, onOpenBossZhipinControl }) => {
+const SmartRecruitmentEntry = ({ onStartRecruitment, onOpenBossZhipinControl, onOpenZhilianControl }) => {
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -134,17 +134,18 @@ const SmartRecruitmentEntry = ({ onStartRecruitment, onOpenBossZhipinControl }) 
       id: 'zhilian',
       name: '智联招聘',
       icon: <SearchOutlined />,
-      description: '智能简历下载和筛选',
+      description: '智能简历搜索和下载',
       features: [
-        '自动化简历下载',
+        '自动化简历搜索',
         '智能候选人筛选',
-        '批量简历处理',
-        '简历质量评估'
+        '批量简历下载',
+        '简历质量检测',
+        '自动化入库流程'
       ],
       status: 'active',
       brandColor: '#1890ff',
-      statusBgColor: '#f6ffed',
-      statusColor: '#52c41a'
+      statusBgColor: '#e6f7ff',
+      statusColor: '#1890ff'
     },
     {
       id: 'boss',
@@ -195,6 +196,12 @@ const SmartRecruitmentEntry = ({ onStartRecruitment, onOpenBossZhipinControl }) 
 
   const confirmStartRecruitment = () => {
     setShowConfirmModal(false);
+    
+    // 特殊处理智联招聘
+    if (selectedPlatform.id === 'zhilian' && onOpenZhilianControl) {
+      onOpenZhilianControl();
+      return;
+    }
     
     // 特殊处理 Boss 直聘
     if (selectedPlatform.id === 'boss' && onOpenBossZhipinControl) {
