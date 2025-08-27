@@ -108,14 +108,33 @@ const StatusPanel = styled(Card)`
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
+    padding: 12px 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #f0f0f0;
+    transition: all 0.2s ease;
     
     &:last-child {
       margin-bottom: 0;
+    }
+    
+    &:hover {
+      background: #f5f5f5;
+      border-color: #d9d9d9;
     }
   }
   
   .status-value {
     font-weight: 600;
+    min-width: 80px;
+    text-align: center;
+    
+    .ant-tag {
+      margin: 0;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
   }
 `;
 

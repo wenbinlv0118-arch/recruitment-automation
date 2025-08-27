@@ -100,10 +100,10 @@ const CapabilityCards = ({ onCapabilityClick }) => {
     {
       id: 'smart-recruitment',
       title: '智能寻聘',
-      description: '自动化招聘流程，智能筛选候选人',
+      description: '智联招聘企业级自动化招聘，智能筛选优质人才',
       icon: <RobotOutlined />,
       color: '#1890ff',
-      keywords: ['招聘', '寻聘', '智能招聘', '自动化招聘']
+      keywords: ['招聘', '寻聘', '智能招聘', '自动化招聘', '智联招聘']
     },
     {
       id: 'resume-recommendation',

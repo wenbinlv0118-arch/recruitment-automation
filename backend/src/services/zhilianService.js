@@ -103,14 +103,32 @@ class ZhilianService {
           '--disable-gpu',
           '--disable-web-security',
           '--disable-features=VizDisplayCompositor',
-          '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          '--autoplay-policy=no-user-gesture-required', // 允许自动播放
+          '--disable-permissions-api', // 禁用权限API检查
+          '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer', // 禁用显示合成器
+          '--enable-automation', // 启用自动化模式
+          '--disable-component-extensions-with-background-pages', // 禁用后台扩展
+          '--disable-default-apps', // 禁用默认应用
+          '--disable-extensions', // 禁用扩展
+          '--disable-background-networking', // 禁用后台网络
+          '--disable-sync', // 禁用同步
+          '--metrics-recording-only', // 仅记录指标
+          '--no-default-browser-check', // 不检查默认浏览器
+          '--safebrowsing-disable-auto-update', // 禁用安全浏览自动更新
+          '--enable-features=UseOzonePlatform', // 启用Ozone平台
+          '--use-fake-ui-for-media-stream', // 使用虚假UI处理媒体流
+          '--use-fake-device-for-media-stream', // 使用虚假设备处理媒体流
+          '--disable-features=MediaRouter', // 禁用媒体路由
+          '--disable-ipc-flooding-protection' // 禁用IPC洪水保护
         ],
         viewport: { width: 1920, height: 1080 }
       });
       
       const context = await this.browser.newContext({
         viewport: { width: 1920, height: 1080 },
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        permissions: ['clipboard-read', 'clipboard-write'] // 自动授权剪贴板权限
       });
       
       this.page = await context.newPage();
@@ -118,6 +136,29 @@ class ZhilianService {
       // 设置页面超时
       this.page.setDefaultTimeout(30000);
       this.page.setDefaultNavigationTimeout(30000);
+      
+      // 添加剪贴板权限自动授权脚本
+      await this.page.addInitScript(() => {
+        // 重写permissions属性，自动授权剪贴板权限
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) => {
+          if (parameters.name === 'clipboard-read' || parameters.name === 'clipboard-write') {
+            return Promise.resolve({ state: 'granted' }); // 剪贴板权限自动授权
+          }
+          if (parameters.name === 'notifications') {
+            return Promise.resolve({ state: 'denied' });
+          }
+          return originalQuery(parameters);
+        };
+        
+        // 确保剪贴板API可用
+        if (!navigator.clipboard) {
+          navigator.clipboard = {
+            readText: () => Promise.resolve(''),
+            writeText: (text) => Promise.resolve()
+          };
+        }
+      });
       
       this.currentStatus = 'initialized';
       logger.info('智联招聘浏览器初始化完成');
@@ -1018,6 +1059,88 @@ class ZhilianService {
     } catch (error) {
       logger.error('处理搜索结果失败:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 获取当前页面候选人数量（不获取元素引用，避免DOM分离问题）
+   */
+  async getCandidateCount() {
+    try {
+      // 智联招聘主页面候选人列表选择器
+      const candidateSelectors = [
+        'div.search-resume-item.resume-item-exp',
+        '.search-resume-item',
+        '.resume-item',
+        '.resume-card', 
+        '.candidate-item',
+        '.search-result-item',
+        '.list-item',
+        '.resume-list-item'
+      ];
+      
+      // 尝试每个选择器
+      for (const selector of candidateSelectors) {
+        try {
+          const count = await this.page.$$eval(selector, elements => elements.length);
+          if (count > 0) {
+            logger.info(`找到 ${count} 个候选人元素 (${selector})`);
+            return count;
+          }
+        } catch (e) {
+          // 继续尝试下一个选择器
+        }
+      }
+      
+      return 0;
+    } catch (error) {
+      logger.error('获取候选人数量失败:', error);
+      return 0;
+    }
+  }
+  
+  /**
+   * 获取指定索引的候选人元素（即时获取，避免DOM元素分离问题）
+   * @param {number} index - 候选人索引（0开始）
+   */
+  async getCurrentCandidateElement(index) {
+    try {
+      // 智联招聘主页面候选人列表选择器
+      const candidateSelectors = [
+        'div.search-resume-item.resume-item-exp',
+        '.search-resume-item',
+        '.resume-item',
+        '.resume-card', 
+        '.candidate-item',
+        '.search-result-item',
+        '.list-item',
+        '.resume-list-item'
+      ];
+      
+      // 尝试每个选择器
+      for (const selector of candidateSelectors) {
+        try {
+          const elements = await this.page.$$(selector);
+          if (elements.length > index) {
+            // 验证元素是否仍然有效
+            const isAttached = await elements[index].evaluate(el => el.isConnected);
+            if (isAttached) {
+              logger.info(`成功获取第 ${index + 1} 个候选人元素 (${selector})`);
+              return elements[index];
+            } else {
+              logger.warn(`第 ${index + 1} 个候选人元素已从 DOM 中分离`);
+            }
+          }
+        } catch (e) {
+          // 继续尝试下一个选择器
+        }
+      }
+      
+      logger.warn(`无法获取第 ${index + 1} 个候选人元素`);
+      return null;
+    } catch (error) {
+      logger.error(`获取第 ${index + 1} 个候选人元素失败:`, error);
+      return null;
     }
   }
 
@@ -3030,15 +3153,40 @@ class ZhilianService {
           // 再次验证页面和元素状态
           await this.validatePageState();
           
-          // 确保元素仍然可用
+          // **重要修复**: 在点击前重新验证和获取可点击元素，防止DOM分离
+          let activeClickableElement = clickableElement;
+          
+          // 检查元素是否仍然附加到DOM
           try {
-            await clickableElement.isVisible();
+            const isAttached = await clickableElement.evaluate(el => el.isConnected);
+            if (!isAttached) {
+              logger.warn(`第${index}个候选人的可点击元素已从DOM分离，重新获取...`);
+              
+              // 重新获取候选人元素
+              const freshCandidateElement = await this.getCurrentCandidateElement(index - 1); // index-1因为getCurrentCandidateElement是0开始的
+              if (!freshCandidateElement) {
+                throw new Error('无法重新获取候选人元素');
+              }
+              
+              // 重新查找可点击链接
+              activeClickableElement = await this.findClickableResumeLink(freshCandidateElement);
+              if (!activeClickableElement) {
+                throw new Error('无法重新获取可点击元素');
+              }
+              
+              logger.info(`第${index}个候选人：成功重新获取可点击元素`);
+            }
+            
+            // 再次验证元素可见性
+            await activeClickableElement.isVisible();
+            
           } catch (error) {
-            throw new Error('候选人元素已从DOM中分离或不可见');
+            logger.error(`第${index}个候选人元素验证失败:`, error.message);
+            throw new Error(`候选人元素已从DOM中分离或不可见: ${error.message}`);
           }
           
           // 滚动到元素可见位置
-          await clickableElement.scrollIntoViewIfNeeded();
+          await activeClickableElement.scrollIntoViewIfNeeded();
           await this.smartRandomDelay('scroll');
           
           // 模拟人类行为
@@ -3047,8 +3195,8 @@ class ZhilianService {
           // 点击前的智能延迟
           await this.smartRandomDelay('click');
           
-          // 点击元素
-          await clickableElement.click();
+          // 点击元素（使用重新验证后的元素）
+          await activeClickableElement.click();
           
           // 点击后的导航延迟
           await this.smartRandomDelay('navigation');
@@ -3094,6 +3242,18 @@ class ZhilianService {
    */
   async findClickableResumeLink(candidateElement) {
     try {
+      // 首先验证候选人元素是否仍然有效
+      try {
+        const isAttached = await candidateElement.evaluate(el => el.isConnected);
+        if (!isAttached) {
+          logger.warn('候选人元素已从DOM中分离，无法查找可点击链接');
+          return null;
+        }
+      } catch (error) {
+        logger.warn('验证候选人元素时出错:', error.message);
+        return null;
+      }
+      
       // 常见的简历链接选择器
       const linkSelectors = [
         'a[href*="resume"]',
@@ -3111,6 +3271,12 @@ class ZhilianService {
         try {
           const element = await candidateElement.$(selector);
           if (element) {
+            // 验证元素是否仍然附加到DOM
+            const isElementAttached = await element.evaluate(el => el.isConnected);
+            if (!isElementAttached) {
+              continue; // 继续查找下一个
+            }
+            
             // 检查链接是否有效
             const href = await element.getAttribute('href');
             if (href && (href.includes('resume') || href.includes('talent') || href.includes('person') || href.includes('candidate'))) {
@@ -3126,8 +3292,19 @@ class ZhilianService {
         }
       }
       
-      // 如果没有找到链接，尝试点击整个候选人元素
-      return candidateElement;
+      // 如果没有找到链接，验证整个候选人元素是否仍然有效
+      try {
+        const isCandidateAttached = await candidateElement.evaluate(el => el.isConnected);
+        if (isCandidateAttached) {
+          return candidateElement;
+        } else {
+          logger.warn('候选人元素已从DOM中分离，无法作为可点击元素');
+          return null;
+        }
+      } catch (error) {
+        logger.warn('验证候选人元素最终状态时出错:', error.message);
+        return null;
+      }
       
     } catch (error) {
       logger.error('查找可点击简历链接失败:', error);
@@ -3220,6 +3397,13 @@ class ZhilianService {
           logger.info(`第 ${index} 个候选人：正在关闭前端页面...`);
           await frontendPage.close();
           logger.info(`第 ${index} 个候选人：前端页面已关闭`);
+          
+          // 确认主要页面仍然打开
+          if (this.page && !this.page.isClosed()) {
+            logger.info(`第 ${index} 个候选人：智联招聘主页面保持打开状态`);
+          } else {
+            logger.warn(`第 ${index} 个候选人：检测到主页面被关闭!`);
+          }
         } catch (closeError) {
           logger.warn(`第 ${index} 个候选人：关闭前端页面时出错:`, closeError.message);
         }
@@ -3459,40 +3643,65 @@ class ZhilianService {
   }
   
   /**
-   * 返回智联招聘页面
+   * 返回智联招聘候选人列表页面
+   * 修复：确保只使用ESC键返回，禁止跳转到首页，保持在人才搜索页面
    */
   async returnToZhilianPage() {
     await this.safePageOperation(async () => {
-      // 尝试关闭当前简历页面的弹窗或返回按钮
-      await this.closeResumeModal();
+      logger.info('开始返回智联招聘候选人列表页面（仅ESC键模式）...');
       
-      if (this.lastCandidateListUrl) {
-        await this.page.goto(this.lastCandidateListUrl, { waitUntil: 'networkidle', timeout: 15000 });
-      } else {
-        // 如果没有记录的URL，尝试返回搜索页面
-        await this.navigateToResumeSearch();
+      // 获取当前URL，确保在人才搜索页面
+      const currentUrl = await this.page.url();
+      if (!currentUrl.includes('rd6.zhaopin.com/app/search')) {
+        logger.warn(`当前不在人才搜索页面: ${currentUrl}，但继续ESC键操作`);
       }
       
+      // 严格限制：只使用ESC键返回，禁止任何页面跳转
+      let escAttempts = 0;
+      const maxEscAttempts = 3;
+      
+      while (escAttempts < maxEscAttempts) {
+        escAttempts++;
+        logger.info(`第 ${escAttempts} 次尝试ESC键返回...`);
+        
+        // 仅使用ESC键，禁止任何其他导航操作
+        await this.page.keyboard.press('Escape');
+        await this.page.waitForTimeout(1500);
+        
+        // 验证是否成功返回候选人列表
+        const isBackToList = await this.checkResumeModalClosed();
+        if (isBackToList) {
+          logger.info(`✅ 第 ${escAttempts} 次ESC键成功返回候选人列表`);
+          break;
+        }
+        
+        if (escAttempts === maxEscAttempts) {
+          logger.warn(`⚠️ 已达到最大ESC键尝试次数(${maxEscAttempts})，但继续处理`);
+        }
+      }
+      
+      // 验证当前页面状态
+      const finalUrl = await this.page.url();
+      if (finalUrl.includes('rd6.zhaopin.com/app/search')) {
+        logger.info('✅ 成功保持在人才搜索页面，筛选条件完整保留');
+      } else {
+        logger.warn(`⚠️ 页面URL可能发生变化: ${finalUrl}，但ESC键操作已完成`);
+      }
+      
+      // 等待页面状态完全稳定
       await this.waitForPageFullyLoaded();
       
-      // 点击前的智能延迟
+      // 轻微点击空白区域确保页面焦点，但不触发导航
+      await this.page.click('body', { position: { x: 50, y: 50 } });
       await this.smartRandomDelay('click');
       
-      // 点击空白位置确保返回候选人列表
-      await this.page.click('body', { position: { x: 100, y: 100 } });
-      
-      // 按照用户要求，智能等待后再继续处理下一个候选人
-      logger.info('智能等待后继续处理下一个候选人...');
-      await this.smartRandomDelay('navigation');
-      
-      // 模拟人类查看候选人列表的行为
-      await this.simulateHumanBehavior();
+      logger.info('✅ 返回操作完成，准备继续处理下一个候选人');
       
     }, '返回智联招聘页面');
   }
   
   /**
-   * 按顺序处理搜索结果中的候选人（从上往下）
+   * 按顺序处理搜索结果中的候选人（从上往下） - 修复版本
    * @param {number} targetCount - 目标简历数量
    */
   async processSearchResultsSequentially(targetCount) {
@@ -3514,29 +3723,36 @@ class ZhilianService {
         // 等待页面加载完成
         await this.waitForPageFullyLoaded();
         
-        // 获取当前页面的候选人元素
-        const candidateElements = await this.getCandidateElements();
+        // **关键修复**：先获取候选人数量，而不是直接获取元素引用
+        const candidateCount = await this.getCandidateCount();
         
-        if (!candidateElements || candidateElements.length === 0) {
+        if (candidateCount === 0) {
           logger.warn('当前页面没有找到候选人元素');
           break;
         }
         
-        logger.info(`当前页面找到 ${candidateElements.length} 个候选人`);
+        logger.info(`当前页面找到 ${candidateCount} 个候选人`);
         
-        // 按顺序从上往下处理每个候选人
-        for (let i = 0; i < candidateElements.length && totalProcessed < targetCount; i++) {
+        // **关键修复**：按顺序从上往下处理每个候选人，每次都重新获取元素
+        for (let i = 0; i < candidateCount && totalProcessed < targetCount; i++) {
           // 检查服务是否已停止
           if (this.isStopped) {
             logger.info('服务已停止，退出候选人处理循环');
             break;
           }
           
-          const candidateElement = candidateElements[i];
           const candidateIndex = totalProcessed + 1;
           
           try {
             logger.info(`开始处理第 ${candidateIndex} 个候选人（页面第 ${i + 1} 个）`);
+            
+            // **关键修复**：每次都重新获取当前候选人元素，避免DOM分离问题
+            const candidateElement = await this.getCurrentCandidateElement(i);
+            
+            if (!candidateElement) {
+              logger.warn(`第 ${candidateIndex} 个候选人：无法获取元素，跳过`);
+              continue;
+            }
             
             // 处理单个候选人：点击、复制简历、解析、入库
             const success = await this.processResumeWithFrontend(candidateElement, candidateIndex);
@@ -3565,8 +3781,18 @@ class ZhilianService {
               logger.warn(`第 ${candidateIndex} 个候选人处理失败，继续下一个`);
             }
             
+            // 处理完一个候选人后，等待页面稳定
+            await this.page.waitForTimeout(1000);
+            
           } catch (error) {
             logger.error(`处理第 ${candidateIndex} 个候选人时出错:`, error);
+            
+            // 如果是DOM分离错误，等待页面稳定后继续
+            if (error.message.includes('not attached to the DOM')) {
+              logger.warn('检测到DOM元素分离，等待页面稳定后继续');
+              await this.waitForPageFullyLoaded();
+            }
+            
             // 继续处理下一个候选人
           }
         }
@@ -3591,137 +3817,145 @@ class ZhilianService {
   }
   
   /**
-   * 关闭简历弹窗或详情页
+   * 检查简历模态框是否已关闭（增强版检测）
+   * @returns {boolean} 简历页面是否已关闭
+   */
+  async checkResumeModalClosed() {
+    try {
+      logger.info('检查简历页面是否已关闭...');
+      
+      // 方法1: 检查是否返回候选人列表页面
+      const candidateListIndicators = await this.page.evaluate(() => {
+        // 检查常见的候选人列表元素
+        const listIndicators = [
+          'div.search-resume-item.resume-item-exp', // 主要的候选人列表选择器
+          '.search-resume-item',
+          '.resume-item',
+          '.candidate-item',
+          '.search-result-item'
+        ];
+        
+        let foundIndicators = 0;
+        for (const selector of listIndicators) {
+          const elements = document.querySelectorAll(selector);
+          if (elements.length > 0) {
+            foundIndicators++;
+          }
+        }
+        
+        return {
+          hasListElements: foundIndicators > 0,
+          listElementCount: foundIndicators,
+          url: window.location.href,
+          title: document.title
+        };
+      });
+      
+      // 方法2: 检查简历详情元素是否仍然存在
+      const resumeDetailElements = await this.page.evaluate(() => {
+        const resumeSelectors = [
+          'div.new-resume-detail--inner', // 主要的简历详情选择器
+          '.resume-modal',
+          '.modal',
+          '[class*="resume"][class*="modal"]',
+          '[class*="detail"][class*="modal"]',
+          '.resume-content',
+          '.cv-content',
+          '.detail-content',
+          '.resume-detail',
+          '.candidate-detail'
+        ];
+        
+        let foundResumeElements = 0;
+        const foundSelectors = [];
+        
+        for (const selector of resumeSelectors) {
+          const elements = document.querySelectorAll(selector);
+          if (elements.length > 0) {
+            // 进一步检查元素是否可见
+            for (const element of elements) {
+              const rect = element.getBoundingClientRect();
+              const style = window.getComputedStyle(element);
+              const isVisible = rect.width > 0 && rect.height > 0 && 
+                               style.display !== 'none' && 
+                               style.visibility !== 'hidden' && 
+                               parseFloat(style.opacity) > 0;
+              if (isVisible) {
+                foundResumeElements++;
+                foundSelectors.push(selector);
+                break; // 找到一个可见的就跳出
+              }
+            }
+          }
+        }
+        
+        return {
+          hasResumeElements: foundResumeElements > 0,
+          resumeElementCount: foundResumeElements,
+          foundSelectors: foundSelectors
+        };
+      });
+      
+      // 方法3: 检查URL是否还在简历详情页面
+      const currentUrl = this.page.url();
+      const isResumeDetailUrl = currentUrl.includes('/resume/') || 
+                               currentUrl.includes('/talent/') || 
+                               currentUrl.includes('/candidate/') ||
+                               currentUrl.includes('/detail/');
+      
+      logger.info('简历页面关闭检测结果:', {
+        candidateList: candidateListIndicators,
+        resumeDetails: resumeDetailElements,
+        currentUrl: currentUrl,
+        isResumeDetailUrl: isResumeDetailUrl
+      });
+      
+      // 关闭成功的条件：
+      // 1. 有候选人列表元素 且 没有简历详情元素
+      // 2. 或者 URL不在简历详情页面 且 有候选人列表元素
+      const isClosedSuccessfully = (
+        (candidateListIndicators.hasListElements && !resumeDetailElements.hasResumeElements) ||
+        (!isResumeDetailUrl && candidateListIndicators.hasListElements)
+      );
+      
+      if (isClosedSuccessfully) {
+        logger.info('✅ 简历页面已成功关闭，当前在候选人列表页面');
+      } else {
+        logger.warn('⚠️  简历页面仍然打开，需要继续尝试关闭');
+      }
+      
+      return isClosedSuccessfully;
+      
+    } catch (error) {
+      logger.error('检查简历页面关闭状态失败:', error);
+      return false; // 发生错误时认为未关闭
+    }
+  }
+  
+  /**
+   * 关闭简历弹窗或详情页 - 严格限制只使用ESC键
    */
   async closeResumeModal() {
     try {
-      // 首先尝试按ESC键关闭简历页面（最可靠的方式）
-      logger.info('尝试按ESC键关闭简历页面');
-      await this.page.keyboard.press('Escape');
-      await this.page.waitForTimeout(1000); // 等待关闭动画完成
+      // 严格限制：只使用ESC键关闭简历页面，避免任何其他操作
+      logger.info('正在使用ESC键关闭简历页面...');
       
-      // 检查是否成功关闭（通过检查简历页面是否还存在）
-      try {
-        const resumeModal = await this.page.$('.resume-modal, .modal, [class*="resume"][class*="modal"], [class*="detail"][class*="modal"]');
-        if (!resumeModal) {
-          logger.info('ESC键成功关闭简历页面');
+      // 最多尝试3次ESC键，每次间隔1秒
+      for (let i = 0; i < 3; i++) {
+        await this.page.keyboard.press('Escape');
+        await this.page.waitForTimeout(1000);
+        
+        // 检查是否成功关闭
+        const isClosedSuccessfully = await this.checkResumeModalClosed();
+        if (isClosedSuccessfully) {
+          logger.info(`✅ ESC键成功关闭简历页面（第${i+1}次尝试）`);
           return;
         }
-      } catch (e) {
-        // 检查失败，继续尝试其他方式
-      }
-      
-      // 如果ESC键未能关闭，检测并调整页面缩放比例，确保关闭按钮可见
-      try {
-        const currentZoom = await this.page.evaluate(() => {
-          return Math.round(window.devicePixelRatio * 100);
-        });
-        logger.info(`当前页面缩放比例: ${currentZoom}%`);
         
-        // 如果缩放比例为100%，调整为90%以确保关闭按钮可见
-        if (currentZoom >= 100) {
-          await this.page.evaluate(() => {
-            document.body.style.zoom = '0.9';
-          });
-          logger.info('已将页面缩放调整为90%以确保关闭按钮可见');
-          await this.page.waitForTimeout(500); // 等待缩放生效
-        }
-      } catch (e) {
-        logger.warn('调整页面缩放失败:', e.message);
+        logger.info(`ESC键尝试${i+1}次未成功，继续尝试...`);
       }
       
-      // 尝试点击用户指定的关闭按钮
-      try {
-        const closeButton = await this.page.$('i.km-icon.sati.sati-times-circle-s');
-        if (closeButton) {
-          // 使用更准确的可见性检查方法
-          const elementInfo = await closeButton.evaluate(el => {
-            const rect = el.getBoundingClientRect();
-            const style = window.getComputedStyle(el);
-            return {
-              visible: rect.width > 0 && rect.height > 0,
-              display: style.display,
-              visibility: style.visibility,
-              opacity: style.opacity,
-              position: {
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height
-              }
-            };
-          });
-          
-          logger.info('km-icon关闭按钮状态:', elementInfo);
-          
-          // 如果按钮有尺寸且不是隐藏状态，尝试点击
-          if (elementInfo.visible && 
-              elementInfo.display !== 'none' && 
-              elementInfo.visibility !== 'hidden' && 
-              parseFloat(elementInfo.opacity) > 0) {
-            try {
-              await closeButton.click();
-              logger.info('通过点击km-icon关闭按钮关闭简历页面');
-              await this.page.waitForTimeout(500);
-              return;
-            } catch (clickError) {
-              logger.warn('点击km-icon关闭按钮时出错:', clickError.message);
-              // 尝试强制点击
-              try {
-                await closeButton.click({ force: true });
-                logger.info('通过强制点击km-icon关闭按钮关闭简历页面');
-                await this.page.waitForTimeout(500);
-                return;
-              } catch (forceClickError) {
-                logger.warn('强制点击km-icon关闭按钮也失败:', forceClickError.message);
-              }
-            }
-          } else {
-            logger.warn('km-icon关闭按钮存在但状态不可点击');
-          }
-        } else {
-          logger.warn('未找到km-icon关闭按钮');
-        }
-      } catch (e) {
-        logger.warn('点击km-icon关闭按钮失败:', e.message);
-      }
-      
-      // 尝试多种关闭简历页面的方式
-      const closeSelectors = [
-        '.close-btn',
-        '.modal-close',
-        '.btn-close',
-        '[class*="close"]',
-        '[class*="back"]',
-        'button:has-text("关闭")',
-        'button:has-text("返回")',
-        'button:has-text("×")',
-        '.icon-close',
-        '.fa-close',
-        '.fa-times',
-        'text="关闭"',
-        'text="返回"',
-        'text="×"'
-      ];
-      
-      for (const selector of closeSelectors) {
-        try {
-          const closeButton = await this.page.$(selector);
-          if (closeButton) {
-            await closeButton.click();
-            logger.info(`使用选择器 ${selector} 关闭简历页面`);
-            await this.page.waitForTimeout(500);
-            return;
-          }
-        } catch (e) {
-          // 继续尝试下一个选择器
-        }
-      }
-      
-      // 最后再次尝试按ESC键
-      logger.info('所有关闭按钮都失败，再次尝试按ESC键关闭');
-      await this.page.keyboard.press('Escape');
-      await this.page.waitForTimeout(500);
+      logger.warn('⚠️  ESC键多次尝试后仍未成功关闭简历页面');
       
     } catch (error) {
       logger.warn('关闭简历页面失败:', error.message);

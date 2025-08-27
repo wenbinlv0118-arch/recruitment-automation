@@ -134,13 +134,14 @@ const SmartRecruitmentEntry = ({ onStartRecruitment, onOpenBossZhipinControl, on
       id: 'zhilian',
       name: '智联招聘',
       icon: <SearchOutlined />,
-      description: '智能简历搜索和下载',
+      description: '企业级智能简历搜索与候选人管理',
       features: [
-        '自动化简历搜索',
-        '智能候选人筛选',
-        '批量简历下载',
-        '简历质量检测',
-        '自动化入库流程'
+        '多维度智能简历搜索',
+        '候选人质量智能评估',
+        '自动化简历采集入库',
+        '反爬虫机制应对策略',
+        '多重登录状态检测',
+        '简历内容智能解析'
       ],
       status: 'active',
       brandColor: '#1890ff',

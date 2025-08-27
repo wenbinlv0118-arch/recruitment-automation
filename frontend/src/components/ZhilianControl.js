@@ -33,14 +33,37 @@ const StatusCard = styled(Card)`
   .status-indicator {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     margin-bottom: 20px;
+    padding: 12px 0;
+    
+    .anticon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    h4 {
+      flex: 1;
+      margin: 0 !important;
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      min-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
   
   .status-tag {
     font-size: 14px;
     padding: 6px 16px;
     border-radius: 6px;
+    min-width: 80px;
+    text-align: center;
   }
   
   .status-details {
@@ -49,21 +72,41 @@ const StatusCard = styled(Card)`
       align-items: center;
       justify-content: space-between;
       margin-bottom: 12px;
-      padding: 8px 0;
-      border-bottom: 1px solid #f0f0f0;
+      padding: 12px 16px;
+      background: #fafafa;
+      border-radius: 8px;
+      border: 1px solid #f0f0f0;
+      transition: all 0.2s ease;
       
       &:last-child {
-        border-bottom: none;
         margin-bottom: 0;
+      }
+      
+      &:hover {
+        background: #f5f5f5;
+        border-color: #d9d9d9;
       }
       
       .status-label {
         font-weight: 500;
         color: #333;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
       
       .status-value {
         margin-left: 16px;
+        min-width: 80px;
+        text-align: center;
+        
+        .ant-tag {
+          margin: 0;
+          font-size: 12px;
+          padding: 4px 12px;
+          border-radius: 6px;
+        }
       }
     }
   }

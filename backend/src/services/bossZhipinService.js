@@ -1,5 +1,7 @@
 const { chromium } = require('playwright');
 const logger = require('../utils/logger');
+const CanvasOcrService = require('./canvasOcrService');
+const DragSelectionService = require('./dragSelectionService');
 
 class BossZhipinService {
   constructor(io = null) {
@@ -38,6 +40,12 @@ class BossZhipinService {
     
     // 页面切换调度器
     this.pageSwitchTimeout = null;
+    
+    // Canvas截图和OCR服务
+    this.canvasOcrService = new CanvasOcrService();
+    
+    // 拖拽选区复制服务
+    this.dragSelectionService = new DragSelectionService();
   }
 
   /**
@@ -120,12 +128,35 @@ class BossZhipinService {
           '--disable-features=TranslateUI',
           '--disable-ipc-flooding-protection',
           '--disable-popup-blocking', // 禁用弹窗阻止，确保新标签页能正常打开
-          '--disable-background-tab-throttling' // 禁用后台标签页限制
+          '--disable-background-tab-throttling', // 禁用后台标签页限制
+          '--autoplay-policy=no-user-gesture-required', // 允许自动播放
+          '--disable-permissions-api', // 禁用权限API检查
+          '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer', // 禁用显示合成器
+          '--enable-automation', // 启用自动化模式
+          '--disable-component-extensions-with-background-pages', // 禁用后台扩展
+          '--disable-default-apps', // 禁用默认应用
+          '--disable-extensions', // 禁用扩展
+          '--disable-background-networking', // 禁用后台网络
+          '--disable-sync', // 禁用同步
+          '--metrics-recording-only', // 仅记录指标
+          '--no-default-browser-check', // 不检查默认浏览器
+          '--no-first-run', // 不显示首次运行界面
+          '--safebrowsing-disable-auto-update', // 禁用安全浏览自动更新
+          '--enable-features=UseOzonePlatform', // 启用Ozone平台
+          '--use-fake-ui-for-media-stream', // 使用虚假UI处理媒体流
+          '--use-fake-device-for-media-stream', // 使用虚假设备处理媒体流
+          '--disable-features=MediaRouter', // 禁用媒体路由
+          '--disable-ipc-flooding-protection' // 禁用IPC洪水保护
         ]
       });
 
-      // 使用默认浏览器上下文，确保所有页面在同一窗口的不同标签页中
-      this.page = await this.browser.newPage();
+      // 创建浏览器上下文，配置剪贴板权限自动授权
+      const context = await this.browser.newContext({
+        permissions: ['clipboard-read', 'clipboard-write'] // 自动授权剪贴板权限
+      });
+      
+      // 使用配置好的上下文创建页面
+      this.page = await context.newPage();
       
       // 设置随机视口大小，模拟真实用户
       const viewports = [
@@ -170,13 +201,17 @@ class BossZhipinService {
           runtime: {},
         };
         
-        // 重写permissions属性
+        // 重写permissions属性，自动授权剪贴板权限
         const originalQuery = window.navigator.permissions.query;
-        window.navigator.permissions.query = (parameters) => (
-          parameters.name === 'notifications' ?
-            Promise.resolve({ state: Cypress.denied }) :
-            originalQuery(parameters)
-        );
+        window.navigator.permissions.query = (parameters) => {
+          if (parameters.name === 'clipboard-read' || parameters.name === 'clipboard-write') {
+            return Promise.resolve({ state: 'granted' }); // 剪贴板权限自动授权
+          }
+          if (parameters.name === 'notifications') {
+            return Promise.resolve({ state: 'denied' });
+          }
+          return originalQuery(parameters);
+        };
         
         // 重写plugins长度
         Object.defineProperty(navigator, 'plugins', {
@@ -187,6 +222,14 @@ class BossZhipinService {
         Object.defineProperty(navigator, 'languages', {
           get: () => ['zh-CN', 'zh', 'en'],
         });
+        
+        // 确保剪贴板API可用
+        if (!navigator.clipboard) {
+          navigator.clipboard = {
+            readText: () => Promise.resolve(''),
+            writeText: (text) => Promise.resolve()
+          };
+        }
       });
 
       // 设置弹窗处理 - 已禁用
@@ -1304,10 +1347,44 @@ class BossZhipinService {
   }
   
   /**
-   * 从页面提取简历内容
+   * 从页面提取简历内容（优先使用Hook方式）
    */
   async extractResumeContentFromPage() {
     try {
+      logger.info('开始从主页面提取简历内容（优先使用Hook方式）');
+      
+      // 方法1：优先尝试Hook方式复制（针对Canvas简历）
+      try {
+        logger.info('尝试使用Hook方式复制主页面Canvas简历');
+        
+        // 检查页面中是否有canvas#resume元素
+        const hasCanvas = await this.page.locator('canvas#resume').count();
+        if (hasCanvas > 0) {
+          logger.info('发现主页面canvas#resume元素，使用Hook方式复制');
+          
+          const hookText = await this.dragSelectionService.copyResumeByHook(this.page, {
+            frameSelector: null, // 主页面不需要iframe切换
+            canvasSelector: 'canvas#resume',
+            margin: 5,
+            dragSteps: 30,
+            waitTime: 500
+          });
+          
+          if (hookText && hookText.trim()) {
+            logger.info(`主页面Hook方式复制成功，获取到 ${hookText.length} 个字符的内容`);
+            return hookText;
+          } else {
+            logger.warn('主页面Hook方式复制未获取到有效内容');
+          }
+        } else {
+          logger.info('主页面未发现canvas#resume元素，跳过Hook方式');
+        }
+      } catch (hookError) {
+        logger.warn('主页面Hook方式复制失败:', hookError.message);
+      }
+      
+      // 方法2：使用传统的选择器方式提取简历内容
+      logger.info('使用传统选择器方式提取简历内容');
       const resumeContent = await this.page.evaluate(() => {
         // 尝试多种方式获取简历内容
         const contentSelectors = [
@@ -1355,6 +1432,11 @@ class BossZhipinService {
       return null;
     }
   }
+  
+  /**
+   * 从主页面的canvas#resume元素中提取文字内容
+   */
+
   
   /**
    * 上传简历到应用
@@ -1734,6 +1816,14 @@ class BossZhipinService {
    */
   async extractResumeContentFromIframe(frame) {
     try {
+      // 首先尝试提取canvas#resume中的文字内容
+      const canvasContent = await this.extractCanvasResumeContent(frame);
+      if (canvasContent) {
+        logger.info(`从canvas#resume提取简历内容成功，长度: ${canvasContent.length}`);
+        return canvasContent;
+      }
+      
+      // 如果canvas提取失败，使用原有的选择器方式
       const resumeContent = await frame.evaluate(() => {
         const contentSelectors = [
           '.resume-content',
@@ -1779,6 +1869,211 @@ class BossZhipinService {
       return null;
     }
   }
+  
+  /**
+   * 查找包含简历内容的特定iframe
+   */
+  async findResumeIframe(page) {
+    try {
+      // 查找所有iframe元素
+      const iframes = await page.$$('iframe');
+      
+      for (const iframe of iframes) {
+        // 获取iframe的src属性
+        const src = await iframe.getAttribute('src');
+        
+        if (src && src.includes('/web/frame/c-resume/?source=search')) {
+          logger.info(`找到简历iframe，src: ${src}`);
+          
+          // 获取iframe的contentFrame
+          const frame = await iframe.contentFrame();
+          if (frame) {
+            // 等待iframe内容加载
+            await frame.waitForTimeout(1000);
+            return frame;
+          }
+        }
+      }
+      
+      logger.warn('未找到包含简历内容的iframe');
+      return null;
+      
+    } catch (error) {
+      logger.error('查找简历iframe失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 从canvas#resume元素中提取文字内容（优先使用Hook方式）
+   */
+  async extractCanvasResumeContent(frame) {
+    try {
+      logger.info('开始从canvas#resume提取简历内容（优先使用Hook方式）');
+      
+      // 方法1：优先使用Hook方式复制（推荐）
+      try {
+        logger.info('开始使用Hook方式复制技术');
+        
+        const hookText = await this.dragSelectionService.copyResumeByHook(this.page, {
+          frameSelector: '/web/frame/c-resume/?source=search',
+          canvasSelector: 'canvas#resume',
+          margin: 5,
+          dragSteps: 30,
+          waitTime: 500
+        });
+        
+        if (hookText && hookText.trim()) {
+          logger.info(`Hook方式复制成功，获取到 ${hookText.length} 个字符的内容`);
+          return hookText;
+        } else {
+          logger.warn('Hook方式复制未获取到有效内容');
+          throw new Error('Hook方式复制未获取到有效内容');
+        }
+      } catch (hookError) {
+        logger.warn('Hook方式复制失败，尝试传统拖拽选区方式:', hookError);
+        
+        // 方法2：备选使用传统拖拽选区复制
+        try {
+          logger.info('开始使用传统拖拽选区复制技术');
+          
+          const dragText = await this.dragSelectionService.copyResumeByDragSelection(this.page, {
+            frameSelector: 'iframe[src*="c-resume"]',
+            canvasSelector: 'canvas#resume',
+            margin: 5,
+            dragSteps: 30,
+            waitTime: 500,
+            checkPermissions: true
+          });
+          
+          if (dragText && dragText.trim()) {
+            logger.info(`传统拖拽选区复制成功，获取到 ${dragText.length} 个字符的内容`);
+            return dragText;
+          } else {
+            logger.warn('传统拖拽选区复制未获取到有效内容');
+            throw new Error('传统拖拽选区复制未获取到有效内容');
+          }
+        } catch (dragError) {
+          logger.error('传统拖拽选区复制也失败:', dragError);
+          throw dragError;
+        }
+      }
+      
+      // 已禁用传统方法和OCR识别
+      // logger.info('拖拽选区复制失败，开始使用传统方法获取文本数据');
+      
+      /*
+      // 传统方法和OCR识别已被禁用
+      // 如需启用，请取消以下代码的注释
+      
+      const canvasContent = await frame.evaluate(() => {
+        // 查找canvas#resume元素
+        const canvas = document.querySelector('canvas#resume');
+        if (!canvas) {
+          return null;
+        }
+        
+        // 检查canvas是否有相关的文本数据属性
+        const textData = canvas.getAttribute('data-text') || 
+                        canvas.getAttribute('data-content') ||
+                        canvas.getAttribute('data-resume');
+        
+        if (textData) {
+          return { type: 'attribute', content: textData };
+        }
+        
+        // 检查canvas父元素或兄弟元素是否包含文本内容
+        const parent = canvas.parentElement;
+        if (parent) {
+          // 查找隐藏的文本元素
+          const hiddenText = parent.querySelector('[style*="display: none"]') ||
+                           parent.querySelector('[style*="visibility: hidden"]') ||
+                           parent.querySelector('.sr-only') ||
+                           parent.querySelector('.visually-hidden');
+          
+          if (hiddenText && hiddenText.textContent.trim()) {
+            return { type: 'hidden', content: hiddenText.textContent.trim() };
+          }
+          
+          // 查找data属性中的文本
+          const dataText = parent.getAttribute('data-text') ||
+                          parent.getAttribute('data-content') ||
+                          parent.getAttribute('data-resume');
+          
+          if (dataText) {
+            return { type: 'parent_attribute', content: dataText };
+          }
+        }
+        
+        // 检查是否有相关的script标签包含简历数据
+        const scripts = document.querySelectorAll('script');
+        for (const script of scripts) {
+          const scriptContent = script.textContent || script.innerHTML;
+          if (scriptContent.includes('resume') || scriptContent.includes('简历')) {
+            // 尝试解析JSON数据
+            try {
+              const jsonMatch = scriptContent.match(/\{[^}]*".*?resume.*?"[^}]*\}/gi);
+              if (jsonMatch) {
+                for (const match of jsonMatch) {
+                  const data = JSON.parse(match);
+                  if (data.content || data.text || data.resume) {
+                    return { type: 'script', content: data.content || data.text || data.resume };
+                  }
+                }
+              }
+            } catch (e) {
+              // 忽略JSON解析错误
+            }
+          }
+        }
+        
+        return null;
+      });
+      
+      // 如果传统方法获取到了内容，直接返回
+      if (canvasContent && canvasContent.content) {
+        logger.info(`通过${canvasContent.type}方法获取到简历内容`);
+        return canvasContent.content;
+      }
+      
+      // 第三优先级：传统方法失败，使用OCR技术截图识别
+      logger.info('传统方法未获取到内容，开始使用OCR技术识别canvas内容');
+      
+      try {
+        // 使用OCR服务截图并识别文字
+        const ocrText = await this.canvasOcrService.captureAndRecognizeCanvas(frame, 'canvas#resume');
+        
+        if (ocrText && ocrText.trim()) {
+          logger.info(`OCR识别成功，获取到 ${ocrText.length} 个字符的内容`);
+          return ocrText;
+        } else {
+          logger.warn('OCR识别未获取到有效内容');
+        }
+      } catch (ocrError) {
+        logger.error('OCR识别失败:', ocrError);
+      }
+      
+      logger.warn('所有简历识别方式均失败，返回空内容');
+      return null;
+      */
+      
+      // 当前仅使用拖拽选区复制技术，传统方法和OCR已禁用
+      logger.warn('拖拽选区复制失败，传统方法和OCR已被禁用');
+      return null;
+      
+    } catch (error) {
+      logger.error('从canvas#resume提取内容失败:', error);
+      return null;
+    }
+  }
+
+
+
+
+  
+
+
+
   
   /**
    * 在iframe中返回到候选人列表
@@ -2549,60 +2844,28 @@ class BossZhipinService {
       // 等待在线简历加载
       await frame.waitForTimeout(2000);
       
-      // 在主页面中查找简历详情容器（不在iframe中）
       const page = frame.page();
-      const resumeDetailWrap = await page.$('div.resume-detail-wrap');
-      if (!resumeDetailWrap) {
-        logger.warn('未找到简历详情容器 div.resume-detail-wrap，尝试其他选择器');
-        // 尝试其他可能的选择器
-        const alternativeSelectors = [
-          '.resume-detail',
-          '.resume-content',
-          '.resume-info',
-          '[class*="resume"][class*="detail"]',
-          '[class*="resume"][class*="wrap"]',
-          '.resume-container',
-          '.geek-resume'
-        ];
-        
-        let resumeContainer = null;
-        for (const selector of alternativeSelectors) {
-          resumeContainer = await page.$(selector);
-          if (resumeContainer) {
-            logger.info(`找到替代简历容器: ${selector}`);
-            break;
-          }
-        }
-        
-        if (!resumeContainer) {
-          logger.warn('未找到任何简历容器元素');
-          return;
-        }
-      }
+      let resumeContent = null;
       
-      // 在主页面中提取简历内容
-      const resumeContent = await page.evaluate(() => {
-        const resumeWrap = document.querySelector('div.resume-detail-wrap') || 
-                          document.querySelector('.resume-detail') ||
-                          document.querySelector('.resume-content') ||
-                          document.querySelector('.resume-info') ||
-                          document.querySelector('.resume-container') ||
-                          document.querySelector('.geek-resume');
+      // 查找包含简历内容的特定iframe
+      const resumeIframe = await this.findResumeIframe(page);
+      if (resumeIframe) {
+        logger.info('找到简历iframe，开始提取canvas#resume内容');
+        resumeContent = await this.extractCanvasResumeContent(resumeIframe);
         
-        if (!resumeWrap) return '';
-        
-        // 获取简历容器内的文本内容
-        const allText = resumeWrap.innerText || resumeWrap.textContent || '';
-        
-        return allText.trim();
-      });
+        if (resumeContent) {
+          logger.info(`从iframe中的canvas#resume提取简历内容成功，长度: ${resumeContent.length}`);
+        } else {
+          logger.warn('在简历iframe中未找到canvas#resume或提取失败');
+        }
+      } else {
+        logger.warn('未找到简历iframe，无法提取简历内容');
+      }
       
       if (!resumeContent) {
         logger.warn('未能提取到简历内容');
         return;
       }
-      
-      logger.info(`简历内容提取成功，长度: ${resumeContent.length}`);
       
       // 复制简历内容到剪贴板
       await this.copyToClipboard(resumeContent);
@@ -3395,6 +3658,20 @@ class BossZhipinService {
         await this.browser.close();
         this.browser = null;
         this.page = null;
+        
+        // 清理OCR服务
+        if (this.canvasOcrService) {
+          await this.canvasOcrService.destroy();
+          logger.info('OCR服务已清理');
+        }
+        
+        // 清理拖拽选区服务
+        if (this.dragSelectionService) {
+          await this.dragSelectionService.cleanup();
+          logger.info('拖拽选区服务已清理');
+        }
+        
+
         this.isLoggedIn = false;
         this.currentStatus = 'idle';
         this.popupHandler = null;
