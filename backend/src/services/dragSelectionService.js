@@ -8,6 +8,9 @@ const logger = require('../utils/logger');
 class DragSelectionService {
   constructor() {
     this.isInitialized = false;
+    // 记录鼠标拖拽过程中经过的区域
+    this.draggedPath = [];
+    this.dragBoundingBox = null;
   }
 
   /**
@@ -16,6 +19,9 @@ class DragSelectionService {
   async initialize() {
     try {
       this.isInitialized = true;
+      // 重置拖拽路径记录
+      this.draggedPath = [];
+      this.dragBoundingBox = null;
       logger.info('拖拽选区服务初始化成功');
     } catch (error) {
       logger.error('拖拽选区服务初始化失败:', error);
@@ -24,9 +30,67 @@ class DragSelectionService {
   }
 
   /**
-   * 检查并请求剪切板权限
+   * 记录拖拽路径中的坐标点
+   * @param {number} x - X坐标
+   * @param {number} y - Y坐标
+   */
+  recordDragPoint(x, y) {
+    this.draggedPath.push({ x, y });
+    
+    // 更新拖拽边界框
+    if (!this.dragBoundingBox) {
+      this.dragBoundingBox = { minX: x, maxX: x, minY: y, maxY: y };
+    } else {
+      this.dragBoundingBox.minX = Math.min(this.dragBoundingBox.minX, x);
+      this.dragBoundingBox.maxX = Math.max(this.dragBoundingBox.maxX, x);
+      this.dragBoundingBox.minY = Math.min(this.dragBoundingBox.minY, y);
+      this.dragBoundingBox.maxY = Math.max(this.dragBoundingBox.maxY, y);
+    }
+  }
+
+  /**
+   * 检查指定坐标是否在拖拽路径的边界框内
+   * @param {number} x - X坐标
+   * @param {number} y - Y坐标
+   * @param {number} tolerance - 容错范围（像素）
+   * @returns {boolean} 是否在拖拽区域内
+   */
+  isPointInDraggedArea(x, y, tolerance = 10) {
+    if (!this.dragBoundingBox || this.draggedPath.length === 0) {
+      logger.warn('拖拽路径为空，无法验证坐标是否在拖拽区域内');
+      return false;
+    }
+
+    // 检查是否在拖拽边界框内（加上容错范围）
+    const inBoundingBox = (
+      x >= this.dragBoundingBox.minX - tolerance &&
+      x <= this.dragBoundingBox.maxX + tolerance &&
+      y >= this.dragBoundingBox.minY - tolerance &&
+      y <= this.dragBoundingBox.maxY + tolerance
+    );
+
+    if (!inBoundingBox) {
+      logger.warn(`坐标(${x}, ${y})不在拖拽边界框内: minX=${this.dragBoundingBox.minX}, maxX=${this.dragBoundingBox.maxX}, minY=${this.dragBoundingBox.minY}, maxY=${this.dragBoundingBox.maxY}`);
+      return false;
+    }
+
+    logger.info(`✅ 坐标(${x}, ${y})在拖拽区域内，边界框: [${this.dragBoundingBox.minX}-${this.dragBoundingBox.maxX}, ${this.dragBoundingBox.minY}-${this.dragBoundingBox.maxY}]`);
+    return true;
+  }
+
+  /**
+   * 重置拖拽路径记录
+   */
+  resetDragPath() {
+    this.draggedPath = [];
+    this.dragBoundingBox = null;
+    logger.info('拖拽路径记录已重置');
+  }
+
+  /**
+   * 检查并请求剪贴板权限
    * @param {Object} page - Playwright页面对象
-   * @returns {Promise<boolean>} 是否获得权限
+   * @returns {Promise<boolean>} 是否有权限
    */
   async checkAndRequestClipboardPermission(page) {
     try {
@@ -316,6 +380,9 @@ class DragSelectionService {
       // 6. 简洁的拖拽选区操作
       logger.info('开始拖拽选区操作...');
       
+      // 重置拖拽路径记录
+      this.resetDragPath();
+      
       // 点击canvas激活
       logger.info('点击canvas激活复制功能...');
       if (isMainPage) {
@@ -327,8 +394,17 @@ class DragSelectionService {
       
       // 执行拖拽选区
       logger.info('执行拖拽选区操作');
+      logger.info(`拖拽参数: 起点(${startX}, ${startY}) -> 终点(${endX}, ${endY}), 步数: ${dragSteps}`);
       await this.performDragSelection(page, startX, startY, endX, endY, dragSteps, targetContext, contextName);
       await page.waitForTimeout(300);
+      
+      // 记录拖拽完成后的路径信息
+      if (this.draggedPath.length > 0) {
+        logger.info(`✅ 拖拽路径记录完成: 共${this.draggedPath.length}个坐标点`);
+        logger.info(`拖拽边界框: [${this.dragBoundingBox.minX}-${this.dragBoundingBox.maxX}, ${this.dragBoundingBox.minY}-${this.dragBoundingBox.maxY}]`);
+      } else {
+        logger.warn('⚠️ 拖拽路径记录为空，可能影响右键点击位置验证');
+      }
       
       // 在canvas#resume范围内随机位置右键点击复制（确保在canvas边界内）
       logger.info('计算canvas#resume范围内的右键点击位置...');
@@ -406,20 +482,51 @@ class DragSelectionService {
       
       logger.info(`Canvas右键点击范围: x=${canvasRightClickInfo.x}, y=${canvasRightClickInfo.y}, width=${canvasRightClickInfo.width}, height=${canvasRightClickInfo.height}`);
       
-      // 在canvas范围内计算安全的右键点击位置
-      const canvasSafeMargin = 20; // canvas边缘安全边距
-      const rightClickX = canvasRightClickInfo.x + canvasSafeMargin + Math.random() * (canvasRightClickInfo.width - 2 * canvasSafeMargin);
-      const rightClickY = canvasRightClickInfo.y + canvasSafeMargin + Math.random() * (canvasRightClickInfo.height - 2 * canvasSafeMargin);
+      // 优先在拖拽区域内计算右键点击位置
+      let clampedX, clampedY;
       
-      // 添加微小的手抖偏移（±2像素）
-      const jitterX = (Math.random() - 0.5) * 4;
-      const jitterY = (Math.random() - 0.5) * 4;
-      const finalX = rightClickX + jitterX;
-      const finalY = rightClickY + jitterY;
-      
-      // 确保最终坐标仍在canvas范围内
-      const clampedX = Math.max(canvasRightClickInfo.x + 5, Math.min(finalX, canvasRightClickInfo.x + canvasRightClickInfo.width - 5));
-      const clampedY = Math.max(canvasRightClickInfo.y + 5, Math.min(finalY, canvasRightClickInfo.y + canvasRightClickInfo.height - 5));
+      if (this.dragBoundingBox && this.draggedPath.length > 0) {
+        // 在拖拽区域内选择右键点击位置
+        const dragSafeMargin = 10; // 拖拽区域边缘安全边距
+        const dragWidth = this.dragBoundingBox.maxX - this.dragBoundingBox.minX;
+        const dragHeight = this.dragBoundingBox.maxY - this.dragBoundingBox.minY;
+        
+        if (dragWidth > 2 * dragSafeMargin && dragHeight > 2 * dragSafeMargin) {
+          // 拖拽区域足够大，在其中选择位置
+          const rightClickX = this.dragBoundingBox.minX + dragSafeMargin + Math.random() * (dragWidth - 2 * dragSafeMargin);
+          const rightClickY = this.dragBoundingBox.minY + dragSafeMargin + Math.random() * (dragHeight - 2 * dragSafeMargin);
+          
+          // 添加微小的手抖偏移（±2像素）
+          const jitterX = (Math.random() - 0.5) * 4;
+          const jitterY = (Math.random() - 0.5) * 4;
+          
+          clampedX = rightClickX + jitterX;
+          clampedY = rightClickY + jitterY;
+          
+          logger.info(`在拖拽区域内选择右键点击位置: 拖拽边界[${this.dragBoundingBox.minX}-${this.dragBoundingBox.maxX}, ${this.dragBoundingBox.minY}-${this.dragBoundingBox.maxY}]`);
+        } else {
+          // 拖拽区域太小，使用拖拽区域的中心点
+          clampedX = (this.dragBoundingBox.minX + this.dragBoundingBox.maxX) / 2;
+          clampedY = (this.dragBoundingBox.minY + this.dragBoundingBox.maxY) / 2;
+          logger.info(`拖拽区域较小，使用中心点作为右键点击位置`);
+        }
+      } else {
+        // 备用方案：在canvas范围内计算安全的右键点击位置
+        logger.warn('拖拽路径为空，使用canvas范围作为备用方案');
+        const canvasSafeMargin = 20; // canvas边缘安全边距
+        const rightClickX = canvasRightClickInfo.x + canvasSafeMargin + Math.random() * (canvasRightClickInfo.width - 2 * canvasSafeMargin);
+        const rightClickY = canvasRightClickInfo.y + canvasSafeMargin + Math.random() * (canvasRightClickInfo.height - 2 * canvasSafeMargin);
+        
+        // 添加微小的手抖偏移（±2像素）
+        const jitterX = (Math.random() - 0.5) * 4;
+        const jitterY = (Math.random() - 0.5) * 4;
+        const finalX = rightClickX + jitterX;
+        const finalY = rightClickY + jitterY;
+        
+        // 确保最终坐标仍在canvas范围内
+        clampedX = Math.max(canvasRightClickInfo.x + 5, Math.min(finalX, canvasRightClickInfo.x + canvasRightClickInfo.width - 5));
+        clampedY = Math.max(canvasRightClickInfo.y + 5, Math.min(finalY, canvasRightClickInfo.y + canvasRightClickInfo.height - 5));
+      }
       
       logger.info(`在canvas#resume范围内右键点击复制: (${Math.round(clampedX)}, ${Math.round(clampedY)})`);
       const rightClickSuccess = await this.performRightClickCopy(page, clampedX, clampedY);
@@ -543,11 +650,17 @@ class DragSelectionService {
    * @param {Object} page - Playwright页面对象
    * @param {number} x - 右键点击X坐标
    * @param {number} y - 右键点击Y坐标
+   * @param {boolean} validateDragArea - 是否验证右键点击位置在拖拽区域内
    * @returns {Promise<boolean>} 是否成功
    */
-  async performRightClickCopy(page, x, y) {
+  async performRightClickCopy(page, x, y, validateDragArea = true) {
     try {
       logger.info(`在位置(${x}, ${y})执行右键点击复制`);
+      
+      // 验证右键点击位置是否在拖拽区域内
+      if (validateDragArea && !this.isPointInDraggedArea(x, y)) {
+        logger.warn(`右键点击位置(${x}, ${y})不在拖拽区域内，可能影响复制效果`);
+      }
       
       // 检查是否有文本选中
       const hasSelection = await page.evaluate(() => {
@@ -747,6 +860,9 @@ class DragSelectionService {
         const currentX = startX + deltaX * progress;
         const currentY = startY + deltaY * progress;
         
+        // 记录拖拽路径中的坐标点
+        this.recordDragPoint(currentX, currentY);
+        
         // 移动鼠标
         await page.mouse.move(currentX, currentY);
         
@@ -783,6 +899,8 @@ class DragSelectionService {
   async cleanup() {
     try {
       this.isInitialized = false;
+      // 清理拖拽路径记录
+      this.resetDragPath();
       logger.info('拖拽选区服务清理完成');
     } catch (error) {
       logger.error('拖拽选区服务清理失败:', error);

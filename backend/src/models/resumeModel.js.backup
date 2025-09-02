@@ -1,9 +1,5 @@
 const fs = require('fs-extra');
 const path = require('path');
-const NodeCache = require('node-cache');
-
-// 简历数据缓存，TTL为5分钟
-const resumeCache = new NodeCache({ stdTTL: 300 });
 
 /**
  * 简历模型类
@@ -58,17 +54,8 @@ class ResumeModel {
    * @returns {Object} 数据库内容
    */
   readDatabase() {
-    const cacheKey = 'resume_database';
-    let cachedDb = resumeCache.get(cacheKey);
-    
-    if (cachedDb) {
-      return cachedDb;
-    }
-    
     try {
-      const db = fs.readJsonSync(this.dbFile);
-      resumeCache.set(cacheKey, db);
-      return db;
+      return fs.readJsonSync(this.dbFile);
     } catch (error) {
       console.error('读取简历数据库失败:', error);
       return { resumes: [], positions: [], categories: [] };
@@ -82,25 +69,9 @@ class ResumeModel {
   writeDatabase(data) {
     try {
       fs.writeJsonSync(this.dbFile, data);
-      // 更新缓存
-      resumeCache.set('resume_database', data);
-      // 清除相关缓存
-      this.clearRelatedCache();
     } catch (error) {
       console.error('写入简历数据库失败:', error);
     }
-  }
-  
-  /**
-   * 清除相关缓存
-   */
-  clearRelatedCache() {
-    const keys = resumeCache.keys();
-    keys.forEach(key => {
-      if (key.startsWith('resumes_') || key.startsWith('positions_')) {
-        resumeCache.del(key);
-      }
-    });
   }
   
   /**

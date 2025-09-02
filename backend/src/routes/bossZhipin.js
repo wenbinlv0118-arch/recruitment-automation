@@ -316,6 +316,35 @@ router.post('/stop-browsing', async (req, res) => {
 });
 
 /**
+ * 重置候选人浏览状态
+ */
+router.post('/reset-browsing', async (req, res) => {
+  try {
+    if (!bossZhipinService) {
+      return res.status(400).json({
+        success: false,
+        message: 'Boss 直聘服务未初始化'
+      });
+    }
+    
+    await bossZhipinService.resetBrowsingStatus();
+    
+    res.json({
+      success: true,
+      message: '候选人浏览状态已重置'
+    });
+    
+  } catch (error) {
+    logger.error('重置候选人浏览状态失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '重置候选人浏览状态失败: ' + error.message,
+      error: error.message
+    });
+  }
+});
+
+/**
  * 获取候选人浏览状态
  */
 router.get('/browsing-status', async (req, res) => {
@@ -525,6 +554,189 @@ router.post('/process-resume', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '处理简历失败: ' + error.message,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 导航到互动版块（沟通页面）
+ * POST /api/boss-zhipin/navigate-to-communication
+ */
+router.post('/navigate-to-communication', async (req, res) => {
+  try {
+    logger.info('收到导航到Boss直聘互动版块的请求');
+    
+    // 检查服务是否已初始化
+    if (!bossZhipinService) {
+      return res.status(400).json({
+        success: false,
+        message: 'Boss直聘服务未初始化'
+      });
+    }
+    
+    // 检查浏览器是否已启动
+    if (!bossZhipinService.browser || !bossZhipinService.page) {
+      return res.status(400).json({
+        success: false,
+        message: '请先启动Boss直聘服务'
+      });
+    }
+    
+    // 执行导航到互动版块
+    const result = await bossZhipinService.navigateToCommunicationPage();
+    
+    if (result && result.success) {
+      // 发送成功事件
+      if (io) {
+        io.emit('bossZhipinNavigationSuccess', {
+          success: true,
+          message: '成功导航到互动版块',
+          url: result.url
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: '成功导航到互动版块',
+        data: {
+          url: result.url,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      // 发送失败事件
+      if (io) {
+        io.emit('bossZhipinNavigationError', {
+          success: false,
+          message: result?.message || '导航到互动版块失败',
+          error: result?.error
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: result?.message || '导航到互动版块失败',
+        error: result?.error
+      });
+    }
+    
+  } catch (error) {
+    logger.error('导航到Boss直聘互动版块失败:', error);
+    
+    // 发送错误事件
+    if (io) {
+      io.emit('bossZhipinNavigationError', {
+        success: false,
+        message: '导航到互动版块时发生错误',
+        error: error.message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: '导航到互动版块失败',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 统一的模式导航接口
+ * POST /api/boss-zhipin/navigate-to-mode
+ */
+router.post('/navigate-to-mode', async (req, res) => {
+  try {
+    const { mode, targetCount } = req.body;
+    logger.info(`收到导航到Boss直聘${mode}模式的请求`);
+    
+    // 检查服务是否已初始化
+    if (!bossZhipinService) {
+      return res.status(400).json({
+        success: false,
+        message: 'Boss直聘服务未初始化'
+      });
+    }
+    
+    // 检查浏览器是否已启动
+    if (!bossZhipinService.browser || !bossZhipinService.page) {
+      return res.status(400).json({
+        success: false,
+        message: '请先启动Boss直聘服务'
+      });
+    }
+    
+    let result;
+    
+    switch (mode) {
+      case 'communication':
+        result = await bossZhipinService.navigateToCommunicationPage();
+        break;
+      case 'search':
+        result = { success: true, message: '搜索模式已激活' };
+        break;
+      case 'recommended':
+        result = { success: true, message: '推荐模式已激活' };
+        break;
+      default:
+        result = { success: false, message: '不支持的模式: ' + mode };
+        break;
+    }
+    
+    if (result && result.success) {
+      // 发送成功事件
+      if (io) {
+        io.emit('bossZhipinNavigationSuccess', {
+          success: true,
+          message: `成功导航到${mode}模式`,
+          mode: mode,
+          url: result.url
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: `成功导航到${mode}模式`,
+        data: {
+          mode: mode,
+          url: result.url,
+          targetCount: targetCount,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      // 发送失败事件
+      if (io) {
+        io.emit('bossZhipinNavigationError', {
+          success: false,
+          message: result?.message || `导航到${mode}模式失败`,
+          mode: mode,
+          error: result?.error
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: result?.message || `导航到${mode}模式失败`,
+        error: result?.error
+      });
+    }
+    
+  } catch (error) {
+    logger.error('导航到Boss直聘指定模式失败:', error);
+    
+    // 发送错误事件
+    if (io) {
+      io.emit('bossZhipinNavigationError', {
+        success: false,
+        message: '导航到指定模式时发生错误',
+        error: error.message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: '导航到指定模式失败',
       error: error.message
     });
   }

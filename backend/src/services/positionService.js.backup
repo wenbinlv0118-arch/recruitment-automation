@@ -1,8 +1,4 @@
 const ResumeModel = require('../models/resumeModel');
-const NodeCache = require('node-cache');
-
-// 岗位服务缓存，TTL为10分钟
-const positionCache = new NodeCache({ stdTTL: 600 });
 const LLMService = require('./llmService');
 
 class PositionService {
@@ -287,37 +283,12 @@ ${positionInfo.salary || '面议'}
   }
 
   async getPositions() {
-    const cacheKey = 'all_positions';
-    let cachedPositions = positionCache.get(cacheKey);
-    
-    if (cachedPositions) {
-      console.log('📦 使用缓存的岗位数据');
-      return cachedPositions;
-    }
-    
-    const positions = await this.resumeModel.getPositions();
-    positionCache.set(cacheKey, positions);
-    
-    return positions;
+    return await this.resumeModel.getPositions();
   }
 
   async getPositionById(positionId) {
-    const cacheKey = `position_${positionId}`;
-    let cachedPosition = positionCache.get(cacheKey);
-    
-    if (cachedPosition) {
-      console.log('📦 使用缓存的岗位详情');
-      return cachedPosition;
-    }
-    
     const positions = await this.resumeModel.getPositions();
-    const position = positions.find(p => p.id === positionId);
-    
-    if (position) {
-      positionCache.set(cacheKey, position);
-    }
-    
-    return position;
+    return positions.find(p => p.id === positionId);
   }
 
   async updatePosition(positionId, updatedData) {

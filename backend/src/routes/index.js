@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs-extra');
 const resumeModel = require('../models/resumeModel');
 const resumeParserService = require('../services/resumeParserService');
-const storageDir = path.join(__dirname, '../../storage/resumes');
+const storageDir = path.join(__dirname, '../../storage/resume_library');
 
 // 文件上传配置
 const storage = multer.memoryStorage();

@@ -40,7 +40,7 @@ router.post('/start', async (req, res) => {
   try {
     logger.info('收到启动智联招聘智能寻聘请求');
     
-    const { mode = 'search', filters = {}, targetCount = 10 } = req.body;
+    const { mode, filters = {}, targetCount = 10 } = req.body;
     
     // 验证参数
     if (!mode) {
@@ -122,81 +122,9 @@ router.post('/start', async (req, res) => {
   }
 });
 
-/**
- * 搜索候选人 - 专门用于搜索人才模式
- * POST /api/zhilian/search-candidates
- * 
- * 请求体参数:
- * {
- *   "filters": {
- *     "education": "本科及以上",
- *     "age": "25-30", 
- *     "experience": "3-5年",
- *     "university": "985"
- *   }
- * }
- */
-router.post('/search-candidates', async (req, res) => {
-  try {
-    logger.info('收到智联招聘搜索候选人请求');
-    
-    const { filters = {} } = req.body;
-    
-    if (!zhilianService) {
-      return res.status(400).json({
-        success: false,
-        message: '智联招聘服务未初始化，请先调用 /init 接口'
-      });
-    }
-    
-    // 检查登录状态
-    const isLoggedIn = await zhilianService.checkLoginStatus();
-    if (!isLoggedIn) {
-      return res.status(401).json({
-        success: false,
-        message: '用户尚未登录智联招聘，请先完成登录'
-      });
-    }
-    
-    // 检查是否已有任务在运行
-    const browsingStatus = zhilianService.getBrowsingStatus();
-    if (browsingStatus.isActive) {
-      return res.status(409).json({
-        success: false,
-        message: '候选人浏览任务正在运行中，请等待完成或先停止当前任务'
-      });
-    }
-    
-    // 异步执行搜索任务
-    zhilianService.startBrowsing('search', filters, 50)
-      .then(() => {
-        logger.info('智联招聘搜索候选人任务完成');
-      })
-      .catch((error) => {
-        logger.error('智联招聘搜索候选人任务失败:', error);
-      });
-    
-    res.json({
-      success: true,
-      message: '搜索候选人任务已启动，正在导航到搜索人才界面并应用筛选条件',
-      data: {
-        mode: 'search',
-        filters,
-        status: zhilianService.getBrowsingStatus()
-      }
-    });
-    
-    logger.info('智联招聘搜索候选人任务已启动，筛选条件:', filters);
-    
-  } catch (error) {
-    logger.error('启动智联招聘搜索候选人失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '启动搜索候选人失败',
-      error: error.message
-    });
-  }
-});
+// 移除了专门的搜索候选人接口 /search-candidates
+// 现在所有模式（包括搜索）都通过统一的 /start-browsing 接口处理
+// 这确保了不同模式的独立性，避免硬编码的搜索逻辑绑定
 
 /**
  * 启动候选人浏览
@@ -206,7 +134,7 @@ router.post('/start-browsing', async (req, res) => {
   try {
     logger.info('收到启动智联招聘候选人浏览请求');
     
-    const { mode = 'search', filters = {}, targetCount = 10 } = req.body;
+    const { mode, filters = {}, targetCount = 10 } = req.body;
     
     // 验证参数
     if (!mode) {
@@ -299,6 +227,37 @@ router.post('/stop-browsing', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '停止候选人浏览失败',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 重置候选人浏览状态
+ * POST /api/zhilian/reset-browsing
+ */
+router.post('/reset-browsing', async (req, res) => {
+  try {
+    if (!zhilianService) {
+      return res.status(400).json({
+        success: false,
+        message: '智联招聘服务未初始化'
+      });
+    }
+    
+    await zhilianService.resetBrowsingStatus();
+    
+    res.json({
+      success: true,
+      message: '候选人浏览状态已重置',
+      status: zhilianService.getCurrentStatus()
+    });
+    
+  } catch (error) {
+    logger.error('重置智联招聘候选人浏览状态失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '重置候选人浏览状态失败',
       error: error.message
     });
   }
@@ -755,6 +714,205 @@ router.get('/resume-processing-status', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '获取简历处理状态失败',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 导航到互动版块（沟通页面）
+ * POST /api/zhilian/navigate-to-communication
+ */
+router.post('/navigate-to-communication', async (req, res) => {
+  try {
+    logger.info('收到导航到智联招聘互动版块的请求');
+    
+    // 获取Socket.IO实例
+    const io = req.app.get('io');
+    
+    // 初始化服务实例
+    const service = initializeZhilianService(io);
+    
+    // 检查服务是否已初始化
+    if (!service) {
+      return res.status(500).json({
+        success: false,
+        message: '智联招聘服务未初始化'
+      });
+    }
+    
+    // 检查浏览器是否已启动
+    if (!service.browser || !service.page) {
+      return res.status(400).json({
+        success: false,
+        message: '请先启动智联招聘服务'
+      });
+    }
+    
+    // 执行导航到互动版块
+    const result = await service.navigateToCommunicationPage();
+    
+    if (result.success) {
+      // 发送成功事件
+      if (io) {
+        io.emit('zhilianNavigationSuccess', {
+          success: true,
+          message: '成功导航到互动版块',
+          url: result.url
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: '成功导航到互动版块',
+        data: {
+          url: result.url,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      // 发送失败事件
+      if (io) {
+        io.emit('zhilianNavigationError', {
+          success: false,
+          message: result.message || '导航到互动版块失败',
+          error: result.error
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: result.message || '导航到互动版块失败',
+        error: result.error
+      });
+    }
+    
+  } catch (error) {
+    logger.error('导航到智联招聘互动版块失败:', error);
+    
+    // 发送错误事件
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('zhilianNavigationError', {
+        success: false,
+        message: '导航到互动版块时发生错误',
+        error: error.message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: '导航到互动版块失败',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 统一的模式导航接口
+ * POST /api/zhilian/navigate-to-mode
+ */
+router.post('/navigate-to-mode', async (req, res) => {
+  try {
+    const { mode, targetCount } = req.body;
+    logger.info(`收到导航到智联招聘${mode}模式的请求`);
+    
+    // 获取Socket.IO实例
+    const io = req.app.get('io');
+    
+    // 初始化服务实例
+    const service = initializeZhilianService(io);
+    
+    // 检查服务是否已初始化
+    if (!service) {
+      return res.status(500).json({
+        success: false,
+        message: '智联招聘服务未初始化'
+      });
+    }
+    
+    // 检查浏览器是否已启动
+    if (!service.browser || !service.page) {
+      return res.status(400).json({
+        success: false,
+        message: '请先启动智联招聘服务'
+      });
+    }
+    
+    let result;
+    
+    switch (mode) {
+      case 'communication':
+        result = await service.navigateToCommunicationPage();
+        break;
+      case 'search':
+        result = { success: true, message: '搜索模式已激活' };
+        break;
+      case 'recommended':
+        result = { success: true, message: '推荐模式已激活' };
+        break;
+      case 'favorites':
+        result = { success: true, message: '收藏模式已激活' };
+        break;
+      default:
+        result = { success: false, message: '不支持的模式: ' + mode };
+        break;
+    }
+    
+    if (result.success) {
+      // 发送成功事件
+      if (io) {
+        io.emit('zhilianNavigationSuccess', {
+          success: true,
+          message: `成功导航到${mode}模式`,
+          mode: mode,
+          url: result.url
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: `成功导航到${mode}模式`,
+        data: {
+          mode: mode,
+          url: result.url,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      // 发送失败事件
+      if (io) {
+        io.emit('zhilianNavigationError', {
+          success: false,
+          message: result.message || `导航到${mode}模式失败`,
+          mode: mode,
+          error: result.error
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: result.message || `导航到${mode}模式失败`,
+        error: result.error
+      });
+    }
+    
+  } catch (error) {
+    logger.error('导航到智联招聘指定模式失败:', error);
+    
+    // 发送错误事件
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('zhilianNavigationError', {
+        success: false,
+        message: '导航到指定模式时发生错误',
+        error: error.message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: '导航到指定模式失败',
       error: error.message
     });
   }

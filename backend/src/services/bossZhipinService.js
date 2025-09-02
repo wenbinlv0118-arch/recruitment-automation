@@ -689,7 +689,7 @@ class BossZhipinService {
   /**
    * 启动候选人浏览
    */
-  async startBrowsing(mode = 'recommended', filters = {}, targetCount = 3) {
+  async startBrowsing(mode, filters = {}, targetCount = 3) {
     try {
       this.currentStatus = 'browsing';
       
@@ -815,12 +815,12 @@ class BossZhipinService {
   }
 
   /**
-   * 浏览沟通版块候选人 - 按照文档规范流程
-   * @param {number} targetCount - 目标浏览候选人数量
+   * 导航到沟通页面
+   * @returns {Promise<boolean>} 导航是否成功
    */
-  async browseCommunicationCandidates(targetCount = 3) {
+  async navigateToCommunicationPage() {
     try {
-      logger.info('开始浏览沟通版块候选人...');
+      logger.info('开始导航到沟通页面...');
       
       // 直接点击"沟通"按钮，导航到沟通界面
       await this.page.click('text=沟通');
@@ -833,6 +833,29 @@ class BossZhipinService {
       // 选择"未读"选项
       await this.page.click('text=未读');
       await this.page.waitForTimeout(2000);
+      
+      logger.info('成功导航到沟通页面');
+      return true;
+      
+    } catch (error) {
+      logger.error('导航到沟通页面失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 浏览沟通版块候选人 - 按照文档规范流程
+   * @param {number} targetCount - 目标浏览候选人数量
+   */
+  async browseCommunicationCandidates(targetCount = 3) {
+    try {
+      logger.info('开始浏览沟通版块候选人...');
+      
+      // 使用导航方法导航到沟通页面
+      const navigationSuccess = await this.navigateToCommunicationPage();
+      if (!navigationSuccess) {
+        throw new Error('导航到沟通页面失败');
+      }
       
       // 按照文档规范：后续操作与推荐牛人流程保持一致
       await this.browseRecommendedCandidateList(targetCount);
@@ -1386,7 +1409,33 @@ class BossZhipinService {
       // 方法2：使用传统的选择器方式提取简历内容
       logger.info('使用传统选择器方式提取简历内容');
       const resumeContent = await this.page.evaluate(() => {
-        // 尝试多种方式获取简历内容
+        // 优先检测resume-detail-wrap组件（在线简历内容）
+        const resumeDetailWrap = document.querySelector('.resume-detail-wrap');
+        if (resumeDetailWrap) {
+          // 克隆元素以避免修改原DOM
+          const clonedElement = resumeDetailWrap.cloneNode(true);
+          
+          // 移除不需要的组件内容
+          const excludeSelectors = [
+            '.resume-warning',
+            '.resume-anonymous-geek-card.v2'
+          ];
+          
+          excludeSelectors.forEach(selector => {
+            const elementsToRemove = clonedElement.querySelectorAll(selector);
+            elementsToRemove.forEach(el => el.remove());
+          });
+          
+          const content = clonedElement.textContent.trim();
+          if (content.length > 100) {
+            return {
+              content: content,
+              source: '.resume-detail-wrap (在线简历)'
+            };
+          }
+        }
+        
+        // 尝试其他方式获取简历内容
         const contentSelectors = [
           '.resume-content',
           '.profile-content', 
@@ -1825,6 +1874,33 @@ class BossZhipinService {
       
       // 如果canvas提取失败，使用原有的选择器方式
       const resumeContent = await frame.evaluate(() => {
+        // 优先检测resume-detail-wrap组件（在线简历内容）
+        const resumeDetailWrap = document.querySelector('.resume-detail-wrap');
+        if (resumeDetailWrap) {
+          // 克隆元素以避免修改原DOM
+          const clonedElement = resumeDetailWrap.cloneNode(true);
+          
+          // 移除不需要的组件内容
+          const excludeSelectors = [
+            '.resume-warning',
+            '.resume-anonymous-geek-card.v2'
+          ];
+          
+          excludeSelectors.forEach(selector => {
+            const elementsToRemove = clonedElement.querySelectorAll(selector);
+            elementsToRemove.forEach(el => el.remove());
+          });
+          
+          const content = clonedElement.textContent.trim();
+          if (content.length > 100) {
+            return {
+              content: content,
+              source: '.resume-detail-wrap (iframe在线简历)'
+            };
+          }
+        }
+        
+        // 尝试其他方式获取简历内容
         const contentSelectors = [
           '.resume-content',
           '.profile-content', 
@@ -2847,23 +2923,35 @@ class BossZhipinService {
       const page = frame.page();
       let resumeContent = null;
       
-      // 查找包含简历内容的特定iframe
+      // 首先查找包含简历内容的特定iframe
       const resumeIframe = await this.findResumeIframe(page);
       if (resumeIframe) {
-        logger.info('找到简历iframe，开始提取canvas#resume内容');
-        resumeContent = await this.extractCanvasResumeContent(resumeIframe);
+        logger.info('找到简历iframe，开始提取iframe中的简历内容');
+        resumeContent = await this.extractResumeContentFromIframe(resumeIframe);
         
         if (resumeContent) {
-          logger.info(`从iframe中的canvas#resume提取简历内容成功，长度: ${resumeContent.length}`);
+          logger.info(`从iframe提取简历内容成功，长度: ${resumeContent.length}`);
         } else {
-          logger.warn('在简历iframe中未找到canvas#resume或提取失败');
+          logger.warn('在简历iframe中提取简历内容失败');
         }
       } else {
-        logger.warn('未找到简历iframe，无法提取简历内容');
+        logger.warn('未找到简历iframe，尝试从主页面提取简历内容');
+      }
+      
+      // 如果iframe提取失败，尝试从主页面提取
+      if (!resumeContent) {
+        logger.info('开始从主页面提取简历内容');
+        resumeContent = await this.extractResumeContentFromPage();
+        
+        if (resumeContent) {
+          logger.info(`从主页面提取简历内容成功，长度: ${resumeContent.length}`);
+        } else {
+          logger.warn('从主页面提取简历内容也失败');
+        }
       }
       
       if (!resumeContent) {
-        logger.warn('未能提取到简历内容');
+        logger.error('所有简历提取方法都失败，无法获取简历内容');
         return;
       }
       
@@ -3366,6 +3454,40 @@ class BossZhipinService {
   }
 
   /**
+   * 重置候选人浏览状态
+   */
+  async resetBrowsingStatus() {
+    try {
+      logger.info('正在重置Boss直聘候选人浏览状态...');
+      
+      // 停止当前浏览
+      this.browsingStatus.isActive = false;
+      this.currentStatus = 'idle';
+      
+      // 重置所有浏览状态数据
+      this.browsingStatus = {
+        isActive: false,
+        mode: null,
+        candidates: [],
+        processedCount: 0,
+        likedCount: 0,
+        dislikedCount: 0,
+        currentIndex: 0,
+        filters: {},
+        startTime: null,
+        targetCount: 0
+      };
+      
+      logger.info('Boss直聘候选人浏览状态已重置');
+      return true;
+      
+    } catch (error) {
+      logger.error('重置候选人浏览状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 获取候选人浏览状态
    */
   getBrowsingStatus() {
@@ -3570,6 +3692,30 @@ class BossZhipinService {
   async extractResumeContent() {
     try {
       const content = await this.page.evaluate(() => {
+        // 优先检测resume-detail-wrap组件（在线简历内容）
+        const resumeDetailWrap = document.querySelector('.resume-detail-wrap');
+        if (resumeDetailWrap) {
+          // 克隆元素以避免修改原DOM
+          const clonedElement = resumeDetailWrap.cloneNode(true);
+          
+          // 移除不需要的组件内容
+          const excludeSelectors = [
+            '.resume-warning',
+            '.resume-anonymous-geek-card.v2'
+          ];
+          
+          excludeSelectors.forEach(selector => {
+            const elementsToRemove = clonedElement.querySelectorAll(selector);
+            elementsToRemove.forEach(el => el.remove());
+          });
+          
+          const content = clonedElement.textContent.trim();
+          if (content.length > 0) {
+            return content;
+          }
+        }
+        
+        // 备用选择器
         const resumeElement = document.querySelector('.resume-content, [class*="resume"], [class*="profile"]');
         return resumeElement ? resumeElement.textContent.trim() : '';
       });

@@ -1,69 +1,51 @@
 const express = require('express');
 const router = express.Router();
 const TaskModel = require('../models/taskModel');
+const NodeCache = require('node-cache');
+
+// 创建缓存实例，TTL为5分钟
+const cache = new NodeCache({ stdTTL: 300 });
 
 const taskModel = new TaskModel();
 
-// 获取所有任务
+// 获取所有任务 - 优化版本
 router.get('/', async (req, res) => {
   try {
     const { status, priority, platform, recruitmentStatus, search, page = 1, limit = 10 } = req.query;
-    let tasks = await taskModel.getAllTasks();
-
-    // 状态筛选
-    if (status && status !== '全部') {
-      tasks = tasks.filter(task => task.status === status);
+    
+    // 生成缓存键
+    const cacheKey = `tasks_${JSON.stringify(req.query)}`;
+    
+    // 尝试从缓存获取
+    let cachedResult = cache.get(cacheKey);
+    if (cachedResult && !search) { // 搜索查询不使用缓存
+      console.log('📦 使用缓存数据');
+      return res.json(cachedResult);
     }
-
-    // 优先级筛选
-    if (priority && priority !== '全部') {
-      tasks = tasks.filter(task => task.priority === priority);
-    }
-
-    // 招聘平台筛选
-    if (platform && platform !== '全部') {
-      tasks = tasks.filter(task => 
-        task.platforms && task.platforms.includes(platform)
-      );
-    }
-
-    // 智能寻聘状态筛选
-    if (recruitmentStatus && recruitmentStatus !== '全部') {
-      tasks = tasks.filter(task => task.recruitmentStatus === recruitmentStatus);
-    }
-
-    // 搜索功能
-    if (search) {
-      const searchLower = search.toLowerCase();
-      tasks = tasks.filter(task => 
-        task.title?.toLowerCase().includes(searchLower) ||
-        task.description?.toLowerCase().includes(searchLower) ||
-        task.position?.toLowerCase().includes(searchLower) ||
-        task.platforms?.some(platform => 
-          platform.toLowerCase().includes(searchLower)
-        ) ||
-        task.candidates?.some(c => 
-          c.name?.toLowerCase().includes(searchLower) ||
-          c.email?.toLowerCase().includes(searchLower)
-        )
-      );
-    }
-
-    // 分页
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const paginatedTasks = tasks.slice(startIndex, endIndex);
-
-    res.json({
-      success: true,
-      data: paginatedTasks,
-      pagination: {
-        current: parseInt(page),
-        pageSize: parseInt(limit),
-        total: tasks.length,
-        totalPages: Math.ceil(tasks.length / limit)
-      }
+    
+    // 获取所有任务（优化：只在需要时加载）
+    let tasks = await taskModel.getAllTasksOptimized({
+      status,
+      priority,
+      platform,
+      recruitmentStatus,
+      search,
+      page: parseInt(page),
+      limit: parseInt(limit)
     });
+
+    const result = {
+      success: true,
+      data: tasks.data,
+      pagination: tasks.pagination
+    };
+    
+    // 缓存结果（非搜索查询）
+    if (!search) {
+      cache.set(cacheKey, result);
+    }
+    
+    res.json(result);
   } catch (error) {
     console.error('获取任务列表失败:', error);
     res.status(500).json({
@@ -74,10 +56,25 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 获取任务统计
+// 获取任务统计 - 优化版本
 router.get('/stats', async (req, res) => {
   try {
-    const stats = await taskModel.getTaskStats();
+    const cacheKey = 'task_stats';
+    let cachedStats = cache.get(cacheKey);
+    
+    if (cachedStats) {
+      console.log('📦 使用缓存的统计数据');
+      return res.json({
+        success: true,
+        data: cachedStats
+      });
+    }
+    
+    const stats = await taskModel.getTaskStatsOptimized();
+    
+    // 缓存统计数据，TTL为2分钟
+    cache.set(cacheKey, stats, 120);
+    
     res.json({
       success: true,
       data: stats
@@ -92,191 +89,61 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// 根据ID获取任务
+// 根据ID获取任务 - 优化版本
 router.get('/:id', async (req, res) => {
   try {
-    const task = await taskModel.getTaskById(req.params.id);
+    const taskId = req.params.id;
+    const cacheKey = `task_${taskId}`;
+    
+    let cachedTask = cache.get(cacheKey);
+    if (cachedTask) {
+      console.log('📦 使用缓存的任务数据');
+      return res.json({
+        success: true,
+        data: cachedTask
+      });
+    }
+    
+    const task = await taskModel.getTaskByIdOptimized(taskId);
     if (!task) {
       return res.status(404).json({
         success: false,
         message: '任务不存在'
       });
     }
+    
+    // 缓存任务数据
+    cache.set(cacheKey, task);
+    
     res.json({
       success: true,
       data: task
     });
   } catch (error) {
-    console.error('获取任务详情失败:', error);
+    console.error('获取任务失败:', error);
     res.status(500).json({
       success: false,
-      message: '获取任务详情失败',
+      message: '获取任务失败',
       error: error.message
     });
   }
 });
 
-// 创建新任务
-router.post('/', async (req, res) => {
-  try {
-    const taskData = req.body;
-    const newTask = await taskModel.createTask(taskData);
-    res.status(201).json({
-      success: true,
-      data: newTask,
-      message: '任务创建成功'
-    });
-  } catch (error) {
-    console.error('创建任务失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '创建任务失败',
-      error: error.message
-    });
+// 清除缓存的辅助函数
+function clearTaskCache(taskId = null) {
+  if (taskId) {
+    cache.del(`task_${taskId}`);
   }
-});
-
-// 更新任务
-router.put('/:id', async (req, res) => {
-  try {
-    const updatedTask = await taskModel.updateTask(req.params.id, req.body);
-    res.json({
-      success: true,
-      data: updatedTask,
-      message: '任务更新成功'
-    });
-  } catch (error) {
-    console.error('更新任务失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '更新任务失败',
-      error: error.message
-    });
-  }
-});
-
-// 部分更新任务（用于智能寻聘状态切换）
-router.patch('/:id', async (req, res) => {
-  try {
-    const updatedTask = await taskModel.updateTask(req.params.id, req.body);
-    res.json({
-      success: true,
-      data: updatedTask,
-      message: '任务更新成功'
-    });
-  } catch (error) {
-    console.error('更新任务失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '更新任务失败',
-      error: error.message
-    });
-  }
-});
-
-// 删除任务
-router.delete('/:id', async (req, res) => {
-  try {
-    await taskModel.deleteTask(req.params.id);
-    res.json({
-      success: true,
-      message: '任务删除成功'
-    });
-  } catch (error) {
-    console.error('删除任务失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '删除任务失败',
-      error: error.message
-    });
-  }
-});
-
-// 批量删除任务
-router.delete('/', async (req, res) => {
-  try {
-    const { ids } = req.body;
-    if (!ids || !Array.isArray(ids)) {
-      return res.status(400).json({
-        success: false,
-        message: '请提供要删除的任务ID数组'
-      });
+  // 清除相关的列表缓存
+  const keys = cache.keys();
+  keys.forEach(key => {
+    if (key.startsWith('tasks_') || key === 'task_stats') {
+      cache.del(key);
     }
-    await taskModel.deleteTasks(ids);
-    res.json({
-      success: true,
-      message: `成功删除 ${ids.length} 个任务`
-    });
-  } catch (error) {
-    console.error('批量删除任务失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '批量删除任务失败',
-      error: error.message
-    });
-  }
-});
+  });
+}
 
-// 添加候选人到任务
-router.post('/:id/candidates', async (req, res) => {
-  try {
-    const updatedTask = await taskModel.addCandidateToTask(req.params.id, req.body);
-    res.json({
-      success: true,
-      data: updatedTask,
-      message: '候选人添加成功'
-    });
-  } catch (error) {
-    console.error('添加候选人失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '添加候选人失败',
-      error: error.message
-    });
-  }
-});
+// 导出清除缓存函数供其他模块使用
+router.clearCache = clearTaskCache;
 
-// 更新候选人状态
-router.put('/:taskId/candidates/:candidateId/status', async (req, res) => {
-  try {
-    const { status } = req.body;
-    const updatedTask = await taskModel.updateCandidateStatus(
-      req.params.taskId,
-      req.params.candidateId,
-      status
-    );
-    res.json({
-      success: true,
-      data: updatedTask,
-      message: '候选人状态更新成功'
-    });
-  } catch (error) {
-    console.error('更新候选人状态失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '更新候选人状态失败',
-      error: error.message
-    });
-  }
-});
-
-// 添加评论
-router.post('/:id/comments', async (req, res) => {
-  try {
-    const updatedTask = await taskModel.addComment(req.params.id, req.body);
-    res.json({
-      success: true,
-      data: updatedTask,
-      message: '评论添加成功'
-    });
-  } catch (error) {
-    console.error('添加评论失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '添加评论失败',
-      error: error.message
-    });
-  }
-});
-
-module.exports = router; 
+module.exports = router;

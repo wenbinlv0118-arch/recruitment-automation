@@ -81,7 +81,7 @@ class LLMService {
       const response = await axios.post(this.apiUrl, requestBody, {
         headers: headers,
         responseType: 'stream',
-        timeout: 60000 // 设置60秒超时
+        timeout: 300000 // 设置300秒超时，优化简历解析性能
       });
 
       console.log('LLM API响应状态:', response.status);

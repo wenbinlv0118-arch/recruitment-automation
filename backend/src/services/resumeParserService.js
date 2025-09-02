@@ -36,14 +36,15 @@ class ResumeParserService {
    */
   async parsePDFResume(buffer) {
     try {
-      // 这里需要安装 pdf-parse 包
-      // const pdfParse = require('pdf-parse');
-      // const data = await pdfParse(buffer);
-      // const text = data.text;
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(buffer);
+      const text = data.text;
       
-      // 由于pdf-parse需要额外安装，这里先用模拟数据
-      const text = this.extractTextFromPDF(buffer);
-      return this.parseResumeText(text);
+      const result = this.parseResumeText(text);
+      // 添加原始文本字段供大模型解析使用
+      result.rawText = text;
+      
+      return result;
     } catch (error) {
       console.error('PDF解析失败:', error);
       throw new Error('PDF文件解析失败');
@@ -57,14 +58,15 @@ class ResumeParserService {
    */
   async parseDOCXResume(buffer) {
     try {
-      // 这里需要安装 mammoth 包
-      // const mammoth = require('mammoth');
-      // const result = await mammoth.extractRawText({ buffer });
-      // const text = result.value;
+      const mammoth = require('mammoth');
+      const mammothResult = await mammoth.extractRawText({ buffer });
+      const text = mammothResult.value;
       
-      // 由于mammoth需要额外安装，这里先用模拟数据
-      const text = this.extractTextFromDOCX(buffer);
-      return this.parseResumeText(text);
+      const result = this.parseResumeText(text);
+      // 添加原始文本字段供大模型解析使用
+      result.rawText = text;
+      
+      return result;
     } catch (error) {
       console.error('DOCX解析失败:', error);
       throw new Error('DOCX文件解析失败');
@@ -1135,49 +1137,7 @@ class ResumeParserService {
     return Math.min(score, 100);
   }
 
-  /**
-   * 从PDF缓冲区提取文本（模拟实现）
-   * @param {Buffer} buffer - PDF文件缓冲区
-   * @returns {string} 文本内容
-   */
-  extractTextFromPDF(buffer) {
-    // 这里是模拟实现，实际应该使用pdf-parse库
-    return `张三
-电话：13800138000
-邮箱：zhangsan@example.com
-应聘职位：前端工程师
-工作经验：3年
-学历：本科
-技能：JavaScript, React, Vue, Node.js, MySQL
-教育背景：某某大学 计算机科学与技术 本科
-工作经历：
-2021-至今 某某公司 前端工程师
-- 负责公司前端产品开发
-- 使用React和Vue框架
-- 参与项目架构设计`;
-  }
 
-  /**
-   * 从DOCX缓冲区提取文本（模拟实现）
-   * @param {Buffer} buffer - DOCX文件缓冲区
-   * @returns {string} 文本内容
-   */
-  extractTextFromDOCX(buffer) {
-    // 这里是模拟实现，实际应该使用mammoth库
-    return `李四
-联系电话：13900139000
-电子邮箱：lisi@example.com
-求职意向：后端工程师
-工作年限：5年
-最高学历：硕士
-专业技能：Java, Spring Boot, MySQL, Redis, Docker
-教育经历：某某大学 软件工程 硕士
-工作经历：
-2019-至今 某某科技公司 后端工程师
-- 负责后端系统开发
-- 使用Java和Spring Boot
-- 数据库设计和优化`;
-  }
 }
 
 module.exports = new ResumeParserService();

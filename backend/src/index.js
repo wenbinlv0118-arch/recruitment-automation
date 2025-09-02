@@ -344,11 +344,26 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // 中间件
+// 导入缓存中间件
+const cacheMiddleware = require('./middleware/cacheMiddleware');
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(process.cwd(), 'public')));
+
+// 应用缓存中间件到不同的路由
+// 任务统计使用中期缓存（5分钟）
+app.use('/api/tasks/stats', cacheMiddleware.mediumTerm);
+// 岗位信息使用长期缓存（30分钟）
+app.use('/api/positions', cacheMiddleware.longTerm);
+// 任务列表使用短期缓存（1分钟）
+app.use('/api/tasks', cacheMiddleware.shortTerm);
+// 简历库统计使用中期缓存
+app.use('/api/resume-library/stats', cacheMiddleware.mediumTerm);
+// 知识库检索使用短期缓存
+app.use('/api/knowledge/search', cacheMiddleware.shortTerm);
 
 // 确保存储目录存在
 const storageDir = path.join(__dirname, '../storage/resumes');
@@ -500,22 +515,327 @@ app.post('/api/resume-library', async (req, res) => {
 });
 
 // API路由：上传简历文件到简历库
+/**
+ * 使用大语言模型解析简历文本
+ * @param {string} text - 简历文本内容
+ * @returns {Object} 解析结果，包含结构化数据和Markdown内容
+ */
+async function parseResumeWithLLM(text) {
+  if (!text || text.trim().length < 10) {
+    return { parseStatus: 'invalid_content', message: '简历内容过短或无效' };
+  }
+
+  try {
+    // 导入LLM服务
+    const LLMService = require('./services/llmService');
+    const llmService = new LLMService();
+    
+    // 构建与Boss直聘简历解析相同的提示词
+    const messages = [{
+      role: 'user',
+      content: `请将以下简历文本解析为标准化格式。请按照以下要求输出两部分内容：
+
+第一部分：JSON格式的结构化数据（用于系统处理）
+第二部分：Markdown格式的简历内容（用于页面展示）
+
+请严格按照以下格式输出：
+
+\`\`\`json
+{
+  "name": "候选人姓名",
+  "age": "年龄（数字）",
+  "workYears": "工作年限（数字）",
+  "education": "学历（本科/硕士/博士等）",
+  "currentStatus": "当前状态（在职/离职/待业）",
+  "phone": "手机号码",
+  "email": "邮箱地址",
+  "selfIntroduction": "个人简介",
+  "expectedPosition": {
+    "position": "期望职位",
+    "location": "工作地点",
+    "industry": "期望行业",
+    "salary": "期望薪资"
+  },
+  "workExperience": [
+    {
+      "company": "公司名称",
+      "position": "职位名称",
+      "department": "部门",
+      "duration": "工作时间",
+      "description": "工作描述"
+    }
+  ],
+  "educationExperience": [
+    {
+      "school": "学校名称",
+      "degree": "学历",
+      "major": "专业",
+      "duration": "就读时间"
+    }
+  ],
+  "skills": ["技能1", "技能2", "技能3"],
+  "certificates": ["证书1", "证书2"]
+}
+\`\`\`
+
+\`\`\`markdown
+# 个人简历
+
+## 基本信息
+- **姓名**：候选人姓名
+- **年龄**：XX岁
+- **工作年限**：X年
+- **学历**：本科/硕士/博士
+- **当前状态**：在职/离职/待业
+- **联系电话**：手机号码
+- **邮箱**：邮箱地址
+
+## 求职意向
+- **期望职位**：期望职位名称
+- **期望地点**：工作地点
+- **期望行业**：期望行业
+- **期望薪资**：期望薪资范围
+
+## 个人简介
+个人简介内容...
+
+## 工作经历
+### 公司名称 | 职位名称 | 工作时间
+**部门**：部门名称
+
+工作描述和主要职责...
+
+## 教育经历
+### 学校名称 | 专业 | 学历 | 就读时间
+教育相关描述...
+
+## 专业技能
+- 技能1
+- 技能2
+- 技能3
+
+## 证书资质
+- 证书1
+- 证书2
+\`\`\`
+
+请解析以下简历文本：\n\n${text}`
+    }];
+    
+    console.log('开始调用大模型解析简历...');
+    
+    // 调用大模型进行简历解析
+    const parsedContent = await llmService.chatWithLLM(messages);
+    
+    console.log('大模型解析完成，结果长度:', parsedContent.length);
+    
+    // 解析包含JSON和Markdown两部分的响应
+    let parsedData;
+    let markdownContent = '';
+    
+    try {
+      // 提取JSON部分
+      const jsonMatch = parsedContent.match(/```json\s*([\s\S]*?)\s*```/);
+      // 提取Markdown部分
+      const markdownMatch = parsedContent.match(/```markdown\s*([\s\S]*?)\s*```/);
+      
+      if (jsonMatch && jsonMatch[1]) {
+        // 解析JSON数据
+        parsedData = JSON.parse(jsonMatch[1].trim());
+        console.log('JSON数据解析成功');
+      } else {
+        // 如果没有找到JSON块，尝试直接解析整个内容
+        parsedData = JSON.parse(parsedContent);
+        console.log('直接JSON解析成功（向后兼容）');
+      }
+      
+      if (markdownMatch && markdownMatch[1]) {
+        markdownContent = markdownMatch[1].trim();
+        console.log('Markdown内容提取成功，长度:', markdownContent.length);
+      } else {
+        // 如果没有Markdown部分，使用原始内容作为备用
+        markdownContent = parsedContent;
+        console.log('使用原始内容作为Markdown（向后兼容）');
+      }
+      
+      // 数据清洗和验证
+      const cleanedData = {
+        name: parsedData.name || '未知',
+        age: parsedData.age || null,
+        workYears: parsedData.workYears || null,
+        education: parsedData.education || '未知',
+        currentStatus: parsedData.currentStatus || '未知',
+        phone: parsedData.phone || null,
+        email: parsedData.email || null,
+        selfIntroduction: parsedData.selfIntroduction || null,
+        expectedPosition: parsedData.expectedPosition || {},
+        workExperience: Array.isArray(parsedData.workExperience) ? parsedData.workExperience : [],
+        educationExperience: Array.isArray(parsedData.educationExperience) ? parsedData.educationExperience : [],
+        skills: Array.isArray(parsedData.skills) ? parsedData.skills : [],
+        certificates: Array.isArray(parsedData.certificates) ? parsedData.certificates : [],
+        parseStatus: 'completed',
+        qualityScore: 85, // 大模型解析的质量评分
+        markdownContent: markdownContent
+      };
+      
+      console.log('简历解析成功，提取到姓名:', cleanedData.name);
+      return cleanedData;
+      
+    } catch (parseError) {
+      console.error('解析大模型响应失败:', parseError);
+      return {
+        parseStatus: 'llm_parse_failed',
+        message: '大模型响应解析失败: ' + parseError.message,
+        rawResponse: parsedContent
+      };
+    }
+    
+  } catch (error) {
+    console.error('大模型调用失败:', error);
+    return {
+      parseStatus: 'llm_call_failed',
+      message: '大模型调用失败: ' + error.message
+    };
+  }
+}
+
 app.post('/api/resume-library/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: '请选择文件' });
     }
     
-    // 解析简历文件功能已删除
+    // 导入简历解析服务
+    const resumeParserService = require('./services/resumeParserService');
     let parsedResume = {};
+    let extractedText = '';
+    
+    // 根据文件类型进行解析
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    
+    try {
+       if (fileExtension === '.pdf') {
+         console.log('开始解析PDF文件:', req.file.originalname);
+         // 先使用传统方法提取文本
+         const traditionalResult = await resumeParserService.parsePDFResume(req.file.buffer);
+         extractedText = traditionalResult.rawText || '';
+         
+         // 如果提取到足够的文本内容，使用大模型进行深度解析
+         if (extractedText && extractedText.trim().length > 50) {
+           console.log('PDF文本提取成功，开始大模型解析...');
+           parsedResume = await parseResumeWithLLM(extractedText);
+         } else {
+           console.log('PDF文本提取内容不足，使用传统解析结果');
+           parsedResume = traditionalResult;
+         }
+         
+       } else if (fileExtension === '.docx') {
+         console.log('开始解析DOCX文件:', req.file.originalname);
+         // 先使用传统方法提取文本
+         const traditionalResult = await resumeParserService.parseDOCXResume(req.file.buffer);
+         extractedText = traditionalResult.rawText || '';
+         
+         // 如果提取到足够的文本内容，使用大模型进行深度解析
+         if (extractedText && extractedText.trim().length > 50) {
+           console.log('DOCX文本提取成功，开始大模型解析...');
+           parsedResume = await parseResumeWithLLM(extractedText);
+         } else {
+           console.log('DOCX文本提取内容不足，使用传统解析结果');
+           parsedResume = traditionalResult;
+         }
+         
+       } else if (fileExtension === '.txt') {
+         // 临时支持.txt文件用于测试
+         console.log('开始解析TXT文件（测试模式）:', req.file.originalname);
+         extractedText = req.file.buffer.toString('utf-8');
+         
+         // 直接使用大模型解析文本内容
+         if (extractedText && extractedText.trim().length > 50) {
+           console.log('TXT文本内容充足，开始大模型解析...');
+           parsedResume = await parseResumeWithLLM(extractedText);
+         } else {
+           console.log('TXT文本内容不足，使用传统解析');
+           parsedResume = resumeParserService.parseResumeText(extractedText);
+         }
+         
+       } else {
+         console.log('不支持的文件格式:', fileExtension);
+         parsedResume = { parseStatus: 'unsupported_format', message: '不支持的文件格式' };
+       }
+    } catch (parseError) {
+      console.error('文件解析失败:', parseError);
+      parsedResume = { parseStatus: 'parse_failed', message: '文件解析失败: ' + parseError.message };
+    }
     
     const filePath = await resumeModel.uploadResumeFile(req.file.originalname, req.file.buffer);
     
+    // 如果解析成功，检查重复并自动将简历添加到数据库
+    let resumeRecord = null;
+    let isDuplicate = false;
+    let duplicateInfo = null;
+    
+    if (parsedResume && parsedResume.parseStatus !== 'parse_failed' && parsedResume.parseStatus !== 'unsupported_format') {
+      try {
+        // 导入去重工具
+        const ResumeDeduplication = require('./utils/resumeDeduplication');
+        
+        // 检查简历重复性
+        const duplicateCheck = await ResumeDeduplication.checkDuplicate(
+          req.file.buffer,
+          extractedText,
+          parsedResume
+        );
+        
+        if (duplicateCheck.isDuplicate) {
+          // 发现重复简历，返回现有记录
+          isDuplicate = true;
+          duplicateInfo = {
+            type: duplicateCheck.duplicateType,
+            existingResumeId: duplicateCheck.duplicateResume.id,
+            message: `检测到重复简历（${duplicateCheck.duplicateType}），已跳过入库`
+          };
+          resumeRecord = duplicateCheck.duplicateResume;
+          console.log('检测到重复简历:', duplicateInfo);
+        } else {
+          // 准备简历数据用于入库，包含去重哈希值
+          const resumeData = {
+            ...parsedResume,
+            source: req.body.source || '文件上传',
+            originalText: extractedText,
+            parseMethod: parsedResume.parseMethod || 'llm',
+            parseTime: new Date().toISOString(),
+            parseStatus: 'completed',
+            // 添加去重相关字段
+            fileHash: duplicateCheck.hashes.fileHash,
+            textHash: duplicateCheck.hashes.textHash,
+            fingerprint: duplicateCheck.hashes.fingerprint
+          };
+          
+          // 添加简历到数据库
+          resumeRecord = await resumeModel.addResume(resumeData);
+          console.log('简历自动入库成功:', resumeRecord.id);
+        }
+        
+      } catch (addError) {
+        console.error('简历处理失败:', addError);
+        // 处理失败不影响文件上传成功的响应
+      }
+    }
+    
     res.json({ 
-      message: '文件上传成功', 
-      filename: req.file.originalname,
-      path: filePath,
-      parsedResume: parsedResume
+      success: true,
+      data: {
+        message: isDuplicate ? '检测到重复简历，已跳过入库' : '文件上传成功', 
+        filename: req.file.originalname,
+        path: filePath,
+        parsedResume: parsedResume,
+        resumeId: resumeRecord?.id,
+        parseStatus: parsedResume?.parseStatus,
+        qualityScore: parsedResume?.qualityScore || 0,
+        // 去重信息
+        isDuplicate: isDuplicate,
+        duplicateInfo: duplicateInfo
+      }
     });
   } catch (error) {
     console.error('上传简历文件失败:', error);
@@ -900,3 +1220,107 @@ server.listen(PORT, () => {
   console.log(`服务器运行在端口 ${PORT}`);
   console.log(`存储目录: ${storageDir}`);
 });
+
+// API路由：异步上传简历文件（优化版本，避免超时）
+app.post('/api/resume-library/upload-async', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '请选择文件' });
+    }
+    
+    // 导入简历解析服务和异步任务队列
+    const resumeParserService = require('./services/resumeParserService');
+    const asyncTaskQueue = require('./services/asyncTaskQueue');
+    
+    let extractedText = '';
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    
+    // 快速提取文本内容（不进行大模型解析）
+    try {
+      if (fileExtension === '.pdf') {
+        console.log('快速提取PDF文本:', req.file.originalname);
+        const traditionalResult = await resumeParserService.parsePDFResume(req.file.buffer);
+        extractedText = traditionalResult.rawText || '';
+      } else if (fileExtension === '.docx') {
+        console.log('快速提取DOCX文本:', req.file.originalname);
+        const traditionalResult = await resumeParserService.parseDOCXResume(req.file.buffer);
+        extractedText = traditionalResult.rawText || '';
+      } else if (fileExtension === '.txt') {
+        console.log('读取TXT文件:', req.file.originalname);
+        extractedText = req.file.buffer.toString('utf-8');
+      } else {
+        return res.status(400).json({ error: '不支持的文件格式' });
+      }
+    } catch (extractError) {
+      console.error('文本提取失败:', extractError);
+      return res.status(500).json({ error: '文件解析失败', message: extractError.message });
+    }
+    
+    // 保存文件
+    const filePath = await resumeModel.uploadResumeFile(req.file.originalname, req.file.buffer);
+    
+    // 生成任务ID
+    const taskId = `parse_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 添加到异步任务队列
+    asyncTaskQueue.addResumeParseTask(taskId, {
+      fileBuffer: req.file.buffer,
+      extractedText: extractedText,
+      filename: req.file.originalname,
+      source: req.body.source || '文件上传'
+    });
+    
+    // 立即返回响应，不等待解析完成
+    res.json({
+      success: true,
+      data: {
+        message: '文件上传成功，正在后台解析中',
+        filename: req.file.originalname,
+        path: filePath,
+        taskId: taskId,
+        parseStatus: 'processing',
+        estimatedTime: '预计1-3分钟完成解析'
+      }
+    });
+    
+  } catch (error) {
+    console.error('异步上传简历文件失败:', error);
+    res.status(500).json({ error: '上传简历文件失败', message: error.message });
+  }
+});
+
+// API路由：查询异步任务状态
+app.get('/api/resume-library/task-status/:taskId', async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const asyncTaskQueue = require('./services/asyncTaskQueue');
+    
+    const taskStatus = asyncTaskQueue.getTaskStatus(taskId);
+    
+    if (!taskStatus) {
+      return res.status(404).json({ error: '任务不存在或已过期' });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        taskId: taskStatus.id,
+        status: taskStatus.status,
+        createdAt: taskStatus.createdAt,
+        startedAt: taskStatus.startedAt,
+        completedAt: taskStatus.completedAt,
+        result: taskStatus.result,
+        error: taskStatus.error
+      }
+    });
+    
+  } catch (error) {
+    console.error('查询任务状态失败:', error);
+    res.status(500).json({ error: '查询任务状态失败', message: error.message });
+  }
+});
+
+// 导出函数供其他模块使用
+module.exports = {
+  parseResumeWithLLM
+};
