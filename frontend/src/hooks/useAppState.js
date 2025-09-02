@@ -1,123 +1,120 @@
 import { useState, useCallback } from 'react';
 
+/**
+ * 应用状态管理hook
+ * 集中管理应用的主要状态
+ */
 export const useAppState = () => {
   // 基础状态
   const [selectedMenuKey, setSelectedMenuKey] = useState('1');
-  const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(null);
   const [isWaitingForCode, setIsWaitingForCode] = useState(false);
   
-  // 数据状态
+  // 简历相关状态
   const [resumes, setResumes] = useState([]);
-  const [positions, setPositions] = useState([]);
-  const [currentStatus, setCurrentStatus] = useState(null);
-  
-  // 弹窗状态
   const [recommendationVisible, setRecommendationVisible] = useState(false);
   const [recommendationQuery, setRecommendationQuery] = useState('');
   const [recommendedResumes, setRecommendedResumes] = useState([]);
+  
+  // 岗位相关状态
+  const [positions, setPositions] = useState([]);
   const [jdDetailVisible, setJdDetailVisible] = useState(false);
   const [currentPositionData, setCurrentPositionData] = useState(null);
-  const [companyFilterVisible, setCompanyFilterVisible] = useState(false);
-  const [companyRecommendationVisible, setCompanyRecommendationVisible] = useState(false);
+  const [positionManagementVisible, setPositionManagementVisible] = useState(false);
+  const [currentCompanyInfo, setCurrentCompanyInfo] = useState(null);
   
-  // 公司搜索相关状态
-  const [companySearchFilters, setCompanySearchFilters] = useState({});
+  // 公司推荐相关状态
   const [recommendedCompanies, setRecommendedCompanies] = useState([]);
   const [recommendationReport, setRecommendationReport] = useState({});
+  const [companyRecommendationVisible, setCompanyRecommendationVisible] = useState(false);
+  
+  // 智能寻聘相关状态
+  const [showSmartRecruitment, setShowSmartRecruitment] = useState(false);
+  const [selectedRecruitmentPlatform, setSelectedRecruitmentPlatform] = useState(null);
+  const [showBossZhipinControl, setShowBossZhipinControl] = useState(false);
+  const [showZhilianControl, setShowZhilianControl] = useState(false);
   
   // 计算是否有任何弹窗显示
-  const hasAnyModal = recommendationVisible || jdDetailVisible || companyFilterVisible || companyRecommendationVisible;
+  const hasAnyModal = recommendationVisible || jdDetailVisible || 
+    positionManagementVisible || companyRecommendationVisible || 
+    showSmartRecruitment || showBossZhipinControl || showZhilianControl;
   
-  // 状态更新函数
-  const updateConnectionStatus = useCallback((status) => {
-    setIsConnected(status);
+  // 获取岗位数据的优化版本
+  const fetchPositions = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/positions');
+      const result = await response.json();
+      if (result.success) {
+        setPositions(result.data || []);
+      } else {
+        console.error('获取岗位数据失败:', result.error);
+        setPositions([]);
+      }
+    } catch (error) {
+      console.error('获取岗位数据失败:', error);
+      setPositions([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
-  
-  const updateLoadingStatus = useCallback((status) => {
-    setIsLoading(status);
-  }, []);
-  
-  const updateWaitingForCode = useCallback((status) => {
-    setIsWaitingForCode(status);
-  }, []);
-  
-  const updateCurrentStatus = useCallback((status) => {
-    setCurrentStatus(status);
-  }, []);
-  
-  const updateResumes = useCallback((newResumes) => {
-    setResumes(newResumes);
-  }, []);
-  
-  const updatePositions = useCallback((newPositions) => {
-    setPositions(newPositions);
-  }, []);
-  
-  const updateCurrentPositionData = useCallback((data) => {
-    setCurrentPositionData(data);
-  }, []);
-  
-  const updateRecommendedResumes = useCallback((resumes, query = '') => {
-    setRecommendedResumes(resumes);
-    setRecommendationQuery(query);
-  }, []);
-  
-  // 公司搜索相关状态更新函数已删除
-  
-  // 弹窗控制函数
-  const showRecommendationModal = useCallback(() => {
-    setRecommendationVisible(true);
-  }, []);
-  
-  const hideRecommendationModal = useCallback(() => {
-    setRecommendationVisible(false);
-  }, []);
-  
-  const showJdDetailModal = useCallback(() => {
-    setJdDetailVisible(true);
-  }, []);
-  
-  const hideJdDetailModal = useCallback(() => {
-    setJdDetailVisible(false);
-  }, []);
-  
-  // 公司搜索相关弹窗控制函数已删除
   
   return {
-    // 状态
+    // 基础状态
     selectedMenuKey,
-    isConnected,
+    setSelectedMenuKey,
     isLoading,
-    isWaitingForCode,
-    resumes,
-    positions,
+    setIsLoading,
     currentStatus,
+    setCurrentStatus,
+    isWaitingForCode,
+    setIsWaitingForCode,
+    
+    // 简历相关
+    resumes,
+    setResumes,
     recommendationVisible,
+    setRecommendationVisible,
     recommendationQuery,
+    setRecommendationQuery,
     recommendedResumes,
+    setRecommendedResumes,
+    
+    // 岗位相关
+    positions,
+    setPositions,
     jdDetailVisible,
+    setJdDetailVisible,
     currentPositionData,
-    // 公司搜索相关状态已删除
+    setCurrentPositionData,
+    positionManagementVisible,
+    setPositionManagementVisible,
+    currentCompanyInfo,
+    setCurrentCompanyInfo,
+    
+    // 公司推荐
+    recommendedCompanies,
+    setRecommendedCompanies,
+    recommendationReport,
+    setRecommendationReport,
+    companyRecommendationVisible,
+    setCompanyRecommendationVisible,
+    
+    // 智能寻聘
+    showSmartRecruitment,
+    setShowSmartRecruitment,
+    selectedRecruitmentPlatform,
+    setSelectedRecruitmentPlatform,
+    showBossZhipinControl,
+    setShowBossZhipinControl,
+    showZhilianControl,
+    setShowZhilianControl,
+    
+    // 计算属性
     hasAnyModal,
     
-    // 状态更新函数
-    setSelectedMenuKey,
-    updateConnectionStatus,
-    updateLoadingStatus,
-    updateWaitingForCode,
-    updateCurrentStatus,
-    updateResumes,
-    updatePositions,
-    updateCurrentPositionData,
-    updateRecommendedResumes,
-    // 公司搜索相关状态更新函数已删除
-    
-    // 弹窗控制函数
-    showRecommendationModal,
-    hideRecommendationModal,
-    showJdDetailModal,
-    hideJdDetailModal,
-    // 公司搜索相关弹窗控制函数已删除
+    // 方法
+    fetchPositions
   };
 };

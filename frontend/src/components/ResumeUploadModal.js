@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Form, Input, Select, Upload, Button, Space, Typography, Card, Tabs, message, Spin, Descriptions, List, Tag, Divider } from 'antd';
 import { UploadOutlined, FileTextOutlined, InboxOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, CalendarOutlined, BuildOutlined, BookOutlined, TrophyOutlined } from '@ant-design/icons';
 import ModalBasePattern from './ModalBasePattern';
@@ -15,7 +15,7 @@ const { Dragger } = Upload;
 const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('boss');
+  const [activeTab, setActiveTab] = useState('boss'); // 默认选择Boss直聘简历解析
   const [parsedResume, setParsedResume] = useState(null);
   
   // 监听Boss直聘简历文本字段的变化
@@ -25,11 +25,23 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
   const resumeSources = [
     { value: 'boss', label: 'Boss直聘' },
     { value: 'qcwy', label: '前程无忧' },
+    { value: 'zlzp', label: '智联招聘' },
     { value: 'lagou', label: '拉勾网' },
     { value: 'liepin', label: '猎聘网' },
     { value: 'linkedin', label: 'LinkedIn' },
     { value: 'manual', label: '手动添加' }
   ];
+
+  // 根据当前Tab设置简历来源默认值
+  useEffect(() => {
+    if (activeTab === 'file') {
+      // 文件上传时默认为智联招聘
+      form.setFieldsValue({ source: 'zlzp' });
+    } else if (activeTab === 'boss') {
+      // Boss直聘简历解析时默认为Boss直聘
+      form.setFieldsValue({ source: 'boss' });
+    }
+  }, [activeTab, form]);
 
   // 处理文件上传
   const handleFileUpload = useCallback(async (file) => {
@@ -172,7 +184,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
   const handleClose = useCallback(() => {
     form.resetFields();
     setParsedResume(null);
-    setActiveTab('boss');
+    setActiveTab('file'); // 重置为文件上传Tab
     onClose();
   }, [form, onClose]);
 
@@ -209,15 +221,22 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
                   </span>
                 ),
                 children: (
-                  <Dragger {...uploadProps} style={{ marginBottom: 16, height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <p className="ant-upload-drag-icon">
-                      <InboxOutlined />
-                    </p>
-                    <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-                    <p className="ant-upload-hint">
-                      支持 PDF、DOC、DOCX 格式，文件大小不超过 10MB
-                    </p>
-                  </Dragger>
+                  <>
+                    <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f6f8fa' }}>
+                      <Text type="secondary">
+                        支持上传PDF、DOC、DOCX格式的简历文件，系统将自动解析简历内容。上传的简历默认来源为"智联招聘"。
+                      </Text>
+                    </Card>
+                    <Dragger {...uploadProps} style={{ marginBottom: 16, height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <p className="ant-upload-drag-icon">
+                        <InboxOutlined />
+                      </p>
+                      <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+                      <p className="ant-upload-hint">
+                        支持 PDF、DOC、DOCX 格式，文件大小不超过 10MB
+                      </p>
+                    </Dragger>
+                  </>
                 )
               },
               {
@@ -301,7 +320,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
               ) : (
                 /* 原有的结构化显示 */
                 <div>
-                  <Descriptions column={1} size="small" labelStyle={{ width: '80px' }}>
+                  <Descriptions column={1} size="small" styles={{ label: { width: '80px' } }}>
                     <Descriptions.Item label="姓名">
                       <Tag color="blue">{parsedResume.name || '未识别'}</Tag>
                     </Descriptions.Item>
@@ -342,16 +361,20 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
                   </Descriptions>
                   
                   {parsedResume.expectedPosition && (
+                    parsedResume.expectedPosition.position || 
+                    parsedResume.expectedPosition.location || 
+                    parsedResume.expectedPosition.salary
+                  ) && (
                     <>
                       <Divider orientation="left" style={{ margin: '12px 0 8px 0' }}>期望职位</Divider>
                       <Space wrap>
-                        {parsedResume.expectedPosition.position && (
+                        {parsedResume.expectedPosition.position && parsedResume.expectedPosition.position.trim() !== '' && (
                           <Tag color="purple">{parsedResume.expectedPosition.position}</Tag>
                         )}
-                        {parsedResume.expectedPosition.location && (
+                        {parsedResume.expectedPosition.location && parsedResume.expectedPosition.location.trim() !== '' && (
                           <Tag color="blue"><EnvironmentOutlined /> {parsedResume.expectedPosition.location}</Tag>
                         )}
-                        {parsedResume.expectedPosition.salary && (
+                        {parsedResume.expectedPosition.salary && parsedResume.expectedPosition.salary.trim() !== '' && (
                           <Tag color="gold">{parsedResume.expectedPosition.salary}</Tag>
                         )}
                       </Space>
@@ -438,7 +461,6 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
             label="简历来源" 
             rules={[{ required: true, message: '请选择简历来源' }]}
             style={{ marginBottom: 16 }}
-            initialValue="boss"
           >
             <Select 
               placeholder="请选择简历来源"

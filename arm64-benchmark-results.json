@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-08-29T08:10:27.140Z",
+  "nodeVersion": "v22.17.1",
+  "platform": "darwin",
+  "arch": "x64",
+  "cpuModel": "Apple M1 Pro",
+  "optimized": true,
+  "metrics": {
+    "nodeStartup": 131,
+    "v8Performance": 48,
+    "memory": {
+      "rss": 46,
+      "heapTotal": 7,
+      "heapUsed": 4,
+      "external": 2
+    },
+    "fileSystem": 11,
+    "npm": 306,
+    "http": 24
+  }
+}

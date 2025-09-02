@@ -52,7 +52,7 @@ const StatusCard = styled(Card)`
       font-size: 16px;
       font-weight: 600;
       white-space: nowrap;
-      min-width: 80px;
+      min-width: 120px;
       overflow: hidden;
       text-overflow: ellipsis;
     }

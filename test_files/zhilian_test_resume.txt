@@ -1,0 +1,26 @@
+
+智联招聘测试简历
+
+个人信息：
+姓名：李四
+电话：13900139000
+邮箱：lisi@zhilian.com
+
+工作经验：
+2021-2024  高级前端工程师  XYZ互联网公司
+- 负责React项目架构设计
+- 优化前端性能，提升用户体验
+- 带领团队完成多个重要项目
+
+2019-2021  前端工程师  DEF科技公司
+- 开发和维护Vue.js应用
+- 参与移动端H5项目开发
+
+教育经历：
+2015-2019  软件工程  清华大学  本科
+
+技能特长：
+- 前端框架：React、Vue、Angular
+- 编程语言：JavaScript、TypeScript、Python
+- 工具链：Webpack、Vite、Docker
+- 数据库：MySQL、Redis、MongoDB

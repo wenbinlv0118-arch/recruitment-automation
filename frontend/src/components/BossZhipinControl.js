@@ -31,14 +31,37 @@ const StatusCard = styled(Card)`
   .status-indicator {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     margin-bottom: 20px;
+    padding: 12px 0;
+    
+    .anticon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    h4 {
+      flex: 1;
+      margin: 0 !important;
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      min-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
   
   .status-tag {
     font-size: 14px;
     padding: 6px 16px;
     border-radius: 6px;
+    min-width: 80px;
+    text-align: center;
   }
   
   .status-details {

@@ -1,0 +1,22 @@
+M1 Pro功能测试报告
+生成时间: 2025-08-29T07:18:15.608Z
+
+系统信息:
+{
+  "chip": "Apple M1 Pro",
+  "arch": "x64",
+  "platform": "darwin",
+  "nodeVersion": "v22.17.1",
+  "rosetta": "启用",
+  "cpus": 10,
+  "memory": "32GB"
+}
+
+测试结果:
+SQLite3: 通过 (36.90ms) 
+ChromaDB: 通过 (58.68ms) 
+Playwright: 通过 (2360.66ms) 
+Tesseract.js: 通过 (4.18ms) 
+@xenova/transformers: 通过 (175.35ms) 
+
+总体结果: 5/5 通过

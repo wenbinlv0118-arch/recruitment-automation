@@ -442,19 +442,34 @@ const parseWorkYears = (resume) => {
  * @returns {string} 期望职位
  */
 const parseExpectedPosition = (resume) => {
-  if (resume.expectedPosition) return resume.expectedPosition;
+  // 处理结构化的expectedPosition对象
+  if (resume.expectedPosition) {
+    if (typeof resume.expectedPosition === 'object' && resume.expectedPosition !== null) {
+      if (resume.expectedPosition.position && resume.expectedPosition.position.trim() !== '') {
+        return resume.expectedPosition.position;
+      }
+    } else if (typeof resume.expectedPosition === 'string' && resume.expectedPosition.trim() !== '') {
+      return resume.expectedPosition;
+    }
+  }
   
   try {
     const parsed = JSON.parse(resume.parsedContent || '{}');
     if (parsed.jobIntention?.position) return parsed.jobIntention.position;
-    if (parsed.expectedPosition) return parsed.expectedPosition;
+    if (parsed.expectedPosition) {
+      if (typeof parsed.expectedPosition === 'object' && parsed.expectedPosition.position) {
+        return parsed.expectedPosition.position;
+      } else if (typeof parsed.expectedPosition === 'string') {
+        return parsed.expectedPosition;
+      }
+    }
   } catch (e) {
     const content = resume.parsedContent || '';
     const posMatch = content.match(/期望职位[：:](.*?)\n/) || content.match(/求职意向[：:](.*?)\n/);
     if (posMatch) return posMatch[1].trim();
   }
   
-  return '未知';
+  return '未指定职位';
 };
 
 const ResumeDetailModal = ({ visible, onClose, resume }) => {

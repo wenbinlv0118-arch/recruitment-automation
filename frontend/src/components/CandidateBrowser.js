@@ -15,7 +15,7 @@ import {
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import FilterPanel from './FilterPanel';
-import FilterConfigModal from './FilterConfigModal';
+
 import useFilters from '../hooks/useFilters';
 
 const { Title, Text } = Typography;
@@ -139,6 +139,83 @@ const StatusPanel = styled(Card)`
 `;
 
 /**
+ * 统一的模式选择卡片样式组件
+ * 为所有浏览模式提供一致的选中动效和悬停效果
+ */
+const ModeSelectionCard = styled(Card)`
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+  
+  &.selected {
+    border-color: #1890ff;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(24, 144, 255, 0.2);
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #1890ff, #52c41a);
+      animation: shimmer 2s ease-in-out infinite;
+    }
+    
+    .mode-icon {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    .mode-title {
+      color: #1890ff;
+      font-weight: 600;
+    }
+  }
+  
+  .mode-content {
+    text-align: center;
+    padding: 8px;
+  }
+  
+  .mode-icon {
+    transition: all 0.3s ease;
+    margin-bottom: 8px;
+  }
+  
+  .mode-title {
+    transition: all 0.3s ease;
+    margin-bottom: 4px;
+  }
+  
+  @keyframes shimmer {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+  }
+`;
+
+/**
  * 候选人浏览组件
  * @param {Object} props - 组件属性
  * @param {string} props.platform - 招聘平台标识，默认为'boss-zhipin'
@@ -146,20 +223,20 @@ const StatusPanel = styled(Card)`
 const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isBrowsing, setIsBrowsing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false); // 新增暂停状态
   const [browseMode, setBrowseMode] = useState('recommended'); // recommended, search, potential, communication
   const [candidates, setCandidates] = useState([]);
   const [processedCount, setProcessedCount] = useState(0);
   const [likedCount, setLikedCount] = useState(0);
   const [dislikedCount, setDislikedCount] = useState(0);
   const [currentCandidateIndex, setCurrentCandidateIndex] = useState(0);
+  const [pollingInterval, setPollingInterval] = useState(null); // 保存轮询间隔ID
   
   // 系统状态变量 - 智联招聘需要的初始化状态
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  // 筛选条件配置弹窗状态
-  const [filterModalVisible, setFilterModalVisible] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [searchFilters, setSearchFilters] = useState({});
   
@@ -182,12 +259,17 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       setIsLoading(true);
       setCurrentStep(0);
       
-      // 启动智联招聘服务
+      // 启动智联招聘服务，传递必要的参数
       const response = await fetch('/api/zhilian/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          mode: browseMode || 'recommended', // 使用当前选择的模式，默认为推荐模式
+          filters: filters || {},
+          targetCount: targetResumeCount
+        })
       });
       
       if (response.ok) {
@@ -196,11 +278,12 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
         // 开始状态轮询
         startZhilianStatusPolling();
       } else {
-        throw new Error('启动智联招聘服务失败');
+        const errorData = await response.json();
+        throw new Error(errorData.message || '启动智联招聘服务失败');
       }
     } catch (error) {
       console.error('启动智联招聘服务错误:', error);
-      message.error('启动智联招聘服务失败');
+      message.error(error.message || '启动智联招聘服务失败');
     } finally {
       setIsLoading(false);
     }
@@ -400,9 +483,62 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
     }
   };
 
+  /**
+   * 根据选择的模式导航到对应页面
+   * @param {string} mode - 浏览模式 (recommended, search, favorites, communication)
+   */
+  const navigateToModeSpecificPage = async (mode) => {
+    try {
+      const modeMessages = {
+        recommended: platform === 'zhilian' ? '推荐人才' : '推荐牛人',
+        search: platform === 'zhilian' ? '搜索人才' : '搜索牛人',
+        favorites: platform === 'zhilian' ? '潜在人才' : '收藏',
+        communication: platform === 'zhilian' ? '互动' : '沟通版块'
+      };
+      
+      message.loading(`正在导航到${modeMessages[mode]}版块...`, 1);
+      
+      // 根据模式选择不同的导航策略
+      const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/navigate-to-mode' : '/api/boss-zhipin/navigate-to-mode';
+      
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          mode: mode,
+          targetCount: targetResumeCount
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        message.success(`🎯 已成功导航到${modeMessages[mode]}版块！`);
+        console.log(`导航到${modeMessages[mode]}版块成功:`, result);
+      } else {
+        message.warning(`导航到${modeMessages[mode]}版块失败: ` + result.message);
+        console.error('导航失败:', result);
+      }
+    } catch (error) {
+      console.error('导航错误:', error);
+      message.error('导航时发生错误: ' + error.message);
+    }
+  };
+
   // 启动候选人浏览
   const startBrowsing = async () => {
     try {
+      // 如果是暂停状态，则继续浏览
+      if (isPaused) {
+        setIsPaused(false);
+        message.success('继续智能寻聘...');
+        // 重新开始轮询状态
+        startStatusPolling();
+        return;
+      }
+      
       setIsBrowsing(true);
       // 根据模式设置不同的步骤
       if (browseMode === 'search') {
@@ -448,6 +584,10 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       
       if (result.success) {
         message.success('候选人浏览已启动');
+        
+        // 根据选择的模式导航到对应页面
+        await navigateToModeSpecificPage(browseMode);
+        
         // 开始轮询状态
         startStatusPolling();
       } else {
@@ -461,12 +601,44 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
     }
   };
 
-  // 停止浏览
+  // 暂停浏览（不完全停止，保持进度）
+  const pauseBrowsing = async () => {
+    try {
+      setIsPaused(true);
+      // 停止轮询但不改变isBrowsing状态
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+      message.info('已暂停智能寻聘，网站保持打开状态');
+      
+      // 调用后端暂停API（不完全停止服务）
+      const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/pause-browsing' : '/api/boss-zhipin/pause-browsing';
+      
+      await fetch(apiEndpoint, {
+        method: 'POST'
+      }).catch(error => {
+        console.warn('暂停API调用失败，但前端状态已更新:', error);
+      });
+    } catch (error) {
+      console.error('暂停浏览失败:', error);
+    }
+  };
+  
+  // 完全停止浏览（重置状态）
   const stopBrowsing = async () => {
     try {
       setIsBrowsing(false);
+      setIsPaused(false);
       setCurrentStep(1);
-      message.info('已停止候选人浏览');
+      
+      // 停止轮询
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+      
+      message.info('已完全停止候选人浏览');
       
       // 根据平台调用不同的API
       const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/stop-browsing' : '/api/boss-zhipin/stop-browsing';
@@ -481,8 +653,18 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
 
   // 开始状态轮询
   const startStatusPolling = () => {
+    // 清除之前的轮询
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+    
     const interval = setInterval(async () => {
       try {
+        // 如果已暂停，不进行轮询
+        if (isPaused) {
+          return;
+        }
+        
         // 根据平台调用不同的API
         const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/browsing-status' : '/api/boss-zhipin/browsing-status';
         const response = await fetch(apiEndpoint);
@@ -511,7 +693,9 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
             message.success(`🎉 已成功收集 ${targetResumeCount} 份简历，自动停止采集！`);
             setCurrentStep(3);
             setIsBrowsing(false);
+            setIsPaused(false);
             clearInterval(interval);
+            setPollingInterval(null);
             
             // 调用停止API
             const stopApiEndpoint = platform === 'zhilian' ? '/api/zhilian/stop-browsing' : '/api/boss-zhipin/stop-browsing';
@@ -523,7 +707,9 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
           if (!isActive || status === 'idle') {
             setCurrentStep(3);
             setIsBrowsing(false);
+            setIsPaused(false);
             clearInterval(interval);
+            setPollingInterval(null);
             
             if (processedCount >= targetResumeCount) {
               message.success(`🎉 已成功收集 ${processedCount} 份简历，任务完成！`);
@@ -537,10 +723,55 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       }
     }, 2000);
     
+    // 保存轮询间隔ID
+    setPollingInterval(interval);
+    
     // 10分钟后停止轮询
     setTimeout(() => {
       clearInterval(interval);
+      setPollingInterval(null);
     }, 600000);
+  };
+  
+  // 重置状态（刷新状态按钮功能）
+  const resetBrowsingStatus = async () => {
+    try {
+      setIsLoading(true);
+      
+      // 停止当前轮询
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+      
+      // 重置前端状态
+      setIsBrowsing(false);
+      setIsPaused(false);
+      setCurrentStep(0);
+      setCandidates([]);
+      setProcessedCount(0);
+      setLikedCount(0);
+      setDislikedCount(0);
+      setCurrentCandidateIndex(0);
+      
+      // 调用后端重置API
+      const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/reset-browsing' : '/api/boss-zhipin/reset-browsing';
+      
+      const response = await fetch(apiEndpoint, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        message.success('状态已重置，可以重新开始寻聘');
+      } else {
+        message.warning('前端状态已重置，后端重置可能失败');
+      }
+    } catch (error) {
+      console.error('重置状态失败:', error);
+      message.error('重置状态失败: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 处理候选人操作
@@ -595,64 +826,15 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
   };
   
   /**
-   * 处理智联招聘搜索人才模式点击
+   * 处理搜索模式选择
+   * 统一的模式选择逻辑，不再硬编码特定接口调用
    */
-  const handleZhilianSearchMode = () => {
-    if (platform === 'zhilian') {
-      // 显示筛选条件配置弹窗
-      setFilterModalVisible(true);
-    } else {
-      // 非智联招聘平台直接设置搜索模式
-      setBrowseMode('search');
-    }
+  const handleSearchModeSelection = () => {
+    setBrowseMode('search');
+    // 智联招聘搜索模式直接显示筛选条件配置区域，不使用弹窗
   };
   
-  /**
-   * 处理筛选条件配置确认
-   * @param {Object} filters - 配置的筛选条件
-   */
-  const handleFilterConfigConfirm = async (filters) => {
-    try {
-      setIsLoading(true);
-      setSearchFilters(filters);
-      
-      // 调用后端API开始搜索人才
-      const response = await fetch('/api/zhilian/search-candidates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ filters })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          message.success('筛选条件配置成功，开始搜索人才');
-          setBrowseMode('search');
-          setFilterModalVisible(false);
-          setCurrentStep(1);
-        } else {
-          throw new Error(result.message || '配置筛选条件失败');
-        }
-      } else {
-        throw new Error('网络请求失败');
-      }
-    } catch (error) {
-      console.error('配置筛选条件失败:', error);
-      message.error('配置筛选条件失败: ' + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  /**
-   * 处理筛选条件配置取消
-   */
-  const handleFilterConfigCancel = () => {
-    setFilterModalVisible(false);
-    setSearchFilters({});
-  };
+
 
   useEffect(() => {
     // 组件加载时获取初始状态
@@ -697,135 +879,106 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
             // 智联招聘四个模块
             <Row gutter={16}>
             <Col span={6}>
-              <Card 
+              <ModeSelectionCard 
                 size="small" 
                 className={browseMode === 'recommended' ? 'selected' : ''}
                 onClick={() => setBrowseMode('recommended')}
-                style={{ 
-                  cursor: 'pointer',
-                  borderColor: browseMode === 'recommended' ? '#1890ff' : undefined
-                }}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <StarOutlined style={{ fontSize: 24, color: '#faad14', marginBottom: 8 }} />
-                  <div>推荐人才</div>
+                <div className="mode-content">
+                  <StarOutlined className="mode-icon" style={{ fontSize: 24, color: '#faad14' }} />
+                  <div className="mode-title">推荐人才</div>
                   <Text type="secondary">系统推荐的优质候选人</Text>
                 </div>
-              </Card>
+              </ModeSelectionCard>
             </Col>
             <Col span={6}>
-              <Card 
+              <ModeSelectionCard 
                 size="small" 
                 className={browseMode === 'search' ? 'selected' : ''}
-                onClick={handleZhilianSearchMode}
-                style={{ 
-                  cursor: 'pointer',
-                  borderColor: browseMode === 'search' ? '#1890ff' : undefined
-                }}
+                onClick={handleSearchModeSelection}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <SearchOutlined style={{ fontSize: 24, color: '#1890ff', marginBottom: 8 }} />
-                  <div>搜索人才</div>
+                <div className="mode-content">
+                  <SearchOutlined className="mode-icon" style={{ fontSize: 24, color: '#1890ff' }} />
+                  <div className="mode-title">搜索人才</div>
                   <Text type="secondary">根据条件搜索候选人</Text>
                 </div>
-              </Card>
+              </ModeSelectionCard>
             </Col>
             <Col span={6}>
-              <Card 
+              <ModeSelectionCard 
                 size="small" 
                 className={browseMode === 'favorites' ? 'selected' : ''}
                 onClick={() => setBrowseMode('favorites')}
-                style={{ 
-                  cursor: 'pointer',
-                  borderColor: browseMode === 'favorites' ? '#1890ff' : undefined
-                }}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <BulbOutlined style={{ fontSize: 24, color: '#722ed1', marginBottom: 8 }} />
-                  <div>潜在人才</div>
+                <div className="mode-content">
+                  <BulbOutlined className="mode-icon" style={{ fontSize: 24, color: '#722ed1' }} />
+                  <div className="mode-title">潜在人才</div>
                   <Text type="secondary">收藏的优质候选人</Text>
                 </div>
-              </Card>
+              </ModeSelectionCard>
             </Col>
             <Col span={6}>
-              <Card 
+              <ModeSelectionCard 
                 size="small" 
                 className={browseMode === 'communication' ? 'selected' : ''}
                 onClick={() => setBrowseMode('communication')}
-                style={{ 
-                  cursor: 'pointer',
-                  borderColor: browseMode === 'communication' ? '#1890ff' : undefined
-                }}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <MessageOutlined style={{ fontSize: 24, color: '#52c41a', marginBottom: 8 }} />
-                  <div>互动</div>
+                <div className="mode-content">
+                  <MessageOutlined className="mode-icon" style={{ fontSize: 24, color: '#52c41a' }} />
+                  <div className="mode-title">互动</div>
                   <Text type="secondary">处理主动投递的候选人</Text>
                 </div>
-              </Card>
+              </ModeSelectionCard>
             </Col>
           </Row>
         ) : (
           // Boss直聘三个模块
           <Row gutter={16}>
             <Col span={8}>
-              <Card 
+              <ModeSelectionCard 
                 size="small" 
                 className={browseMode === 'recommended' ? 'selected' : ''}
                 onClick={() => setBrowseMode('recommended')}
-                style={{ 
-                  cursor: 'pointer',
-                  borderColor: browseMode === 'recommended' ? '#1890ff' : undefined
-                }}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <StarOutlined style={{ fontSize: 24, color: '#faad14', marginBottom: 8 }} />
-                  <div>推荐牛人</div>
+                <div className="mode-content">
+                  <StarOutlined className="mode-icon" style={{ fontSize: 24, color: '#faad14' }} />
+                  <div className="mode-title">推荐牛人</div>
                   <Text type="secondary">系统推荐的优质候选人</Text>
                 </div>
-              </Card>
+              </ModeSelectionCard>
             </Col>
             <Col span={8}>
-              <Card 
+              <ModeSelectionCard 
                 size="small" 
                 className={browseMode === 'search' ? 'selected' : ''}
                 onClick={() => setBrowseMode('search')}
-                style={{ 
-                  cursor: 'pointer',
-                  borderColor: browseMode === 'search' ? '#1890ff' : undefined
-                }}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <SearchOutlined style={{ fontSize: 24, color: '#1890ff', marginBottom: 8 }} />
-                  <div>搜索牛人</div>
+                <div className="mode-content">
+                  <SearchOutlined className="mode-icon" style={{ fontSize: 24, color: '#1890ff' }} />
+                  <div className="mode-title">搜索牛人</div>
                   <Text type="secondary">根据条件搜索候选人</Text>
                 </div>
-              </Card>
+              </ModeSelectionCard>
             </Col>
             <Col span={8}>
-              <Card 
+              <ModeSelectionCard 
                 size="small" 
                 className={browseMode === 'communication' ? 'selected' : ''}
                 onClick={() => setBrowseMode('communication')}
-                style={{ 
-                  cursor: 'pointer',
-                  borderColor: browseMode === 'communication' ? '#1890ff' : undefined
-                }}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <EyeOutlined style={{ fontSize: 24, color: '#52c41a', marginBottom: 8 }} />
-                  <div>沟通版块</div>
+                <div className="mode-content">
+                  <MessageOutlined className="mode-icon" style={{ fontSize: 24, color: '#52c41a' }} />
+                  <div className="mode-title">互动</div>
                   <Text type="secondary">处理主动投递的候选人</Text>
                 </div>
-              </Card>
+              </ModeSelectionCard>
             </Col>
           </Row>
         )}
         </Card>
 
-      {/* 简历采集数量设置 - 智联招聘需要登录后才显示 */}
-      {(platform !== 'zhilian' || isLoggedIn) && (
-        <Card title="简历采集数量设置" style={{ marginBottom: 24 }}>
+      {/* 简历采集数量设置 - 所有平台都显示 */}
+      <Card title="简历采集数量设置" style={{ marginBottom: 24 }}>
         <Row gutter={16} align="middle">
           <Col span={12}>
             <div style={{ marginBottom: 16 }}>
@@ -882,10 +1035,9 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
           style={{ marginTop: 16 }}
         />
         </Card>
-      )}
 
-      {/* 筛选条件配置 - 仅在搜索模式下显示，智联招聘需要登录后才显示 */}
-      {browseMode === 'search' && (platform !== 'zhilian' || isLoggedIn) && (
+      {/* 筛选条件配置 - 仅在搜索模式下显示 */}
+      {browseMode === 'search' && (
         <FilterPanel
           platform={platform}
           filters={filters}
@@ -989,16 +1141,16 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
                   onClick={startBrowsing}
                   disabled={browseMode === 'search' ? currentStep < 1 : !browseMode}
                 >
-                  开始浏览
+                  {isPaused ? '继续寻聘' : '开始浏览'}
                 </Button>
               ) : (
                 <Button 
                   danger
                   size="large"
                   icon={<PauseCircleOutlined />}
-                  onClick={stopBrowsing}
+                  onClick={pauseBrowsing}
                 >
-                  停止浏览
+                  暂停浏览
                 </Button>
               )
             )
@@ -1012,16 +1164,16 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
                 onClick={startBrowsing}
                 disabled={browseMode === 'search' ? currentStep < 1 : !browseMode}
               >
-                开始浏览
+                {isPaused ? '继续寻聘' : '开始浏览'}
               </Button>
             ) : (
               <Button 
                 danger
                 size="large"
                 icon={<PauseCircleOutlined />}
-                onClick={stopBrowsing}
+                onClick={pauseBrowsing}
               >
-                停止浏览
+                暂停浏览
               </Button>
             )
           )}
@@ -1029,9 +1181,10 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
           <Button 
             size="large"
             icon={<ReloadOutlined />}
-            onClick={() => window.location.reload()}
+            onClick={resetBrowsingStatus}
+            loading={isLoading}
           >
-            刷新状态
+            重置状态
           </Button>
         </Space>
       </Card>
@@ -1095,14 +1248,7 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
         style={{ marginTop: 24 }}
       />
       
-      {/* 筛选条件配置弹窗 - 智联招聘搜索人才模式 */}
-      <FilterConfigModal
-        visible={filterModalVisible}
-        platform={platform}
-        onConfirm={handleFilterConfigConfirm}
-        onCancel={handleFilterConfigCancel}
-        loading={isLoading}
-      />
+
     </Container>
   );
 };

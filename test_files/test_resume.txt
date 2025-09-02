@@ -1,0 +1,22 @@
+
+测试简历
+
+个人信息：
+姓名：张三
+电话：13800138000
+邮箱：zhangsan@example.com
+
+工作经验：
+2020-2023  软件工程师  ABC科技有限公司
+- 负责前端开发工作
+- 使用React、Vue等技术栈
+- 参与多个项目的开发和维护
+
+教育经历：
+2016-2020  计算机科学与技术  某某大学  本科
+
+技能特长：
+- JavaScript、TypeScript
+- React、Vue、Node.js
+- MySQL、MongoDB
+- Git、Docker

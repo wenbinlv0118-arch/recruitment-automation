@@ -381,12 +381,13 @@ const ResumeLibrary = () => {
                // 优先使用结构化数据字段，确保返回字符串类型
                let position = resume.expectedPosition || resume.position || '未指定职位';
                
-               // 如果是对象类型，尝试提取position字段或转换为字符串
+               // 如果是对象类型，尝试提取position字段
                if (typeof position === 'object' && position !== null) {
-                 if (position.position) {
+                 if (position.position && position.position.trim() !== '') {
                    position = position.position;
                  } else {
-                   position = JSON.stringify(position);
+                   // 如果position字段为空，返回友好的提示
+                   position = '未指定职位';
                  }
                }
                
