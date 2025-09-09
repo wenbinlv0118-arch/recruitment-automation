@@ -41,13 +41,17 @@ jobs:
           
       - name: 代码检查
         run: |
-          cd backend && npm run lint || true
-          cd ../frontend && npm run lint || true
+          echo "检查后端代码..."
+          cd backend && npm run lint
+          echo "检查前端代码..."
+          cd ../frontend && npm run lint || echo "前端代码检查完成"
           
       - name: 运行测试
         run: |
-          cd backend && npm test || true
-          cd ../frontend && npm test -- --coverage --watchAll=false || true
+          echo "运行后端测试..."
+          cd backend && npm test
+          echo "运行前端测试..."
+          cd ../frontend && npm test -- --coverage --watchAll=false --passWithNoTests
 
   # 构建测试
   build-test:
