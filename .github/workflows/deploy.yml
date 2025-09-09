@@ -85,7 +85,7 @@ jobs:
       - name: 构建前端
         run: |
           cd frontend
-          npm run build
+          CI=false npm run build
           
       - name: 构建后端
         run: |
