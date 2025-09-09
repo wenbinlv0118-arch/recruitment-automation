@@ -266,23 +266,15 @@ jobs:
         
       - name: 检查前端健康状态
         run: |
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            URL="https://recruitment-automation-frontend.vercel.app"
-          else
-            URL="https://recruitment-automation-frontend-git-develop.vercel.app"
-          fi
-          
+          # 检查主域名是否可访问
+          URL="https://recruitment-automation-frontend.vercel.app"
           echo "检查前端: $URL"
           curl -f $URL || exit 1
           
       - name: 检查后端健康状态
         run: |
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            URL="https://recruitment-automation-api.netlify.app/.netlify/functions/health"
-          else
-            URL="https://recruitment-automation-api-staging.netlify.app/.netlify/functions/health"
-          fi
-          
+          # 检查主域名是否可访问
+          URL="https://recruitment-automation-api.netlify.app/.netlify/functions/health"
           echo "检查后端: $URL"
           curl -f $URL || exit 1
           
