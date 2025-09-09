@@ -266,13 +266,25 @@ jobs:
         
       - name: 检查前端健康状态
         run: |
-          echo "⚠️  前端健康检查暂时跳过 - 需要配置实际的部署URL"
-          echo "✅ 前端部署已完成"
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            URL="https://recruitment-automation-frontend.vercel.app"
+          else
+            URL="https://recruitment-automation-frontend-git-develop.vercel.app"
+          fi
+          
+          echo "检查前端: $URL"
+          curl -f $URL || exit 1
           
       - name: 检查后端健康状态
         run: |
-          echo "⚠️  后端健康检查暂时跳过 - 需要配置实际的部署URL"
-          echo "✅ 后端部署已完成"
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            URL="https://recruitment-automation-api.netlify.app/.netlify/functions/health"
+          else
+            URL="https://recruitment-automation-api-staging.netlify.app/.netlify/functions/health"
+          fi
+          
+          echo "检查后端: $URL"
+          curl -f $URL || exit 1
           
       - name: 健康检查通过
         run: |
