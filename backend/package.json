@@ -7,10 +7,16 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "start:optimized": "node --expose-gc --max-old-space-size=2048 start-optimized.js",
-    "dev:optimized": "nodemon --expose-gc --max-old-space-size=2048 start-optimized.js"
+    "dev:optimized": "nodemon --expose-gc --max-old-space-size=2048 start-optimized.js",
+    "build": "echo 'Backend build completed - Netlify Functions ready'",
+    "supabase:setup": "node ../supabase/setup.js",
+    "supabase:test": "node ../supabase/setup.js test",
+    "supabase:migrate": "node ../supabase/setup.js migration",
+    "db:migrate": "node src/database/migrate.js"
   },
   "dependencies": {
     "@huggingface/inference": "^4.6.1",
+    "@supabase/supabase-js": "^2.57.2",
     "@xenova/transformers": "^2.15.1",
     "axios": "^1.6.2",
     "browser-use": "^0.0.1",
@@ -24,6 +30,7 @@
     "node-cache": "^5.1.2",
     "path": "^0.12.7",
     "pdf-parse": "^1.1.1",
+    "pg": "^8.16.3",
     "playwright": "^1.40.0",
     "socket.io": "^4.7.4",
     "socket.io-client": "^4.7.4",

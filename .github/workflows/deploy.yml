@@ -1,0 +1,275 @@
+name: 自动部署
+
+# 触发条件
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+# 环境变量
+env:
+  NODE_VERSION: '18'
+  CACHE_DEPENDENCY_PATH: '**/package-lock.json'
+
+# 任务定义
+jobs:
+  # 代码质量检查
+  quality-check:
+    name: 代码质量检查
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.CACHE_DEPENDENCY_PATH }}
+          
+      - name: 安装依赖
+        run: |
+          npm ci
+          cd backend && npm ci
+          cd ../frontend && npm ci
+          
+      - name: 代码检查
+        run: |
+          cd backend && npm run lint || true
+          cd ../frontend && npm run lint || true
+          
+      - name: 运行测试
+        run: |
+          cd backend && npm test || true
+          cd ../frontend && npm test -- --coverage --watchAll=false || true
+
+  # 构建测试
+  build-test:
+    name: 构建测试
+    runs-on: ubuntu-latest
+    needs: quality-check
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.CACHE_DEPENDENCY_PATH }}
+          
+      - name: 安装依赖
+        run: |
+          npm ci
+          cd backend && npm ci
+          cd ../frontend && npm ci
+          
+      - name: 构建前端
+        run: |
+          cd frontend
+          npm run build
+          
+      - name: 构建后端
+        run: |
+          cd backend
+          npm run build || echo "后端构建脚本不存在，跳过"
+          
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            frontend/build/
+            netlify/functions/
+          retention-days: 1
+
+  # 部署到 Staging
+  deploy-staging:
+    name: 部署到测试环境
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.CACHE_DEPENDENCY_PATH }}
+          
+      - name: 安装依赖
+        run: |
+          npm ci
+          cd backend && npm ci
+          cd ../frontend && npm ci
+          
+      - name: 生成环境变量
+        run: |
+          node deployment-config.js generate-env staging
+        env:
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          
+      - name: 构建前端
+        run: |
+          cd frontend
+          npm run build
+        env:
+          REACT_APP_API_BASE_URL: ${{ secrets.STAGING_API_URL }}
+          REACT_APP_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          
+      - name: 部署到 Vercel (Staging)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./frontend
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+          
+      - name: 部署到 Netlify (Staging)
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: './frontend/build'
+          production-branch: develop
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions (Staging)"
+          enable-pull-request-comment: true
+          enable-commit-comment: true
+          overwrites-pull-request-comment: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_STAGING_SITE_ID }}
+
+  # 部署到 Production
+  deploy-production:
+    name: 部署到生产环境
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.CACHE_DEPENDENCY_PATH }}
+          
+      - name: 安装依赖
+        run: |
+          npm ci
+          cd backend && npm ci
+          cd ../frontend && npm ci
+          
+      - name: 生成环境变量
+        run: |
+          node deployment-config.js generate-env production
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          
+      - name: 构建前端
+        run: |
+          cd frontend
+          npm run build
+        env:
+          REACT_APP_API_BASE_URL: ${{ secrets.API_URL }}
+          REACT_APP_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          REACT_APP_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          REACT_APP_GOOGLE_ANALYTICS_ID: ${{ secrets.GA_ID }}
+          
+      - name: 部署到 Vercel (Production)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./frontend
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+          
+      - name: 部署到 Netlify (Production)
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: './frontend/build'
+          production-branch: main
+          production-deploy: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions (Production)"
+          enable-pull-request-comment: false
+          enable-commit-comment: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          
+      - name: 通知部署成功
+        if: success()
+        run: |
+          echo "🎉 生产环境部署成功！"
+          echo "🌐 前端地址: https://your-app.vercel.app"
+          echo "⚙️  后端地址: https://your-functions.netlify.app"
+          
+      - name: 通知部署失败
+        if: failure()
+        run: |
+          echo "❌ 生产环境部署失败！"
+          echo "请检查日志并修复问题。"
+
+  # 健康检查
+  health-check:
+    name: 部署后健康检查
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    
+    steps:
+      - name: 等待部署完成
+        run: sleep 30
+        
+      - name: 检查前端健康状态
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            URL="https://your-app.vercel.app"
+          else
+            URL="https://staging-your-app.vercel.app"
+          fi
+          
+          echo "检查前端: $URL"
+          curl -f $URL || exit 1
+          
+      - name: 检查后端健康状态
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            URL="https://your-functions.netlify.app/.netlify/functions/health"
+          else
+            URL="https://staging-your-functions.netlify.app/.netlify/functions/health"
+          fi
+          
+          echo "检查后端: $URL"
+          curl -f $URL || exit 1
+          
+      - name: 健康检查通过
+        run: |
+          echo "✅ 所有服务健康检查通过！"

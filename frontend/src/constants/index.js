@@ -1,11 +1,17 @@
-// API端点
+// 导入API配置
+import { API_ENDPOINTS as API_CONFIG } from '../config/api';
+
+// API端点（保持向后兼容）
 export const API_ENDPOINTS = {
-  RESUME_LIBRARY: '/api/resume-library',
-  POSITIONS: '/api/positions',
-  TASKS: '/api/tasks',
-  KNOWLEDGE: '/api/knowledge',
-  DOCUMENTS: '/api/documents'
+  RESUME_LIBRARY: '/resume-library',
+  POSITIONS: '/positions',
+  TASKS: '/tasks',
+  KNOWLEDGE: '/knowledge',
+  DOCUMENTS: '/documents'
 };
+
+// 完整的API配置
+export const API_CONFIG_FULL = API_CONFIG;
 
 // 消息类型
 export const MESSAGE_TYPES = {
