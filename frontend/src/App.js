@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Card, Input, Button, message, List, Typography, Space, Menu, Modal } from 'antd';
+import { Layout, Input, Button, message, Typography, Menu, Modal } from 'antd';
 import { 
   SendOutlined, 
   RobotOutlined, 
@@ -18,7 +18,7 @@ import styled from 'styled-components';
 import COTReasoning from './components/COTReasoning';
 import ResumeLibrary from './components/ResumeLibrary';
 import KnowledgeBase from './components/KnowledgeBase';
-import DocumentUpload from './components/DocumentUpload';
+// import DocumentUpload from './components/DocumentUpload'; // 暂时未使用
 import ResumeRecommendationModal from './components/ResumeRecommendationModal';
 import CapabilityCards from './components/CapabilityCards';
 import TaskManagement from './components/TaskManagement';
@@ -36,7 +36,7 @@ import { createCOTResponse } from './utils/cotUtils';
 import './App.css';
 
 const { Header, Content, Sider } = Layout;
-const { Text, Title } = Typography;
+const { Title } = Typography;
 
 // 样式组件 - 未来科技感设计
 const StyledSider = styled(Sider)`
@@ -187,16 +187,16 @@ const ChatContainer = styled.div`
   }
 `;
 
-const ChatHeader = styled.div`
-  background: var(--gradient-primary);
-  color: white;
-  padding: 16px 24px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  display: none; // 隐藏标题栏
-`;
+// const ChatHeader = styled.div`
+//   background: var(--gradient-primary);
+//   color: white;
+//   padding: 16px 24px;
+//   font-weight: 600;
+//   display: flex;
+//   align-items: center;
+//   gap: 8px;
+//   display: none; // 隐藏标题栏
+// `;
 
 const MessagesContainer = styled.div`
   flex: 1;
@@ -287,24 +287,24 @@ const MessageContent = styled.div.withConfig({
   }
 `;
 
-const ThinkingIndicator = styled.span`
-  color: var(--primary-blue);
-  margin-right: 8px;
-  font-weight: 600;
-  text-shadow: 0 0 8px rgba(0, 122, 255, 0.3);
-  animation: pulse 2s infinite;
-  
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.7;
-      transform: scale(1.05);
-    }
-  }
-`;
+// const ThinkingIndicator = styled.span`
+//   color: var(--primary-blue);
+//   margin-right: 8px;
+//   font-weight: 600;
+//   text-shadow: 0 0 8px rgba(0, 122, 255, 0.3);
+//   animation: pulse 2s infinite;
+//
+//   @keyframes pulse {
+//     0%, 100% {
+//       opacity: 1;
+//       transform: scale(1);
+//     }
+//     50% {
+//       opacity: 0.7;
+//       transform: scale(1.05);
+//     }
+//   }
+// `;
 
 const InputContainer = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== 'hasModal'
@@ -335,50 +335,50 @@ const InputContainer = styled.div.withConfig({
   }
 `;
 
-const StatusCard = styled(Card)`
-  margin-bottom: 20px;
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--blur-md) !important;
-  -webkit-backdrop-filter: var(--blur-md) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-lg) !important;
-  transition: all var(--duration-fast) ease;
-  
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-xl), 0 0 20px rgba(0, 122, 255, 0.15) !important;
-  }
-  
-  .ant-card-body {
-    background: transparent !important;
-  }
-`;
+// const StatusCard = styled(Card)`
+//   margin-bottom: 20px;
+//   background: var(--glass-bg) !important;
+//   backdrop-filter: var(--blur-md) !important;
+//   -webkit-backdrop-filter: var(--blur-md) !important;
+//   border: 1px solid var(--glass-border) !important;
+//   border-radius: var(--radius-lg) !important;
+//   box-shadow: var(--shadow-lg) !important;
+//   transition: all var(--duration-fast) ease;
+//
+//   &:hover {
+//     transform: translateY(-4px);
+//     box-shadow: var(--shadow-xl), 0 0 20px rgba(0, 122, 255, 0.15) !important;
+//   }
+//
+//   .ant-card-body {
+//     background: transparent !important;
+//   }
+// `;
 
-const ResumeList = styled(List)`
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--blur-md) !important;
-  -webkit-backdrop-filter: var(--blur-md) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: var(--radius-lg) !important;
-  padding: 20px;
-  box-shadow: var(--shadow-lg) !important;
-  transition: all var(--duration-fast) ease;
-  
-  &:hover {
-    box-shadow: var(--shadow-xl) !important;
-  }
-  
-  .ant-list-item {
-    border-bottom: 1px solid var(--glass-border) !important;
-    transition: all var(--duration-fast) ease;
-    
-    &:hover {
-      background: var(--glass-bg-light) !important;
-      border-radius: var(--radius-md);
-    }
-  }
-`;
+// const ResumeList = styled(List)`
+//   background: var(--glass-bg) !important;
+//   backdrop-filter: var(--blur-md) !important;
+//   -webkit-backdrop-filter: var(--blur-md) !important;
+//   border: 1px solid var(--glass-border) !important;
+//   border-radius: var(--radius-lg) !important;
+//   padding: 20px;
+//   box-shadow: var(--shadow-lg) !important;
+//   transition: all var(--duration-fast) ease;
+//
+//   &:hover {
+//     box-shadow: var(--shadow-xl) !important;
+//   }
+//
+//   .ant-list-item {
+//     border-bottom: 1px solid var(--glass-border) !important;
+//     transition: all var(--duration-fast) ease;
+//   
+//     &:hover {
+//       background: var(--glass-bg-light) !important;
+//       border-radius: var(--radius-md);
+//     }
+//   }
+// `;
 
 
 
@@ -482,7 +482,7 @@ function App() {
   
   // 职位管理相关状态
   const [positionManagementVisible, setPositionManagementVisible] = useState(false);
-  const [currentCompanyInfo, setCurrentCompanyInfo] = useState(null);
+  // const [currentCompanyInfo, setCurrentCompanyInfo] = useState(null); // 暂时未使用
   
   // 公司推荐相关状态
   const [recommendedCompanies, setRecommendedCompanies] = useState([]);
