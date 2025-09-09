@@ -482,7 +482,7 @@ function App() {
   
   // 职位管理相关状态
   const [positionManagementVisible, setPositionManagementVisible] = useState(false);
-  // const [currentCompanyInfo, setCurrentCompanyInfo] = useState(null); // 暂时未使用
+  const [currentCompanyInfo, setCurrentCompanyInfo] = useState(null);
   
   // 公司推荐相关状态
   const [recommendedCompanies, setRecommendedCompanies] = useState([]);
@@ -1547,23 +1547,7 @@ function App() {
 
   // 移除了extractPhoneFromMessages函数 - 针对求职者端的功能
 
-  // 下载简历
-  const downloadResume = async (filename) => {
-    try {
-      const response = await fetch(`/api/resumes/${filename}`);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      message.error('下载失败');
-    }
-  };
+
 
   return (
     <StyledLayout>
