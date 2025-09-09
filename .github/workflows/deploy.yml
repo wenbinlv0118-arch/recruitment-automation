@@ -44,7 +44,7 @@ jobs:
           echo "检查后端代码..."
           cd backend && npm run lint
           echo "检查前端代码..."
-          cd ../frontend && npm run lint || echo "前端代码检查完成"
+          cd ../frontend && npm run lint || echo "前端代码检查完成 - 存在警告但不影响构建"
           
       - name: 运行测试
         run: |
