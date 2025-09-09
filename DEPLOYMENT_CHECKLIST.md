@@ -13,7 +13,7 @@
 
 ```bash
 # 检查版本
-node --version  # 应该 >= 18.0.0
+node --version  # 应该 >= 20.0.0
 npm --version
 git --version
 vercel --version

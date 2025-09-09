@@ -8,7 +8,7 @@
 
 [build.environment]
   # Node.js版本
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   # NPM版本
   NPM_VERSION = "9"
 
