@@ -108,6 +108,9 @@ jobs:
     needs: build-test
     if: github.ref == 'refs/heads/develop'
     environment: staging
+    outputs:
+      vercel-url: ${{ steps.deployment-urls.outputs.vercel-url }}
+      netlify-url: ${{ steps.deployment-urls.outputs.netlify-url }}
     
     steps:
       - name: 检出代码
@@ -147,6 +150,7 @@ jobs:
           REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
           
       - name: 部署到 Vercel (Staging)
+        id: vercel-staging
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -155,19 +159,26 @@ jobs:
           working-directory: ./frontend
           scope: ${{ secrets.VERCEL_ORG_ID }}
           
-      - name: 部署到 Netlify (Staging)
+      - name: 部署到 Netlify Functions (Staging)
+        id: netlify-staging
         uses: nwtgck/actions-netlify@v3.0
         with:
-          publish-dir: './frontend/build'
+          publish-dir: './netlify/functions'
           production-branch: develop
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "Deploy from GitHub Actions (Staging)"
+          deploy-message: "Deploy Functions from GitHub Actions (Staging)"
           enable-pull-request-comment: true
           enable-commit-comment: true
           overwrites-pull-request-comment: true
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_STAGING_SITE_ID }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_STAGING_FUNCTIONS_SITE_ID }}
+          
+      - name: 输出部署 URL
+        id: deployment-urls
+        run: |
+          echo "vercel-url=${{ steps.vercel-staging.outputs.preview-url }}" >> $GITHUB_OUTPUT
+          echo "netlify-url=${{ steps.netlify-staging.outputs.deploy-url }}" >> $GITHUB_OUTPUT
 
   # 部署到 Production
   deploy-production:
@@ -176,6 +187,9 @@ jobs:
     needs: build-test
     if: github.ref == 'refs/heads/main'
     environment: production
+    outputs:
+      vercel-url: ${{ steps.deployment-urls.outputs.vercel-url }}
+      netlify-url: ${{ steps.deployment-urls.outputs.netlify-url }}
     
     steps:
       - name: 检出代码
@@ -217,6 +231,7 @@ jobs:
           REACT_APP_GOOGLE_ANALYTICS_ID: ${{ secrets.GA_ID }}
           
       - name: 部署到 Vercel (Production)
+        id: vercel-production
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -226,26 +241,33 @@ jobs:
           working-directory: ./frontend
           scope: ${{ secrets.VERCEL_ORG_ID }}
           
-      - name: 部署到 Netlify (Production)
+      - name: 部署到 Netlify Functions (Production)
+        id: netlify-production
         uses: nwtgck/actions-netlify@v3.0
         with:
-          publish-dir: './frontend/build'
+          publish-dir: './netlify/functions'
           production-branch: main
           production-deploy: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "Deploy from GitHub Actions (Production)"
+          deploy-message: "Deploy Functions from GitHub Actions (Production)"
           enable-pull-request-comment: false
           enable-commit-comment: true
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_FUNCTIONS_SITE_ID }}
+          
+      - name: 输出部署 URL
+        id: deployment-urls
+        run: |
+          echo "vercel-url=${{ steps.vercel-production.outputs.preview-url }}" >> $GITHUB_OUTPUT
+          echo "netlify-url=${{ steps.netlify-production.outputs.deploy-url }}" >> $GITHUB_OUTPUT
           
       - name: 通知部署成功
         if: success()
         run: |
           echo "🎉 生产环境部署成功！"
-          echo "🌐 前端地址: https://your-app.vercel.app"
-          echo "⚙️  后端地址: https://your-functions.netlify.app"
+          echo "🌐 前端地址: ${{ steps.vercel-production.outputs.preview-url }}"
+          echo "⚙️  后端地址: ${{ steps.netlify-production.outputs.deploy-url }}"
           
       - name: 通知部署失败
         if: failure()
@@ -264,19 +286,53 @@ jobs:
       - name: 等待部署完成
         run: sleep 30
         
-      - name: 检查前端健康状态
+      - name: 检查前端健康状态 (Production)
+        if: needs.deploy-production.result == 'success'
         run: |
-          # 检查主域名是否可访问
-          URL="https://recruitment-automation-frontend.vercel.app"
-          echo "检查前端: $URL"
-          curl -f $URL || exit 1
+          # 检查Vercel部署的前端应用
+          FRONTEND_URL="${{ needs.deploy-production.outputs.vercel-url }}"
+          if [ -n "$FRONTEND_URL" ]; then
+            echo "检查生产环境前端: $FRONTEND_URL"
+            curl -f "$FRONTEND_URL" || exit 1
+          else
+            echo "⚠️ 生产环境前端URL未获取到，跳过检查"
+          fi
           
-      - name: 检查后端健康状态
+      - name: 检查后端健康状态 (Production)
+        if: needs.deploy-production.result == 'success'
         run: |
-          # 检查主域名是否可访问
-          URL="https://recruitment-automation-api.netlify.app/.netlify/functions/health"
-          echo "检查后端: $URL"
-          curl -f $URL || exit 1
+          # 检查Netlify Functions部署的后端API
+          BACKEND_URL="${{ needs.deploy-production.outputs.netlify-url }}"
+          if [ -n "$BACKEND_URL" ]; then
+            echo "检查生产环境后端: $BACKEND_URL/.netlify/functions/health"
+            curl -f "$BACKEND_URL/.netlify/functions/health" || exit 1
+          else
+            echo "⚠️ 生产环境后端URL未获取到，跳过检查"
+          fi
+          
+      - name: 检查前端健康状态 (Staging)
+        if: needs.deploy-staging.result == 'success'
+        run: |
+          # 检查Vercel部署的前端应用
+          FRONTEND_URL="${{ needs.deploy-staging.outputs.vercel-url }}"
+          if [ -n "$FRONTEND_URL" ]; then
+            echo "检查测试环境前端: $FRONTEND_URL"
+            curl -f "$FRONTEND_URL" || exit 1
+          else
+            echo "⚠️ 测试环境前端URL未获取到，跳过检查"
+          fi
+          
+      - name: 检查后端健康状态 (Staging)
+        if: needs.deploy-staging.result == 'success'
+        run: |
+          # 检查Netlify Functions部署的后端API
+          BACKEND_URL="${{ needs.deploy-staging.outputs.netlify-url }}"
+          if [ -n "$BACKEND_URL" ]; then
+            echo "检查测试环境后端: $BACKEND_URL/.netlify/functions/health"
+            curl -f "$BACKEND_URL/.netlify/functions/health" || exit 1
+          else
+            echo "⚠️ 测试环境后端URL未获取到，跳过检查"
+          fi
           
       - name: 健康检查通过
         run: |

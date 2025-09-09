@@ -17,7 +17,7 @@ const API_CONFIG = {
   },
   // 生产环境配置
   production: {
-    baseURL: process.env.REACT_APP_API_BASE_URL || 'https://your-netlify-functions.netlify.app/.netlify/functions',
+    baseURL: process.env.REACT_APP_API_BASE_URL || 'https://recruitment-automation-api.netlify.app/.netlify/functions',
     timeout: 15000,
     withCredentials: false
   }
@@ -68,7 +68,7 @@ export const API_ENDPOINTS = {
     CREATE: '/tasks',
     UPDATE: '/tasks',
     DELETE: '/tasks',
-    STATS: '/tasks/stats'
+    STATS: '/tasks?action=stats'
   },
   
   // 知识库
@@ -138,7 +138,7 @@ export const API_ENDPOINTS = {
 export const WEBSOCKET_CONFIG = {
   URL: isDevelopment 
     ? 'ws://localhost:5001' 
-    : (process.env.REACT_APP_SOCKET_URL || 'wss://your-websocket-domain.com'),
+    : (process.env.REACT_APP_SOCKET_URL || 'wss://recruitment-automation-api.netlify.app'),
   RECONNECT_INTERVAL: 3000,
   MAX_RECONNECT_ATTEMPTS: 5
 };
@@ -151,6 +151,7 @@ export const SUPABASE_CONFIG = {
 
 // 请求配置
 export const REQUEST_CONFIG = {
+  baseURL: currentConfig.baseURL,
   timeout: currentConfig.timeout,
   withCredentials: currentConfig.withCredentials,
   headers: {

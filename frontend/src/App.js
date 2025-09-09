@@ -18,6 +18,7 @@ import styled from 'styled-components';
 import COTReasoning from './components/COTReasoning';
 import ResumeLibrary from './components/ResumeLibrary';
 import KnowledgeBase from './components/KnowledgeBase';
+import { WEBSOCKET_CONFIG } from './config/api';
 // import DocumentUpload from './components/DocumentUpload'; // 暂时未使用
 import ResumeRecommendationModal from './components/ResumeRecommendationModal';
 import CapabilityCards from './components/CapabilityCards';
@@ -535,13 +536,13 @@ function App() {
   useEffect(() => {
     // console.log('正在连接Socket.IO...');
     
-    const newSocket = io('http://localhost:5001', {
+    const newSocket = io(WEBSOCKET_CONFIG.URL, {
       transports: ['websocket', 'polling'], // 优先使用WebSocket，降级到polling
       timeout: 20000, // 减少超时时间
       forceNew: true,
       reconnection: true,
-      reconnectionAttempts: 10, // 增加重连次数
-      reconnectionDelay: 2000, // 增加重连延迟
+      reconnectionAttempts: WEBSOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS, // 使用配置的重连次数
+      reconnectionDelay: WEBSOCKET_CONFIG.RECONNECT_INTERVAL, // 使用配置的重连延迟
       reconnectionDelayMax: 10000, // 增加最大重连延迟
       upgrade: true,
       rememberUpgrade: true,
