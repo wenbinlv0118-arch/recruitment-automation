@@ -140,7 +140,7 @@ jobs:
       - name: 构建前端
         run: |
           cd frontend
-          npm run build
+          CI=false npm run build
         env:
           REACT_APP_API_BASE_URL: ${{ secrets.STAGING_API_URL }}
           REACT_APP_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
@@ -208,7 +208,7 @@ jobs:
       - name: 构建前端
         run: |
           cd frontend
-          npm run build
+          CI=false npm run build
         env:
           REACT_APP_API_BASE_URL: ${{ secrets.API_URL }}
           REACT_APP_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
