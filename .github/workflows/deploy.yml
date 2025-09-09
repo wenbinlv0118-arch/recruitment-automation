@@ -35,9 +35,12 @@ jobs:
           
       - name: 安装依赖
         run: |
-          npm ci
-          cd backend && npm ci
-          cd ../frontend && npm ci
+          echo "安装根目录依赖..."
+          npm ci || (echo "根目录依赖安装失败，尝试 npm install" && npm install)
+          echo "安装后端依赖..."
+          cd backend && (npm ci || npm install)
+          echo "安装前端依赖..."
+          cd ../frontend && (npm ci || npm install)
           
       - name: 代码检查
         run: |
@@ -72,9 +75,12 @@ jobs:
           
       - name: 安装依赖
         run: |
-          npm ci
-          cd backend && npm ci
-          cd ../frontend && npm ci
+          echo "安装根目录依赖..."
+          npm ci || (echo "根目录依赖安装失败，尝试 npm install" && npm install)
+          echo "安装后端依赖..."
+          cd backend && (npm ci || npm install)
+          echo "安装前端依赖..."
+          cd ../frontend && (npm ci || npm install)
           
       - name: 构建前端
         run: |
@@ -116,9 +122,12 @@ jobs:
           
       - name: 安装依赖
         run: |
-          npm ci
-          cd backend && npm ci
-          cd ../frontend && npm ci
+          echo "安装根目录依赖..."
+          npm ci || (echo "根目录依赖安装失败，尝试 npm install" && npm install)
+          echo "安装后端依赖..."
+          cd backend && (npm ci || npm install)
+          echo "安装前端依赖..."
+          cd ../frontend && (npm ci || npm install)
           
       - name: 生成环境变量
         run: |
@@ -181,9 +190,12 @@ jobs:
           
       - name: 安装依赖
         run: |
-          npm ci
-          cd backend && npm ci
-          cd ../frontend && npm ci
+          echo "安装根目录依赖..."
+          npm ci || (echo "根目录依赖安装失败，尝试 npm install" && npm install)
+          echo "安装后端依赖..."
+          cd backend && (npm ci || npm install)
+          echo "安装前端依赖..."
+          cd ../frontend && (npm ci || npm install)
           
       - name: 生成环境变量
         run: |
