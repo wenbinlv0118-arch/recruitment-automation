@@ -1,0 +1,32 @@
+{
+  "$schema": "https://zeabur.com/schemas/zbpack.json",
+  "build_command": "echo 'Monorepo detected, please specify service'",
+  "services": {
+    "backend": {
+      "build_command": "cd backend && npm ci && npm run build",
+      "start_command": "cd backend && npm start",
+      "install_command": "cd backend && npm ci",
+      "node_version": "18",
+      "cache_dependencies": true,
+      "environment": "node",
+      "framework": "express"
+    },
+    "frontend": {
+      "build_command": "cd frontend && npm ci && npm run build",
+      "output_dir": "frontend/dist",
+      "install_command": "cd frontend && npm ci",
+      "node_version": "18",
+      "cache_dependencies": true,
+      "environment": "static",
+      "framework": "react",
+      "spa": true
+    }
+  },
+  "meta": {
+    "name": "Recruitment Automation",
+    "description": "智能招聘自动化平台 - Zeabur 部署配置",
+    "version": "1.0.0",
+    "author": "Recruitment Team",
+    "repository": "https://github.com/wenbinlv0118-arch/recruitment-automation"
+  }
+}
