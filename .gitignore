@@ -35,3 +35,6 @@ Thumbs.db
 /storage/
 /backend/debug-*.js
 /backend/debug_*.png
+# Local Netlify folder
+.netlify
+.vercel

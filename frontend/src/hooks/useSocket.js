@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { message } from 'antd';
 import io from 'socket.io-client';
+import { WEBSOCKET_CONFIG } from '../config/api';
 
 /**
  * Socket连接管理hook
@@ -12,13 +13,13 @@ export const useSocket = (onMessage) => {
   
   // 初始化Socket连接
   useEffect(() => {
-    const newSocket = io('http://localhost:5001', {
+    const newSocket = io(WEBSOCKET_CONFIG.URL, {
       transports: ['websocket', 'polling'],
       timeout: 20000,
       forceNew: true,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: WEBSOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS,
+      reconnectionDelay: WEBSOCKET_CONFIG.RECONNECT_INTERVAL,
       reconnectionDelayMax: 10000,
       upgrade: true,
       rememberUpgrade: true,

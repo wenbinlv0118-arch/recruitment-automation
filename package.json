@@ -6,14 +6,41 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm start",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "supabase:setup": "node supabase/setup.js",
+    "supabase:test": "node supabase/setup.js test",
+    "supabase:install": "node install-supabase.js",
+    "deploy:info": "node deployment-config.js info",
+    "deploy:info:staging": "node deployment-config.js info staging",
+    "deploy:info:production": "node deployment-config.js info production",
+    "deploy:env": "node deployment-config.js generate-env",
+    "deploy:env:staging": "node deployment-config.js generate-env staging",
+    "deploy:env:production": "node deployment-config.js generate-env production",
+    "deploy:script": "node deployment-config.js generate-script",
+    "deploy:script:staging": "node deployment-config.js generate-script staging",
+    "deploy:script:production": "node deployment-config.js generate-script production",
+    "deploy:validate": "node deployment-config.js validate",
+    "deploy:validate:staging": "node deployment-config.js validate staging",
+    "deploy:validate:production": "node deployment-config.js validate production",
+    "build": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build:functions": "mkdir -p functions-build && cp -r netlify/functions/* functions-build/",
+    "test": "cd backend && npm test && cd ../frontend && npm test",
+    "lint": "cd backend && npm run lint && cd ../frontend && npm run lint"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
   "dependencies": {
+    "@playwright/test": "^1.55.0",
+    "@supabase/supabase-js": "^2.57.2",
     "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "fs-extra": "^11.1.1",
     "http-proxy-middleware": "^3.0.5",
-    "socket.io-client": "^4.8.1"
+    "multer": "^1.4.5-lts.1",
+    "playwright": "^1.55.0",
+    "socket.io-client": "^4.8.1",
+    "sqlite3": "^5.1.6"
   }
 }

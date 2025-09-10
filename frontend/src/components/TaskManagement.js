@@ -21,6 +21,8 @@ import {
   Divider,
   Checkbox
 } from 'antd';
+import { API_ENDPOINTS } from '../config/api';
+import { apiGet, apiDelete } from '../utils/apiClient';
 import {
   PlusOutlined,
   SearchOutlined,
@@ -102,8 +104,7 @@ const TaskManagement = () => {
   // 获取任务统计
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/tasks/stats');
-      const result = await response.json();
+      const result = await apiGet(API_ENDPOINTS.TASKS.STATS);
 
       if (result.success) {
         setStats(result.data);
@@ -145,15 +146,13 @@ const TaskManagement = () => {
       title: '确认删除',
       content: `确定要删除选中的 ${selectedRowKeys.length} 个任务吗？`,
       onOk: async () => {
-        try {
-          const response = await fetch('/api/tasks', {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ ids: selectedRowKeys })
-          });
-          const result = await response.json();
+          try {
+            const result = await apiDelete(API_ENDPOINTS.TASKS.LIST, {
+              body: JSON.stringify({ ids: selectedRowKeys }),
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
 
           if (result.success) {
             message.success(result.message);

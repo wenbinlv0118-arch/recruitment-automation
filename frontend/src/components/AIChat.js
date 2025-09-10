@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Input, Button, Space, message, Avatar, List, Typography } from 'antd';
+import { Card, Input, Button, Space, message, Avatar, Typography } from 'antd';
 import { RobotOutlined, SendOutlined, UserOutlined } from '@ant-design/icons';
 import axios from 'axios';
 

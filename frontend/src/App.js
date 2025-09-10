@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Card, Input, Button, message, List, Typography, Space, Menu, Modal } from 'antd';
+import { Layout, Input, Button, message, Typography, Menu, Modal } from 'antd';
 import { 
   SendOutlined, 
   RobotOutlined, 
@@ -18,7 +18,8 @@ import styled from 'styled-components';
 import COTReasoning from './components/COTReasoning';
 import ResumeLibrary from './components/ResumeLibrary';
 import KnowledgeBase from './components/KnowledgeBase';
-import DocumentUpload from './components/DocumentUpload';
+import { WEBSOCKET_CONFIG } from './config/api';
+// import DocumentUpload from './components/DocumentUpload'; // 暂时未使用
 import ResumeRecommendationModal from './components/ResumeRecommendationModal';
 import CapabilityCards from './components/CapabilityCards';
 import TaskManagement from './components/TaskManagement';
@@ -36,7 +37,7 @@ import { createCOTResponse } from './utils/cotUtils';
 import './App.css';
 
 const { Header, Content, Sider } = Layout;
-const { Text, Title } = Typography;
+const { Title } = Typography;
 
 // 样式组件 - 未来科技感设计
 const StyledSider = styled(Sider)`
@@ -187,16 +188,16 @@ const ChatContainer = styled.div`
   }
 `;
 
-const ChatHeader = styled.div`
-  background: var(--gradient-primary);
-  color: white;
-  padding: 16px 24px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  display: none; // 隐藏标题栏
-`;
+// const ChatHeader = styled.div`
+//   background: var(--gradient-primary);
+//   color: white;
+//   padding: 16px 24px;
+//   font-weight: 600;
+//   display: flex;
+//   align-items: center;
+//   gap: 8px;
+//   display: none; // 隐藏标题栏
+// `;
 
 const MessagesContainer = styled.div`
   flex: 1;
@@ -287,24 +288,24 @@ const MessageContent = styled.div.withConfig({
   }
 `;
 
-const ThinkingIndicator = styled.span`
-  color: var(--primary-blue);
-  margin-right: 8px;
-  font-weight: 600;
-  text-shadow: 0 0 8px rgba(0, 122, 255, 0.3);
-  animation: pulse 2s infinite;
-  
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.7;
-      transform: scale(1.05);
-    }
-  }
-`;
+// const ThinkingIndicator = styled.span`
+//   color: var(--primary-blue);
+//   margin-right: 8px;
+//   font-weight: 600;
+//   text-shadow: 0 0 8px rgba(0, 122, 255, 0.3);
+//   animation: pulse 2s infinite;
+//
+//   @keyframes pulse {
+//     0%, 100% {
+//       opacity: 1;
+//       transform: scale(1);
+//     }
+//     50% {
+//       opacity: 0.7;
+//       transform: scale(1.05);
+//     }
+//   }
+// `;
 
 const InputContainer = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== 'hasModal'
@@ -335,50 +336,50 @@ const InputContainer = styled.div.withConfig({
   }
 `;
 
-const StatusCard = styled(Card)`
-  margin-bottom: 20px;
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--blur-md) !important;
-  -webkit-backdrop-filter: var(--blur-md) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-lg) !important;
-  transition: all var(--duration-fast) ease;
-  
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-xl), 0 0 20px rgba(0, 122, 255, 0.15) !important;
-  }
-  
-  .ant-card-body {
-    background: transparent !important;
-  }
-`;
+// const StatusCard = styled(Card)`
+//   margin-bottom: 20px;
+//   background: var(--glass-bg) !important;
+//   backdrop-filter: var(--blur-md) !important;
+//   -webkit-backdrop-filter: var(--blur-md) !important;
+//   border: 1px solid var(--glass-border) !important;
+//   border-radius: var(--radius-lg) !important;
+//   box-shadow: var(--shadow-lg) !important;
+//   transition: all var(--duration-fast) ease;
+//
+//   &:hover {
+//     transform: translateY(-4px);
+//     box-shadow: var(--shadow-xl), 0 0 20px rgba(0, 122, 255, 0.15) !important;
+//   }
+//
+//   .ant-card-body {
+//     background: transparent !important;
+//   }
+// `;
 
-const ResumeList = styled(List)`
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--blur-md) !important;
-  -webkit-backdrop-filter: var(--blur-md) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: var(--radius-lg) !important;
-  padding: 20px;
-  box-shadow: var(--shadow-lg) !important;
-  transition: all var(--duration-fast) ease;
-  
-  &:hover {
-    box-shadow: var(--shadow-xl) !important;
-  }
-  
-  .ant-list-item {
-    border-bottom: 1px solid var(--glass-border) !important;
-    transition: all var(--duration-fast) ease;
-    
-    &:hover {
-      background: var(--glass-bg-light) !important;
-      border-radius: var(--radius-md);
-    }
-  }
-`;
+// const ResumeList = styled(List)`
+//   background: var(--glass-bg) !important;
+//   backdrop-filter: var(--blur-md) !important;
+//   -webkit-backdrop-filter: var(--blur-md) !important;
+//   border: 1px solid var(--glass-border) !important;
+//   border-radius: var(--radius-lg) !important;
+//   padding: 20px;
+//   box-shadow: var(--shadow-lg) !important;
+//   transition: all var(--duration-fast) ease;
+//
+//   &:hover {
+//     box-shadow: var(--shadow-xl) !important;
+//   }
+//
+//   .ant-list-item {
+//     border-bottom: 1px solid var(--glass-border) !important;
+//     transition: all var(--duration-fast) ease;
+//   
+//     &:hover {
+//       background: var(--glass-bg-light) !important;
+//       border-radius: var(--radius-md);
+//     }
+//   }
+// `;
 
 
 
@@ -535,13 +536,13 @@ function App() {
   useEffect(() => {
     // console.log('正在连接Socket.IO...');
     
-    const newSocket = io('http://localhost:5001', {
+    const newSocket = io(WEBSOCKET_CONFIG.URL, {
       transports: ['websocket', 'polling'], // 优先使用WebSocket，降级到polling
       timeout: 20000, // 减少超时时间
       forceNew: true,
       reconnection: true,
-      reconnectionAttempts: 10, // 增加重连次数
-      reconnectionDelay: 2000, // 增加重连延迟
+      reconnectionAttempts: WEBSOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS, // 使用配置的重连次数
+      reconnectionDelay: WEBSOCKET_CONFIG.RECONNECT_INTERVAL, // 使用配置的重连延迟
       reconnectionDelayMax: 10000, // 增加最大重连延迟
       upgrade: true,
       rememberUpgrade: true,
@@ -1547,23 +1548,7 @@ function App() {
 
   // 移除了extractPhoneFromMessages函数 - 针对求职者端的功能
 
-  // 下载简历
-  const downloadResume = async (filename) => {
-    try {
-      const response = await fetch(`/api/resumes/${filename}`);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      message.error('下载失败');
-    }
-  };
+
 
   return (
     <StyledLayout>
