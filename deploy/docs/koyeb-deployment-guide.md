@@ -9,8 +9,6 @@
 - [x] GitHub 账号
 - [x] 代码已推送到 GitHub 仓库
 - [x] 已配置 `deploy/config/.env.production` 文件
-- [x] 后端目录包含 `Dockerfile`（已自动创建）
-- [x] 后端目录包含 `.dockerignore`（已自动创建）
 
 ## 🚀 部署步骤
 
@@ -22,58 +20,46 @@
 
 ### 2. 创建新服务
 
-1. 登录后，在控制台首页点击 **Create Web Service**
-2. Koyeb会直接进入部署配置页面
+1. 登录后，在控制台首页点击 **Create Service** 按钮
+2. 在 "Let's deploy a new service" 页面，选择 **GitHub** 选项
+   - 可以看到 GitHub 和 Docker 两个选项
+   - 选择 GitHub 来从代码仓库部署
+3. 点击 GitHub 图标继续
 
-### 3. 配置部署源
+### 3. 导入项目
 
-1. 在 **Deploy from** 部分选择 **GitHub**
-2. 如果是首次使用，需要授权 Koyeb 访问您的 GitHub 仓库
-3. 在仓库列表中选择 `recruitment-automation`
-4. 在分支选择中选择 `main` 或 `develop`
-5. Koyeb会自动检测项目结构和配置
+1. 在 "Create a new service" 页面的 "Import project" 步骤中：
+   - 如果是首次使用，需要授权 Koyeb 访问您的 GitHub 仓库
+   - 在搜索框中输入仓库名称或从列表中选择 `recruitment-automation`
+   - 选择分支：确保选择 `develop` 分支（默认可能是 `main` 或 `master`）
+   - 确认选择正确的仓库和分支后点击 **Import** 按钮
 
-### 4. 自动检测和配置
+### 4. 配置构建选项
 
-Koyeb会自动检测项目配置：
+1. 在 "Build options" 页面（步骤 2 of 4）：
+   - 选择 **Buildpack** 选项（推荐，自动检测项目类型）
+   - 或选择 **Dockerfile** 如果项目包含 Dockerfile
 
-- **自动检测**: Koyeb会扫描项目根目录和子目录
-- **Dockerfile优先**: 检测到 `backend/Dockerfile`，会使用Docker构建
-- **工作目录**: 自动设置为 `backend/`
-- **端口检测**: 从Dockerfile中的EXPOSE指令检测端口3001
-- **健康检查**: 使用Dockerfile中定义的健康检查
+2. 展开 "Customize Buildpack settings" 部分：
+   - **Run command**: 设置为 `cd backend && npm start`
+   - **Build command**: 设置为 `cd backend && npm install`
+   - **Work directory**: 保持默认 `/app`
+   - **Privileged**: 保持默认关闭状态
 
-**推荐配置**（通常自动检测）：
-```bash
-# 构建方式
-Docker
+### 5. 配置服务设置
 
-# 工作目录
-backend/
+1. 在 "Configure service" 页面（步骤 3 of 4）：
+   - **Service name**: 输入 `recruitment-backend`
+   - **Region**: 选择离您最近的区域（如 Frankfurt, Paris 等）
+   - **Instance type**: 选择 **Nano** (免费套餐)
+   - **Scaling**: 保持默认设置 (1 instance)
 
-# 端口
-3001
-
-# 健康检查端点
-/api/health
-```
-
-如需手动配置，可在 **Advanced** 部分调整：
-- 构建参数
-- 环境变量
-- 资源限制
-
-### 5. 服务配置
-
-1. **App name**: `recruitment-backend`
-2. **Instance type**: 选择 **Nano** (512MB RAM, 0.1 vCPU)
-3. **Regions**: 选择离用户最近的区域（如 Frankfurt, Paris）
-4. **Scaling**: 保持默认设置 (1 instance)
-5. **Health checks**: Koyeb会自动配置健康检查
+2. 点击 **Next** 继续到下一步
 
 ### 6. 环境变量配置
 
-在 **Environment variables** 部分添加以下变量：
+1. 在 "Environment variables" 页面（步骤 4 of 4）添加以下变量：
+2. 点击 **Add variable** 按钮逐个添加：
 
 ```bash
 # 从 deploy/config/.env.production 文件复制以下变量
@@ -91,38 +77,19 @@ RATE_LIMIT_MAX=100
 
 ### 7. 部署服务
 
-1. 检查所有配置无误后，点击 **Deploy**
-2. Koyeb开始构建和部署过程：
-   - **Building**: 下载代码并构建应用
-   - **Deploying**: 部署到选定区域
-   - **Starting**: 启动应用实例
-3. 整个过程通常需要 2-5 分钟
-4. 部署成功后，服务状态变为 **Healthy**
+1. 完成所有环境变量配置后，检查所有设置无误
+2. 点击 **Deploy** 按钮开始部署
+3. 系统会自动跳转到服务详情页面
+4. 等待部署完成（通常需要 3-5 分钟）：
+   - 可以在 **Deployments** 标签中查看部署进度
+   - 在 **Logs** 标签中查看实时构建和运行日志
+5. 部署成功后，服务状态会显示为 **Healthy** 或 **Running**
 
 ### 8. 获取服务 URL
 
 1. 在服务详情页面，复制 **Public URL**
 2. URL 格式通常为：`https://your-service-name-xxx.koyeb.app`
 3. 记录此 URL，后续需要在前端配置中使用
-
-## 🐳 Docker部署优势
-
-使用Docker部署具有以下优势：
-
-- **环境一致性**: 确保开发、测试、生产环境完全一致
-- **依赖管理**: 所有系统依赖都打包在镜像中
-- **快速启动**: 容器启动速度快，扩展性好
-- **资源隔离**: 更好的资源管理和安全性
-- **健康检查**: 内置健康检查机制，自动重启故障实例
-
-### Docker配置说明
-
-项目已包含优化的Docker配置：
-
-1. **Dockerfile**: 基于Alpine Linux的轻量级镜像
-2. **.dockerignore**: 排除不必要文件，减小镜像体积
-3. **健康检查**: 自动监控应用状态
-4. **多阶段构建**: 优化构建过程和镜像大小
 
 ## 🔧 部署后配置
 
@@ -157,42 +124,29 @@ REACT_APP_API_URL=https://your-service-name-xxx.koyeb.app
 
 当代码更新后：
 
-1. 推送代码到 GitHub 的对应分支
-2. Koyeb 会自动检测到更改并触发重新部署
-3. 也可以在控制台点击 **Redeploy** 手动触发
-4. 支持回滚到之前的部署版本
+1. 推送代码到 GitHub 的 `develop` 分支
+2. Koyeb 会自动检测到更改并重新部署
+3. 也可以在控制台手动触发重新部署
 
 ### 免费额度管理
 
-- Koyeb 提供每月免费额度（具体额度可能调整）
-- Nano 实例：512MB RAM, 0.1 vCPU
-- 免费额度包括：计算时间、带宽、构建时间
-- 超出免费额度后按使用量计费
-- 可在控制台查看当前使用情况
+- Koyeb 提供每月 5.5 美元的免费额度
+- Nano 实例每月消耗约 5.5 美元
+- 需要每 14 天登录一次平台以保持服务活跃
 
 ## ❗ 常见问题
 
 ### 部署失败
 
-1. **构建失败**: 
-   - 检查 `package.json` 和依赖项
-   - 查看构建日志中的错误信息
-   - 确保Node.js版本兼容
-2. **启动失败**: 
-   - 检查环境变量配置
-   - 验证启动命令是否正确
-   - 查看应用日志排查错误
-3. **健康检查失败**: 
-   - 确保应用正确监听端口
-   - 检查应用是否能正常响应HTTP请求
+1. **构建失败**: 检查 `package.json` 和依赖项
+2. **启动失败**: 检查环境变量配置
+3. **端口错误**: 确保使用端口 3001
 
 ### 服务无法访问
 
-1. 检查服务状态是否为 **Healthy**
+1. 检查服务状态是否为 **Running**
 2. 验证环境变量是否正确配置
 3. 查看服务日志排查错误
-4. 检查域名DNS配置（如使用自定义域名）
-5. 验证防火墙和安全组设置
 
 ### 免费额度用完
 
