@@ -1,0 +1,75 @@
+functionsDirectory = "/Users/leo/Documents/Saas 智能化发展/Recruitment-automation/frontend/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
+headersOrigin = "config"
+redirectsOrigin = "config"
+plugins = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/Users/leo/Documents/Saas 智能化发展/Recruitment-automation/frontend/functions-build"
+publishOrigin = "config"
+commandOrigin = "config"
+base = "/Users/leo/Documents/Saas 智能化发展/Recruitment-automation/frontend"
+command = "npm run build:functions"
+functions = "/Users/leo/Documents/Saas 智能化发展/Recruitment-automation/frontend/netlify/functions"
+
+[build.environment]
+NODE_VERSION = "20"
+NPM_VERSION = "9"
+NODE_ENV = "production"
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+X-Frame-Options = "DENY"
+X-XSS-Protection = "1; mode=block"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+for = "/.netlify/functions/*"
+
+[headers.values]
+Access-Control-Allow-Origin = "*"
+Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
+Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/:splat"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
