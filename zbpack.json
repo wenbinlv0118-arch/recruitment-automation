@@ -3,12 +3,9 @@
   "build_command": "echo 'Monorepo detected, please specify service'",
   "services": {
     "backend": {
-      "build_command": "cd backend && npm ci && npm run build",
-      "start_command": "cd backend && npm start",
-      "install_command": "cd backend && npm ci",
-      "node_version": "18",
-      "cache_dependencies": true,
-      "environment": "node",
+      "dockerfile": "backend/Dockerfile",
+      "context": "backend",
+      "environment": "docker",
       "framework": "express"
     },
     "frontend": {
