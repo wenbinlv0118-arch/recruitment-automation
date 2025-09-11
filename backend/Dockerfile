@@ -29,6 +29,14 @@ RUN apt-get update && apt-get install -y \
 # 设置工作目录
 WORKDIR /app
 
+# 设置环境变量
+ENV NODE_ENV=production
+ENV PORT=3001
+
+# 设置虚拟显示环境变量，解决X11显示问题
+ENV DISPLAY=:99
+ENV DBUS_SESSION_BUS_ADDRESS=/dev/null
+
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
 

@@ -16,6 +16,16 @@ module.exports = {
       '--high-dpi-support=1', // 启用高DPI支持
       '--force-color-profile=srgb', // 强制使用sRGB颜色配置
       
+      // 生产环境虚拟显示支持
+      '--virtual-time-budget=5000', // 虚拟时间预算
+      '--run-all-compositor-stages-before-draw', // 在绘制前运行所有合成器阶段
+      '--disable-background-networking', // 禁用后台网络
+      '--disable-default-apps', // 禁用默认应用
+      '--disable-extensions', // 禁用扩展
+      '--disable-sync', // 禁用同步
+      '--no-first-run', // 跳过首次运行
+      '--no-default-browser-check', // 不检查默认浏览器
+      
       // 窗口和渲染优化
       '--disable-features=CalculateNativeWinOcclusion', // 禁用窗口遮挡计算
       '--disable-backgrounding-occluded-windows', // 禁用被遮挡窗口的后台处理

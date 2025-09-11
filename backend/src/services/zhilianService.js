@@ -132,8 +132,11 @@ class ZhilianService {
       
       logger.info('浏览器启动参数已优化，包含显示统一配置');
       
+      // 根据环境决定是否使用无头模式
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.ZEABUR_ENVIRONMENT;
+      
       this.browser = await chromium.launch({
-        headless: false, // 显示浏览器界面，便于用户登录
+        headless: isProduction, // 生产环境使用无头模式，开发环境显示界面
         args: allArgs,
         viewport: displayConfig.contextOptions.viewport
       });
