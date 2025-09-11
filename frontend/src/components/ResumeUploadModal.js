@@ -52,7 +52,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       const formData = new FormData();
       formData.append('file', file);
       
-      const result = await apiPost('/api/resume-library/upload', formData);
+      const result = await apiPost(API_ENDPOINTS.RESUME_LIBRARY.UPLOAD, formData);
       
       if (result.success) {
         setParsedResume(result.data.parsedResume);
@@ -80,7 +80,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
     
     setLoading(true);
     try {
-      const result = await apiPost('/api/resume/parse-boss-resume', { text: textValue });
+      const result = await apiPost(API_ENDPOINTS.RESUME.PARSE_BOSS_RESUME, { text: textValue });
       
       if (result.success) {
         // 处理新的结构化JSON数据格式

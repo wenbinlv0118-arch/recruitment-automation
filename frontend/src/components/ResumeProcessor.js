@@ -17,6 +17,7 @@ import {
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { apiGet, apiPost } from '../utils/apiClient';
+import { API_ENDPOINTS } from '../config/api';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -225,7 +226,7 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
       message.success('开始简历处理...');
       
       // 调用后端API启动处理
-      const result = await apiPost('/api/boss-zhipin/start-resume-processing', {
+      const result = await apiPost(API_ENDPOINTS.BOSS_ZHIPIN.START_RESUME_PROCESSING, {
         settings: settings
       });
       
@@ -252,7 +253,7 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
       message.info('已停止简历处理');
       
       // 调用后端API停止处理
-      await apiPost('/api/boss-zhipin/stop-resume-processing', {});
+      await apiPost(API_ENDPOINTS.BOSS_ZHIPIN.STOP_RESUME_PROCESSING, {});
     } catch (error) {
       console.error('停止处理失败:', error);
     }
@@ -262,7 +263,7 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
   const startStatusPolling = () => {
     const interval = setInterval(async () => {
       try {
-        const result = await apiGet('/api/boss-zhipin/resume-processing-status');
+        const result = await apiGet(API_ENDPOINTS.BOSS_ZHIPIN.GET_RESUME_PROCESSING_STATUS);
         
         if (result.success) {
           const { resumes, processingCount, completedCount, failedCount, currentIndex, isActive, status } = result.data;
@@ -302,7 +303,7 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
   // 处理单个简历
   const processResume = async (resumeId, action) => {
     try {
-      const result = await apiPost('/api/boss-zhipin/process-resume', {
+      const result = await apiPost(API_ENDPOINTS.BOSS_ZHIPIN.PROCESS_RESUME, {
         resumeId,
         action // approve, reject, manual_review
       });
@@ -423,7 +424,7 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
 
   useEffect(() => {
     // 组件加载时获取初始状态
-    apiGet('/api/boss-zhipin/resume-processing-status')
+    apiGet(API_ENDPOINTS.BOSS_ZHIPIN.GET_RESUME_PROCESSING_STATUS)
       .then(result => {
         if (result.success) {
           const { resumes, processingCount, completedCount, failedCount, currentIndex } = result.data;

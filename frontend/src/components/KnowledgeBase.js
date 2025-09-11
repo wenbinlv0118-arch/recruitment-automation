@@ -4,6 +4,7 @@ import { DeleteOutlined, ExclamationCircleOutlined, EyeOutlined } from '@ant-des
 import axios from 'axios';
 import DocumentUpload from './DocumentUpload';
 import DocumentViewer from './DocumentViewer';
+import { API_ENDPOINTS } from '../config/api';
 
 const { Content } = Layout;
 const { confirm } = Modal;
@@ -15,7 +16,7 @@ const KnowledgeBase = ({ selectedMenu: defaultMenu = 'documents' }) => {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
 
-  const API_BASE = '/api/knowledge';
+  // 使用统一的API端点配置
 
   useEffect(() => {
     loadDocuments();
@@ -24,7 +25,7 @@ const KnowledgeBase = ({ selectedMenu: defaultMenu = 'documents' }) => {
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE}/documents?companyId=1`);
+      const response = await axios.get(`${API_ENDPOINTS.KNOWLEDGE.DOCUMENTS}?companyId=1`);
       if (response.data.success) {
         setDocuments(response.data.data);
       }
@@ -39,7 +40,7 @@ const KnowledgeBase = ({ selectedMenu: defaultMenu = 'documents' }) => {
   const handleDeleteDocument = async (documentId, documentTitle) => {
     setDeleteLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE}/documents/${documentId}`);
+      const response = await axios.delete(`${API_ENDPOINTS.KNOWLEDGE.DOCUMENTS}/${documentId}`);
       if (response.data.success) {
         message.success(response.data.data.message || `文档"${documentTitle}"删除成功`);
         loadDocuments(); // 重新加载文档列表
@@ -242,4 +243,4 @@ const KnowledgeBase = ({ selectedMenu: defaultMenu = 'documents' }) => {
   );
 };
 
-export default KnowledgeBase; 
+export default KnowledgeBase;

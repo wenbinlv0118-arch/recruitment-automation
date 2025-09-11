@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Tag, Spin, message } from 'antd';
 import { StarOutlined } from '@ant-design/icons';
 import { apiPost } from '../services/api';
+import { API_ENDPOINTS } from '../config/api';
 
 /**
  * 工作经历亮点组件
@@ -30,7 +31,7 @@ const WorkExperienceHighlights = ({ workExperiences, resumeId }) => {
         description: exp.description || '暂无描述'
       }));
 
-      const result = await apiPost('/api/resume/generate-highlights', {
+      const result = await apiPost(API_ENDPOINTS.RESUME.GENERATE_HIGHLIGHTS, {
         workExperience: formattedExperiences
       });
       

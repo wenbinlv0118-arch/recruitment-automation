@@ -79,7 +79,7 @@ export const useData = () => {
 
   const downloadResume = async (filename) => {
     try {
-      const result = await apiGet(`/api/download-resume?filename=${encodeURIComponent(filename)}`, { responseType: 'blob' });
+      const result = await apiGet(`${API_ENDPOINTS.RESUME.DOWNLOAD}?filename=${encodeURIComponent(filename)}`, { responseType: 'blob' });
       if (result.success) {
         const blob = result.data;
         const url = window.URL.createObjectURL(blob);

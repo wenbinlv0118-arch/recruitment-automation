@@ -16,6 +16,7 @@ import styled from 'styled-components';
 import CandidateBrowser from './CandidateBrowser';
 import ResumeProcessor from './ResumeProcessor';
 import { apiGet, apiPost } from '../utils/apiClient';
+import { API_ENDPOINTS } from '../config/api';
 
 const { Title, Text } = Typography;
 
@@ -236,7 +237,7 @@ const ZhilianControl = () => {
    */
   const fetchStatus = useCallback(async () => {
     try {
-      const result = await apiGet('/api/zhilian/status');
+      const result = await apiGet(API_ENDPOINTS.ZHILIAN.GET_STATUS);
       
       if (result.success) {
         const statusData = result.data;
@@ -308,7 +309,7 @@ const ZhilianControl = () => {
         startStatusPolling();
         
         // 检查是否已经登录
-        const statusResult = await apiGet('/api/zhilian/status');
+        const statusResult = await apiGet(API_ENDPOINTS.ZHILIAN.GET_STATUS);
         
         if (statusResult.success && !statusResult.data.loggedIn) {
           // 如果还未登录，开始等待登录
@@ -384,7 +385,7 @@ const ZhilianControl = () => {
       addLog('正在检查登录状态...', 'info');
       
       // 使用专门的登录状态检查API
-      const result = await apiGet('/api/zhilian/login-status');
+      const result = await apiGet(API_ENDPOINTS.ZHILIAN.GET_LOGIN_STATUS);
       
       if (result.success) {
         const statusData = result.data;
@@ -509,7 +510,7 @@ const ZhilianControl = () => {
         await fetchStatus();
         
         // 检查是否已登录，如果已登录则停止轮询
-        const result = await apiGet('/api/zhilian/status');
+        const result = await apiGet(API_ENDPOINTS.ZHILIAN.GET_STATUS);
         
         if (result.success && result.data.loggedIn) {
           // 登录成功，停止轮询

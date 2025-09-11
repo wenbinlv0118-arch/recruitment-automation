@@ -4,6 +4,7 @@ import { Spin, message, Tag, Space, Typography } from 'antd';
 import { FileTextOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
 import ModalBasePattern from './ModalBasePattern';
 import { apiGet } from '../utils/apiClient';
+import { API_ENDPOINTS } from '../config/api';
 
 const { Text, Title } = Typography;
 
@@ -77,11 +78,11 @@ const DocumentViewer = ({ visible, onClose, documentId, documentTitle }) => {
     
     try {
       // 获取文档详情
-      const infoData = await apiGet(`/api/knowledge/documents/${documentId}`);
+      const infoData = await apiGet(`${API_ENDPOINTS.KNOWLEDGE.DOCUMENT_DETAIL}/${documentId}`);
       setDocumentInfo(infoData.data);
 
       // 获取文档块内容
-      const chunksData = await apiGet(`/api/knowledge/documents/${documentId}/chunks`);
+      const chunksData = await apiGet(`${API_ENDPOINTS.KNOWLEDGE.DOCUMENT_CHUNKS}/${documentId}/chunks`);
       
       // 合并所有文档块
       const fullContent = chunksData.data
@@ -111,7 +112,7 @@ const DocumentViewer = ({ visible, onClose, documentId, documentTitle }) => {
     if (!documentInfo) return;
     
     try {
-      const blob = await apiGet(`/api/knowledge/documents/${documentId}/download`, {}, { responseType: 'blob' });
+      const blob = await apiGet(`${API_ENDPOINTS.KNOWLEDGE.DOCUMENT_DOWNLOAD}/${documentId}/download`, {}, { responseType: 'blob' });
       
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
