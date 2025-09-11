@@ -17,7 +17,7 @@ const API_CONFIG = {
   },
   // 生产环境配置
   production: {
-    baseURL: process.env.REACT_APP_API_BASE_URL || 'https://recruitment-automation-api.netlify.app/.netlify/functions',
+    baseURL: process.env.REACT_APP_API_BASE_URL || 'https://recruitment-automation-backend.zeabur.app',
     timeout: 15000,
     withCredentials: false
   }
