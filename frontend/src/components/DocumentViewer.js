@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Spin, message, Tag, Space, Typography } from 'antd';
 import { FileTextOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
 import ModalBasePattern from './ModalBasePattern';
-import { apiGet } from '../utils/api';
+import { apiGet } from '../utils/apiClient';
 
 const { Text, Title } = Typography;
 

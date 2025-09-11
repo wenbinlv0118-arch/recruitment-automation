@@ -15,7 +15,7 @@ import {
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import FilterPanel from './FilterPanel';
-import { apiPost, apiGet } from '../utils/api';
+import { apiPost, apiGet } from '../utils/apiClient';
 import useFilters from '../hooks/useFilters';
 
 const { Title, Text } = Typography;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Divider, Tag, Space, Card, Button, Input, Select, message, Form, Modal } from 'antd';
-import { apiPost, apiPut } from '../utils/api';
+import { apiPost, apiPut } from '../utils/apiClient';
 import { 
   UserOutlined, 
   BookOutlined, 
