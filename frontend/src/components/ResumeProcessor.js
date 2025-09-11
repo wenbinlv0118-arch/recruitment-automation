@@ -16,6 +16,7 @@ import {
   EnvironmentOutlined
 } from '@ant-design/icons';
 import styled from 'styled-components';
+import { apiGet, apiPost } from '../utils/apiClient';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -224,17 +225,9 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
       message.success('开始简历处理...');
       
       // 调用后端API启动处理
-      const response = await fetch('/api/boss-zhipin/start-resume-processing', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          settings: settings
-        })
+      const result = await apiPost('/api/boss-zhipin/start-resume-processing', {
+        settings: settings
       });
-      
-      const result = await response.json();
       
       if (result.success) {
         message.success('简历处理已启动');
@@ -259,9 +252,7 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
       message.info('已停止简历处理');
       
       // 调用后端API停止处理
-      await fetch('/api/boss-zhipin/stop-resume-processing', {
-        method: 'POST'
-      });
+      await apiPost('/api/boss-zhipin/stop-resume-processing', {});
     } catch (error) {
       console.error('停止处理失败:', error);
     }
@@ -271,8 +262,7 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
   const startStatusPolling = () => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch('/api/boss-zhipin/resume-processing-status');
-        const result = await response.json();
+        const result = await apiGet('/api/boss-zhipin/resume-processing-status');
         
         if (result.success) {
           const { resumes, processingCount, completedCount, failedCount, currentIndex, isActive, status } = result.data;
@@ -312,18 +302,10 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
   // 处理单个简历
   const processResume = async (resumeId, action) => {
     try {
-      const response = await fetch('/api/boss-zhipin/process-resume', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          resumeId,
-          action // approve, reject, manual_review
-        })
+      const result = await apiPost('/api/boss-zhipin/process-resume', {
+        resumeId,
+        action // approve, reject, manual_review
       });
-      
-      const result = await response.json();
       
       if (result.success) {
         if (action === 'approve') {
@@ -441,8 +423,7 @@ const ResumeProcessor = ({ platform = 'boss' }) => {
 
   useEffect(() => {
     // 组件加载时获取初始状态
-    fetch('/api/boss-zhipin/resume-processing-status')
-      .then(response => response.json())
+    apiGet('/api/boss-zhipin/resume-processing-status')
       .then(result => {
         if (result.success) {
           const { resumes, processingCount, completedCount, failedCount, currentIndex } = result.data;

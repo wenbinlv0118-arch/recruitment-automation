@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Spin, message, Tag, Space, Typography } from 'antd';
 import { FileTextOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
 import ModalBasePattern from './ModalBasePattern';
+import { apiGet } from '../utils/api';
 
 const { Text, Title } = Typography;
 
@@ -76,19 +77,11 @@ const DocumentViewer = ({ visible, onClose, documentId, documentTitle }) => {
     
     try {
       // 获取文档详情
-      const infoResponse = await fetch(`/api/knowledge/documents/${documentId}`);
-      if (!infoResponse.ok) {
-        throw new Error('获取文档信息失败');
-      }
-      const infoData = await infoResponse.json();
+      const infoData = await apiGet(`/api/knowledge/documents/${documentId}`);
       setDocumentInfo(infoData.data);
 
       // 获取文档块内容
-              const chunksResponse = await fetch(`/api/knowledge/documents/${documentId}/chunks`);
-      if (!chunksResponse.ok) {
-        throw new Error('获取文档内容失败');
-      }
-      const chunksData = await chunksResponse.json();
+      const chunksData = await apiGet(`/api/knowledge/documents/${documentId}/chunks`);
       
       // 合并所有文档块
       const fullContent = chunksData.data
@@ -118,12 +111,8 @@ const DocumentViewer = ({ visible, onClose, documentId, documentTitle }) => {
     if (!documentInfo) return;
     
     try {
-      const response = await fetch(`/api/knowledge/documents/${documentId}/download`);
-      if (!response.ok) {
-        throw new Error('下载失败');
-      }
+      const blob = await apiGet(`/api/knowledge/documents/${documentId}/download`, {}, { responseType: 'blob' });
       
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -247,4 +236,4 @@ const DocumentViewer = ({ visible, onClose, documentId, documentTitle }) => {
   );
 };
 
-export default DocumentViewer; 
+export default DocumentViewer;

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Button, Form, Input, Select, message, Table, Popconfirm, Space, Modal, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { API_ENDPOINTS } from '../config/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiClient';
 import ModalBasePattern from './ModalBasePattern';
 
 const { Option } = Select;
@@ -60,13 +62,8 @@ const PositionManagement = ({ visible, onClose, companyInfo }) => {
   const fetchPositions = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/positions');
+      const result = await apiGet(API_ENDPOINTS.POSITIONS.LIST);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
       if (result.success) {
         setPositions(result.data || []);
         // 如果有筛选条件，应用筛选
@@ -164,20 +161,7 @@ const PositionManagement = ({ visible, onClose, companyInfo }) => {
         updatedAt: new Date().toISOString()
       };
 
-      const response = await fetch('/api/positions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(positionData)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-      
-      const result = await response.json();
+      const result = await apiPost(API_ENDPOINTS.POSITIONS.LIST, positionData);
       if (result.success) {
         message.success('岗位添加成功');
         setIsAddModalVisible(false);
@@ -201,20 +185,7 @@ const PositionManagement = ({ visible, onClose, companyInfo }) => {
         updatedAt: new Date().toISOString()
       };
 
-      const response = await fetch(`/api/positions/${editingPosition.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(positionData)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-      
-      const result = await response.json();
+      const result = await apiPut(`${API_ENDPOINTS.POSITIONS}/${editingPosition.id}`, positionData);
       if (result.success) {
         message.success('岗位更新成功');
         setIsEditModalVisible(false);
@@ -233,16 +204,7 @@ const PositionManagement = ({ visible, onClose, companyInfo }) => {
   // 删除岗位
   const handleDeletePosition = async (positionId) => {
     try {
-      const response = await fetch(`/api/positions/${positionId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-      
-      const result = await response.json();
+      const result = await apiDelete(`${API_ENDPOINTS.POSITIONS}/${positionId}`);
       if (result.success) {
         message.success('岗位删除成功');
         fetchPositions(); // 重新获取岗位列表

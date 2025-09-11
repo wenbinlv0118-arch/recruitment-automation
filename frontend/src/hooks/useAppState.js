@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import { API_ENDPOINTS } from '../config/api';
+import { apiGet } from '../utils/apiClient';
 
 /**
  * 应用状态管理hook
@@ -44,8 +46,7 @@ export const useAppState = () => {
   const fetchPositions = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/positions');
-      const result = await response.json();
+      const result = await apiGet(API_ENDPOINTS.POSITIONS.LIST);
       if (result.success) {
         setPositions(result.data || []);
       } else {

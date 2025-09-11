@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tag, Spin, message } from 'antd';
 import { StarOutlined } from '@ant-design/icons';
+import { apiPost } from '../services/api';
 
 /**
  * 工作经历亮点组件
@@ -29,17 +30,9 @@ const WorkExperienceHighlights = ({ workExperiences, resumeId }) => {
         description: exp.description || '暂无描述'
       }));
 
-      const response = await fetch('/api/resume/generate-highlights', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          workExperience: formattedExperiences
-        })
+      const result = await apiPost('/api/resume/generate-highlights', {
+        workExperience: formattedExperiences
       });
-
-      const result = await response.json();
       
       if (result.success) {
         setHighlights(result.data);

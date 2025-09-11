@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Divider, Tag, Space, Card, Button, Input, Select, message, Form, Modal, Progress, Steps } from 'antd';
+import { apiPut } from '../utils/apiClient';
 import { 
   UserOutlined, 
   BookOutlined, 
@@ -274,21 +275,11 @@ const JDDetailDrawer = ({ visible, onClose, positionData }) => {
       const updatedData = { ...editData, ...values };
       
       // 调用API更新岗位信息
-      const response = await fetch(`/api/positions/${positionData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedData)
-      });
-
-      if (response.ok) {
-        setEditData(updatedData);
-        setIsEditing(false);
-        message.success('岗位信息更新成功');
-      } else {
-        message.error('更新失败，请重试');
-      }
+      const response = await apiPut(`/api/positions/${positionData.id}`, updatedData);
+      
+      setEditData(updatedData);
+      setIsEditing(false);
+      message.success('岗位信息更新成功');
     } catch (error) {
       console.error('保存失败:', error);
       message.error('保存失败，请重试');

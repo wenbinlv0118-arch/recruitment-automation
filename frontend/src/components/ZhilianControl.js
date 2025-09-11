@@ -15,6 +15,7 @@ import {
 import styled from 'styled-components';
 import CandidateBrowser from './CandidateBrowser';
 import ResumeProcessor from './ResumeProcessor';
+import { apiGet, apiPost } from '../utils/apiClient';
 
 const { Title, Text } = Typography;
 
@@ -235,8 +236,7 @@ const ZhilianControl = () => {
    */
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/zhilian/status');
-      const result = await response.json();
+      const result = await apiGet('/api/zhilian/status');
       
       if (result.success) {
         const statusData = result.data;
@@ -273,14 +273,7 @@ const ZhilianControl = () => {
       
       // 第一步：初始化浏览器
       addLog('正在初始化浏览器...', 'info');
-      const initResponse = await fetch('/api/zhilian/init', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const initResult = await initResponse.json();
+      const initResult = await apiPost('/api/zhilian/init', {});
       
       if (!initResult.success) {
         message.error(initResult.message);
@@ -304,15 +297,7 @@ const ZhilianControl = () => {
       
       // 第二步：打开智联招聘网站
       addLog('正在打开智联招聘网站...', 'info');
-      const openResponse = await fetch('/api/zhilian/execute-step', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ step: 'open_website' })
-      });
-      
-      const openResult = await openResponse.json();
+      const openResult = await apiPost('/api/zhilian/execute-step', { step: 'open_website' });
       
       if (openResult.success) {
         message.success('智联招聘网站已打开，请登录！');
@@ -323,8 +308,7 @@ const ZhilianControl = () => {
         startStatusPolling();
         
         // 检查是否已经登录
-        const statusResponse = await fetch('/api/zhilian/status');
-        const statusResult = await statusResponse.json();
+        const statusResult = await apiGet('/api/zhilian/status');
         
         if (statusResult.success && !statusResult.data.loggedIn) {
           // 如果还未登录，开始等待登录
@@ -357,14 +341,7 @@ const ZhilianControl = () => {
       setIsLoading(true);
       addLog('正在停止智联招聘智能寻聘...', 'info');
       
-      const response = await fetch('/api/zhilian/stop', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const result = await response.json();
+      const result = await apiPost('/api/zhilian/stop', {});
       
       if (result.success) {
         message.success('智联招聘智能寻聘已停止');
@@ -407,8 +384,7 @@ const ZhilianControl = () => {
       addLog('正在检查登录状态...', 'info');
       
       // 使用专门的登录状态检查API
-      const response = await fetch('/api/zhilian/login-status');
-      const result = await response.json();
+      const result = await apiGet('/api/zhilian/login-status');
       
       if (result.success) {
         const statusData = result.data;
@@ -533,8 +509,7 @@ const ZhilianControl = () => {
         await fetchStatus();
         
         // 检查是否已登录，如果已登录则停止轮询
-        const response = await fetch('/api/zhilian/status');
-        const result = await response.json();
+        const result = await apiGet('/api/zhilian/status');
         
         if (result.success && result.data.loggedIn) {
           // 登录成功，停止轮询

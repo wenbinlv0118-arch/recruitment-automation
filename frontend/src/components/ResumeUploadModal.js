@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Form, Input, Select, Upload, Button, Space, Typography, Card, Tabs, message, Spin, Descriptions, List, Tag, Divider } from 'antd';
 import { UploadOutlined, FileTextOutlined, InboxOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, CalendarOutlined, BuildOutlined, BookOutlined, TrophyOutlined } from '@ant-design/icons';
 import ModalBasePattern from './ModalBasePattern';
+import { API_ENDPOINTS } from '../config/api';
+import { apiPost } from '../utils/apiClient';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -50,12 +52,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await fetch('/api/resume-library/upload', {
-        method: 'POST',
-        body: formData
-      });
-      
-      const result = await response.json();
+      const result = await apiPost('/api/resume-library/upload', formData);
       
       if (result.success) {
         setParsedResume(result.data.parsedResume);
@@ -83,15 +80,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
     
     setLoading(true);
     try {
-      const response = await fetch('/api/resume/parse-boss-resume', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: textValue })
-      });
-      
-      const result = await response.json();
+      const result = await apiPost('/api/resume/parse-boss-resume', { text: textValue });
       
       if (result.success) {
         // 处理新的结构化JSON数据格式
@@ -144,24 +133,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       
       console.log('提交的简历数据:', resumeData);
       
-      const response = await fetch('/api/resume-library', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(resumeData)
-      });
-      
-      console.log('响应状态:', response.status, response.statusText);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('HTTP错误:', response.status, errorText);
-        message.error(`请求失败: ${response.status} ${response.statusText}`);
-        return;
-      }
-      
-      const result = await response.json();
+      const result = await apiPost(API_ENDPOINTS.RESUME_LIBRARY, resumeData);
       console.log('服务器响应:', result);
       
       if (result.success) {

@@ -30,6 +30,7 @@ import {
   GlobalOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { apiGet, apiPost, apiPut } from '../utils/apiClient';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -91,23 +92,7 @@ const TaskDetail = ({ visible, task, onCancel, onRefresh }) => {
     try {
       console.log(`正在更新候选人状态:`, { taskId: task.id, candidateId, status });
       
-      const response = await fetch(`/api/tasks/${task.id}/candidates/${candidateId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status })
-      });
-
-      console.log('API响应状态:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API错误响应:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
+      const result = await apiPut(`/api/tasks/${task.id}/candidates/${candidateId}/status`, { status });
       console.log('API响应结果:', result);
 
       if (result.success) {
@@ -131,18 +116,10 @@ const TaskDetail = ({ visible, task, onCancel, onRefresh }) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/tasks/${task.id}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          content: commentText,
-          author: '当前用户'
-        })
+      const result = await apiPost(`/api/tasks/${task.id}/comments`, {
+        content: commentText,
+        author: '当前用户'
       });
-
-      const result = await response.json();
 
       if (result.success) {
         message.success('评论添加成功');
@@ -421,4 +398,4 @@ const TaskDetail = ({ visible, task, onCancel, onRefresh }) => {
   );
 };
 
-export default TaskDetail; 
+export default TaskDetail;

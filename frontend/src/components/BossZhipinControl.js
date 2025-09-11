@@ -15,6 +15,7 @@ import {
 import styled from 'styled-components';
 import CandidateBrowser from './CandidateBrowser';
 import ResumeProcessor from './ResumeProcessor';
+import { apiGet, apiPost } from '../utils/apiClient';
 
 const { Title, Text } = Typography;
 const { Step } = Steps;
@@ -178,8 +179,7 @@ const BossZhipinControl = () => {
   // 获取状态
   const fetchStatus = async () => {
     try {
-      const response = await fetch('/api/boss-zhipin/status');
-      const result = await response.json();
+      const result = await apiGet('/api/boss-zhipin/status');
       
       if (result.success) {
         const { status, isLoggedIn, hasBrowser, hasPage } = result.data;
@@ -227,14 +227,7 @@ const BossZhipinControl = () => {
       setIsLoading(true);
       addLog('正在启动 Boss 直聘智能寻聘...', 'info');
       
-      const response = await fetch('/api/boss-zhipin/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const result = await response.json();
+      const result = await apiPost('/api/boss-zhipin/start', {});
       
       if (result.success) {
         message.success('Boss 直聘智能寻聘启动成功！');
@@ -262,14 +255,7 @@ const BossZhipinControl = () => {
       setIsLoading(true);
       addLog('正在停止 Boss 直聘智能寻聘...', 'info');
       
-      const response = await fetch('/api/boss-zhipin/stop', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const result = await response.json();
+      const result = await apiPost('/api/boss-zhipin/stop', {});
       
       if (result.success) {
         message.success('Boss 直聘智能寻聘已停止');
@@ -295,14 +281,7 @@ const BossZhipinControl = () => {
   // 检查登录状态
   const checkLoginStatus = async () => {
     try {
-      const response = await fetch('/api/boss-zhipin/check-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const result = await response.json();
+      const result = await apiPost('/api/boss-zhipin/check-login', {});
       
       if (result.success) {
         const { isLoggedIn, status, hasBrowser, hasPage } = result.data;
@@ -346,15 +325,7 @@ const BossZhipinControl = () => {
       setIsLoading(true);
       addLog('正在等待用户扫码登录...', 'info');
       
-      const response = await fetch('/api/boss-zhipin/wait-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ timeout: 300000 }) // 5分钟超时
-      });
-      
-      const result = await response.json();
+      const result = await apiPost('/api/boss-zhipin/wait-login', { timeout: 300000 }); // 5分钟超时
       
       if (result.success) {
         message.info('正在等待用户扫码登录，请使用 Boss 直聘 App 扫描二维码');

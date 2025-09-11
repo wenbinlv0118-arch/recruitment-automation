@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../constants';
+import { apiGet } from '../utils/apiClient';
 import Logger from '../utils/logger';
 
 export const useData = () => {
@@ -9,8 +10,7 @@ export const useData = () => {
 
   const fetchPositions = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.POSITIONS);
-      const result = await response.json();
+      const result = await apiGet(API_ENDPOINTS.POSITIONS);
       if (result.success) {
         setPositions(result.data || []);
       } else {
@@ -25,8 +25,7 @@ export const useData = () => {
 
   const fetchResumes = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.RESUME_LIBRARY);
-      const result = await response.json();
+      const result = await apiGet(API_ENDPOINTS.RESUME_LIBRARY);
       if (result.success) {
         setResumes(result.data || []);
       } else {
@@ -42,8 +41,7 @@ export const useData = () => {
   const getRecommendedResumes = async (query) => {
     try {
       // 获取所有简历
-      const response = await fetch(API_ENDPOINTS.RESUME_LIBRARY);
-      const allResumes = await response.json();
+      const allResumes = await apiGet(API_ENDPOINTS.RESUME_LIBRARY);
       
       // 根据查询关键词筛选简历
       let filteredResumes = allResumes;
@@ -81,9 +79,9 @@ export const useData = () => {
 
   const downloadResume = async (filename) => {
     try {
-      const response = await fetch(`/api/download-resume?filename=${encodeURIComponent(filename)}`);
-      if (response.ok) {
-        const blob = await response.blob();
+      const result = await apiGet(`/api/download-resume?filename=${encodeURIComponent(filename)}`, { responseType: 'blob' });
+      if (result.success) {
+        const blob = result.data;
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -117,4 +115,4 @@ export const useData = () => {
     getRecommendedResumes,
     downloadResume
   };
-}; 
+};

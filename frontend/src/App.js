@@ -18,7 +18,8 @@ import styled from 'styled-components';
 import COTReasoning from './components/COTReasoning';
 import ResumeLibrary from './components/ResumeLibrary';
 import KnowledgeBase from './components/KnowledgeBase';
-import { WEBSOCKET_CONFIG } from './config/api';
+import { WEBSOCKET_CONFIG, API_ENDPOINTS } from './config/api';
+import { apiGet, apiPost } from './utils/apiClient';
 // import DocumentUpload from './components/DocumentUpload'; // 暂时未使用
 import ResumeRecommendationModal from './components/ResumeRecommendationModal';
 import CapabilityCards from './components/CapabilityCards';
@@ -514,8 +515,7 @@ function App() {
   // 获取岗位数据
   const fetchPositions = async () => {
     try {
-      const response = await fetch('/api/positions');
-      const result = await response.json();
+      const result = await apiGet(API_ENDPOINTS.POSITIONS.LIST);
       if (result.success) {
         setPositions(result.data || []);
       } else {
@@ -850,23 +850,9 @@ function App() {
   // 获取简历列表
   const fetchResumes = async () => {
     try {
-      const response = await fetch('/api/resumes');
-      
-      // 检查响应状态
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-      
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const errorText = await response.text();
-        throw new Error(`Expected JSON response but received: ${errorText}`);
-      }
-      
-      const data = await response.json();
+      const result = await apiGet(API_ENDPOINTS.RESUMES.LIST);
       // /api/resumes 直接返回数组，不需要检查 success 字段
-      setResumes(Array.isArray(data) ? data : []);
+      setResumes(Array.isArray(result) ? result : []);
     } catch (error) {
       console.error('获取简历列表失败:', error);
       message.error(`获取简历列表失败: ${error.message}`);
@@ -1127,8 +1113,7 @@ function App() {
   const getRecommendedResumes = async (query) => {
     try {
       // 获取所有简历
-      const response = await fetch('/api/resume-library');
-      const allResumes = await response.json();
+      const allResumes = await apiGet(API_ENDPOINTS.RESUME_LIBRARY);
       
       // 根据查询关键词筛选简历
       let filteredResumes = allResumes;
@@ -1276,18 +1261,11 @@ function App() {
       addCOTMessage('正在分析您的岗位需求...', '', false, true);
       
       // 调用后端API创建岗位
-      const response = await fetch('/api/positions/create-from-dialog', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userMessage: query
-        })
+      const result = await apiPost(API_ENDPOINTS.POSITIONS.CREATE_FROM_DIALOG, {
+        userMessage: query
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (result) {
         
         if (result.success) {
           // 保存岗位数据用于JD详情显示
@@ -1338,20 +1316,13 @@ function App() {
   // 处理知识库查询
   const handleKnowledgeQuery = async (query) => {
     try {
-      const response = await fetch('/api/knowledge/retrieve', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: query,
-          companyId: '1',
-          limit: 5
-        })
+      const data = await apiPost(API_ENDPOINTS.KNOWLEDGE.RETRIEVE, {
+        query: query,
+        companyId: '1',
+        limit: 5
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (data) {
         if (data.success && data.data.results.length > 0) {
           const results = data.data.results;
           
@@ -1389,15 +1360,7 @@ function App() {
       
       if (taskInfo.isValid) {
         // 创建任务
-        const response = await fetch('/api/tasks', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(taskInfo.taskData)
-        });
-
-        const result = await response.json();
+        const result = await apiPost(API_ENDPOINTS.TASKS, taskInfo.taskData);
 
         if (result.success) {
           addMessage('AI', `✅ 任务创建成功！\n\n📋 任务名称：${taskInfo.taskData.title}\n🎯 目标职位：${taskInfo.taskData.position}\n📝 描述：${taskInfo.taskData.description}\n👤 负责人：${taskInfo.taskData.assignee || '未指定'}\n⏰ 截止时间：${taskInfo.taskData.deadline ? new Date(taskInfo.taskData.deadline).toLocaleDateString() : '未设置'}\n\n您可以在任务列表中查看和管理这个任务。`, false);

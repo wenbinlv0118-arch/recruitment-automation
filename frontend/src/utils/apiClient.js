@@ -29,6 +29,11 @@ export const apiCall = async (endpoint, options = {}) => {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
+    // 检查是否需要返回blob类型
+    if (options.responseType === 'blob') {
+      return await response.blob();
+    }
+
     // 检查响应内容类型
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -45,11 +50,19 @@ export const apiCall = async (endpoint, options = {}) => {
 /**
  * GET请求
  * @param {string} endpoint - API端点路径
- * @param {Object} options - 额外选项
+ * @param {Object} params - 查询参数
+ * @param {Object} options - 额外选项（包括responseType等）
  * @returns {Promise} API响应
  */
-export const apiGet = (endpoint, options = {}) => {
-  return apiCall(endpoint, {
+export const apiGet = (endpoint, params = {}, options = {}) => {
+  // 如果有查询参数，添加到URL中
+  let url = endpoint;
+  if (Object.keys(params).length > 0) {
+    const searchParams = new URLSearchParams(params);
+    url += (url.includes('?') ? '&' : '?') + searchParams.toString();
+  }
+  
+  return apiCall(url, {
     method: 'GET',
     ...options
   });
@@ -80,6 +93,21 @@ export const apiPost = (endpoint, data = null, options = {}) => {
 export const apiPut = (endpoint, data = null, options = {}) => {
   return apiCall(endpoint, {
     method: 'PUT',
+    body: data ? JSON.stringify(data) : null,
+    ...options
+  });
+};
+
+/**
+ * PATCH请求
+ * @param {string} endpoint - API端点路径
+ * @param {Object} data - 请求数据
+ * @param {Object} options - 额外选项
+ * @returns {Promise} API响应
+ */
+export const apiPatch = (endpoint, data = null, options = {}) => {
+  return apiCall(endpoint, {
+    method: 'PATCH',
     body: data ? JSON.stringify(data) : null,
     ...options
   });
@@ -125,6 +153,7 @@ export default {
   apiGet,
   apiPost,
   apiPut,
+  apiPatch,
   apiDelete,
   apiUpload
 };

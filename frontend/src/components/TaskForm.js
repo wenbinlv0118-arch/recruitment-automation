@@ -28,6 +28,8 @@ import {
   SearchOutlined,
   FileTextOutlined
 } from '@ant-design/icons';
+import { API_ENDPOINTS } from '../config/api';
+import { apiGet, apiPost, apiPut } from '../utils/apiClient';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -78,8 +80,7 @@ const TaskForm = ({ visible, task, onCancel, onSuccess }) => {
   // 获取职位列表
   const fetchPositions = async () => {
     try {
-      const response = await fetch('/api/positions');
-      const result = await response.json();
+      const result = await apiGet(API_ENDPOINTS.POSITIONS.LIST);
       if (result.success) {
         setPositions(result.data || []);
       } else {
@@ -97,8 +98,7 @@ const TaskForm = ({ visible, task, onCancel, onSuccess }) => {
   // 获取简历列表
   const fetchResumes = async () => {
     try {
-      const response = await fetch('/api/resume-library');
-      const result = await response.json();
+      const result = await apiGet(API_ENDPOINTS.RESUME_LIBRARY);
       if (result.success) {
         setResumes(result.data || []);
       } else {
@@ -192,18 +192,9 @@ const TaskForm = ({ visible, task, onCancel, onSuccess }) => {
         progress: values.progress || 0
       };
 
-      const url = task ? `/api/tasks/${task.id}` : '/api/tasks';
-      const method = task ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(taskData)
-      });
-
-      const result = await response.json();
+      const result = task 
+        ? await apiPut(`/api/tasks/${task.id}`, taskData)
+        : await apiPost('/api/tasks', taskData);
 
       if (result.success) {
         message.success(task ? '任务更新成功' : '任务创建成功');

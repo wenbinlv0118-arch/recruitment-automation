@@ -21,8 +21,8 @@ import {
   Divider,
   Checkbox
 } from 'antd';
-import { API_ENDPOINTS } from '../config/api';
-import { apiGet, apiDelete } from '../utils/apiClient';
+import { API_ENDPOINTS, buildApiUrl } from '../config/api';
+import { apiGet, apiDelete, apiPatch } from '../utils/apiClient';
 import {
   PlusOutlined,
   SearchOutlined,
@@ -80,8 +80,8 @@ const TaskManagement = () => {
         ...params
       });
 
-      const response = await fetch(`/api/tasks?${queryParams}`);
-      const result = await response.json();
+      const endpoint = `${API_ENDPOINTS.TASKS.LIST}?${queryParams}`;
+      const result = await apiGet(endpoint);
 
       if (result.success) {
         setTasks(result.data);
@@ -117,10 +117,7 @@ const TaskManagement = () => {
   // 删除任务
   const handleDeleteTask = async (id) => {
     try {
-      const response = await fetch(`/api/tasks/${id}`, {
-        method: 'DELETE'
-      });
-      const result = await response.json();
+      const result = await apiDelete(`${API_ENDPOINTS.TASKS.LIST}/${id}`);
 
       if (result.success) {
         message.success('任务删除成功');
@@ -193,20 +190,9 @@ const TaskManagement = () => {
       };
       
       console.log('请求体:', requestBody);
-      console.log('请求URL:', `/api/tasks/${taskId}`);
       
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      console.log('响应状态:', response.status);
-      console.log('响应头:', Object.fromEntries(response.headers.entries()));
-
-      const result = await response.json();
+      const endpoint = `${API_ENDPOINTS.TASKS.LIST}/${taskId}`;
+      const result = await apiPatch(endpoint, requestBody);
       console.log('响应内容:', result);
       
       if (result.success) {

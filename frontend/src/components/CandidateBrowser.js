@@ -15,7 +15,7 @@ import {
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import FilterPanel from './FilterPanel';
-
+import { apiPost, apiGet } from '../utils/api';
 import useFilters from '../hooks/useFilters';
 
 const { Title, Text } = Typography;
@@ -260,16 +260,10 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       setCurrentStep(0);
       
       // 启动智联招聘服务，传递必要的参数
-      const response = await fetch('/api/zhilian/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          mode: browseMode || 'recommended', // 使用当前选择的模式，默认为推荐模式
-          filters: filters || {},
-          targetCount: targetResumeCount
-        })
+      const response = await apiPost('/api/zhilian/start', {
+        mode: browseMode || 'recommended', // 使用当前选择的模式，默认为推荐模式
+        filters: filters || {},
+        targetCount: targetResumeCount
       });
       
       if (response.ok) {
@@ -295,11 +289,8 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
     
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch('/api/zhilian/status');
-        if (response.ok) {
-          const data = await response.json();
-          updateZhilianStatus(data);
-        }
+        const data = await apiGet('/api/zhilian/status');
+        updateZhilianStatus(data);
       } catch (error) {
         console.error('获取智联招聘状态失败:', error);
       }
@@ -339,7 +330,7 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
     if (platform !== 'zhilian') return;
     
     try {
-      await fetch('/api/zhilian/stop', { method: 'POST' });
+      await apiPost('/api/zhilian/stop', {});
       
       // 重置所有状态
       setIsInitialized(false);
@@ -501,18 +492,10 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       // 根据模式选择不同的导航策略
       const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/navigate-to-mode' : '/api/boss-zhipin/navigate-to-mode';
       
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          mode: mode,
-          targetCount: targetResumeCount
-        })
+      const result = await apiPost(apiEndpoint, {
+        mode: mode,
+        targetCount: targetResumeCount
       });
-      
-      const result = await response.json();
       
       if (result.success) {
         message.success(`🎯 已成功导航到${modeMessages[mode]}版块！`);
@@ -567,19 +550,11 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       // 根据平台调用不同的API
       const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/start-browsing' : '/api/boss-zhipin/start-browsing';
       
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          mode: browseMode,
-          filters: filters,
-          targetCount: targetResumeCount
-        })
+      const result = await apiPost(apiEndpoint, {
+        mode: browseMode,
+        filters: filters,
+        targetCount: targetResumeCount
       });
-      
-      const result = await response.json();
       console.log('后端响应:', result);
       
       if (result.success) {
@@ -615,9 +590,7 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       // 调用后端暂停API（不完全停止服务）
       const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/pause-browsing' : '/api/boss-zhipin/pause-browsing';
       
-      await fetch(apiEndpoint, {
-        method: 'POST'
-      }).catch(error => {
+      await apiPost(apiEndpoint, {}).catch(error => {
         console.warn('暂停API调用失败，但前端状态已更新:', error);
       });
     } catch (error) {
@@ -643,9 +616,7 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       // 根据平台调用不同的API
       const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/stop-browsing' : '/api/boss-zhipin/stop-browsing';
       
-      await fetch(apiEndpoint, {
-        method: 'POST'
-      });
+      await apiPost(apiEndpoint, {});
     } catch (error) {
       console.error('停止浏览失败:', error);
     }
@@ -667,8 +638,7 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
         
         // 根据平台调用不同的API
         const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/browsing-status' : '/api/boss-zhipin/browsing-status';
-        const response = await fetch(apiEndpoint);
-        const result = await response.json();
+        const result = await apiGet(apiEndpoint);
         
         if (result.success) {
           const { 
@@ -699,7 +669,7 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
             
             // 调用停止API
             const stopApiEndpoint = platform === 'zhilian' ? '/api/zhilian/stop-browsing' : '/api/boss-zhipin/stop-browsing';
-            fetch(stopApiEndpoint, { method: 'POST' }).catch(console.error);
+            apiPost(stopApiEndpoint, {}).catch(console.error);
             return;
           }
           
@@ -757,15 +727,8 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       // 调用后端重置API
       const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/reset-browsing' : '/api/boss-zhipin/reset-browsing';
       
-      const response = await fetch(apiEndpoint, {
-        method: 'POST'
-      });
-      
-      if (response.ok) {
-        message.success('状态已重置，可以重新开始寻聘');
-      } else {
-        message.warning('前端状态已重置，后端重置可能失败');
-      }
+      await apiPost(apiEndpoint, {});
+      message.success('状态已重置，可以重新开始寻聘');
     } catch (error) {
       console.error('重置状态失败:', error);
       message.error('重置状态失败: ' + error.message);
@@ -780,18 +743,10 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       // 根据平台调用不同的API
       const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/candidate-action' : '/api/boss-zhipin/candidate-action';
       
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          candidateId,
-          action // like, dislike, skip
-        })
+      const result = await apiPost(apiEndpoint, {
+        candidateId,
+        action // like, dislike, skip
       });
-      
-      const result = await response.json();
       
       if (result.success) {
         if (action === 'like') {
@@ -840,8 +795,7 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
     // 组件加载时获取初始状态
     const apiEndpoint = platform === 'zhilian' ? '/api/zhilian/browsing-status' : '/api/boss-zhipin/browsing-status';
     
-    fetch(apiEndpoint)
-      .then(response => response.json())
+    apiGet(apiEndpoint)
       .then(result => {
         if (result.success) {
           const { candidates, processedCount, likedCount, dislikedCount, currentIndex } = result.data;

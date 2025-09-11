@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, List, Typography, Button, Space, Select, message, Spin, Row, Col, Tag, Avatar, Divider, Input, Modal } from 'antd';
 import { DownloadOutlined, SearchOutlined, UploadOutlined, UserOutlined, MailOutlined, PhoneOutlined, StarOutlined, EyeOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
+import { API_ENDPOINTS } from '../config/api';
+import { apiGet, apiDelete, apiPost } from '../utils/apiClient';
 import ResumeUploadModal from './ResumeUploadModal';
 import ResumeDetailModal from './ResumeDetailModal';
 // 移除AI工作亮点分析组件
@@ -27,9 +29,8 @@ const ResumeLibrary = () => {
   const fetchResumes = async (source = '') => {
     setLoading(true);
     try {
-      const params = source ? `?source=${source}` : '';
-      const response = await fetch(`/api/resume-library${params}`);
-      const result = await response.json();
+      const endpoint = source ? `${API_ENDPOINTS.RESUME_LIBRARY}?source=${source}` : API_ENDPOINTS.RESUME_LIBRARY;
+      const result = await apiGet(endpoint);
       
       // 后端直接返回数组，不需要检查success字段
       if (Array.isArray(result)) {
@@ -150,10 +151,7 @@ const ResumeLibrary = () => {
    */
   const handleDeleteResume = async (resumeId, resumeName) => {
     try {
-      const response = await fetch(`/api/resume-library/${resumeId}`, {
-        method: 'DELETE'
-      });
-      const result = await response.json();
+      const result = await apiDelete(`${API_ENDPOINTS.RESUME_LIBRARY}/${resumeId}`);
       
       if (result.success) {
         message.success(`简历 "${resumeName}" 删除成功`);
@@ -172,10 +170,7 @@ const ResumeLibrary = () => {
    */
   const handleClearAllResumes = async () => {
     try {
-      const response = await fetch('/api/resume-library', {
-        method: 'DELETE'
-      });
-      const result = await response.json();
+      const result = await apiDelete(API_ENDPOINTS.RESUME_LIBRARY);
       
       if (result.success) {
         message.success(result.message);
@@ -226,9 +221,8 @@ const ResumeLibrary = () => {
   const handleDownload = async (resume) => {
     if (resume.filePath) {
       try {
-        const response = await fetch(`/api/resumes/${resume.filePath.split('/').pop()}`);
-        if (response.ok) {
-          const blob = await response.blob();
+        const blob = await apiGet(`/api/resumes/${resume.filePath.split('/').pop()}`, {}, { responseType: 'blob' });
+        if (blob) {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;

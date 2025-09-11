@@ -1,3 +1,5 @@
+import { apiGet } from '../utils/apiClient';
+
 export class QueryHandler {
   // 检查是否是简历查询
   static isResumeQuery(query) {
@@ -145,8 +147,8 @@ export class QueryHandler {
   // 获取推荐简历
   static async getRecommendedResumes(query) {
     try {
-      const response = await fetch('/api/resume-library');
-      const allResumes = await response.json();
+      const result = await apiGet('/api/resume-library');
+      const allResumes = result.success ? result.data : [];
       
       let filteredResumes = allResumes;
       
