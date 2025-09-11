@@ -13,7 +13,7 @@
     },
     "frontend": {
       "build_command": "cd frontend && npm ci && npm run build",
-      "output_dir": "frontend/dist",
+      "output_dir": "frontend/build",
       "install_command": "cd frontend && npm ci",
       "node_version": "18",
       "cache_dependencies": true,

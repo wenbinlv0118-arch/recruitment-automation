@@ -1,5 +1,5 @@
 M1 Pro功能测试报告
-生成时间: 2025-08-29T07:18:15.608Z
+生成时间: 2025-09-11T07:35:56.673Z
 
 系统信息:
 {
@@ -13,10 +13,10 @@ M1 Pro功能测试报告
 }
 
 测试结果:
-SQLite3: 通过 (36.90ms) 
-ChromaDB: 通过 (58.68ms) 
-Playwright: 通过 (2360.66ms) 
-Tesseract.js: 通过 (4.18ms) 
-@xenova/transformers: 通过 (175.35ms) 
+SQLite3: 通过 (37.64ms) 
+ChromaDB: 通过 (59.76ms) 
+Playwright: 通过 (2698.10ms) 
+Tesseract.js: 通过 (12.40ms) 
+@xenova/transformers: 失败 (20.35ms) Cannot find package 'onnxruntime-node' imported from /Users/leo/Documents/Saas 智能化发展/Recruitment-automation/backend/node_modules/@xenova/transformers/src/backends/onnx.js
 
-总体结果: 5/5 通过
+总体结果: 4/5 通过
