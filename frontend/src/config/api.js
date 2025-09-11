@@ -68,7 +68,7 @@ export const API_ENDPOINTS = {
     CREATE: '/tasks',
     UPDATE: '/tasks',
     DELETE: '/tasks',
-    STATS: '/tasks?action=stats'
+    STATS: '/tasks/stats'
   },
   
   // 知识库
@@ -138,7 +138,7 @@ export const API_ENDPOINTS = {
 export const WEBSOCKET_CONFIG = {
   URL: isDevelopment 
     ? 'ws://localhost:5001' 
-    : (process.env.REACT_APP_SOCKET_URL || 'wss://recruitment-automation-api.netlify.app'),
+    : (process.env.REACT_APP_SOCKET_URL || 'wss://recruitment-automation-backend.zeabur.app'),
   RECONNECT_INTERVAL: 3000,
   MAX_RECONNECT_ATTEMPTS: 5
 };
