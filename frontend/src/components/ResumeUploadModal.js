@@ -133,7 +133,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       
       console.log('提交的简历数据:', resumeData);
       
-      const result = await apiPost(API_ENDPOINTS.RESUME_LIBRARY, resumeData);
+      const result = await apiPost(API_ENDPOINTS.RESUME.CREATE, resumeData);
       console.log('服务器响应:', result);
       
       if (result.success) {

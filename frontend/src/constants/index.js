@@ -3,7 +3,6 @@ import { API_ENDPOINTS as API_CONFIG } from '../config/api';
 
 // API端点（保持向后兼容）
 export const API_ENDPOINTS = {
-  RESUME_LIBRARY: '/resume-library',
   POSITIONS: '/positions',
   TASKS: '/tasks',
   KNOWLEDGE: '/knowledge',

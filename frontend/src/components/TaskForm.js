@@ -98,7 +98,7 @@ const TaskForm = ({ visible, task, onCancel, onSuccess }) => {
   // 获取简历列表
   const fetchResumes = async () => {
     try {
-      const result = await apiGet(API_ENDPOINTS.RESUME_LIBRARY);
+      const result = await apiGet(API_ENDPOINTS.RESUME.LIST);
       if (result.success) {
         setResumes(result.data || []);
       } else {

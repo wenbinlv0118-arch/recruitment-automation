@@ -29,7 +29,7 @@ const ResumeLibrary = () => {
   const fetchResumes = async (source = '') => {
     setLoading(true);
     try {
-      const endpoint = source ? `${API_ENDPOINTS.RESUME_LIBRARY}?source=${source}` : API_ENDPOINTS.RESUME_LIBRARY;
+      const endpoint = source ? `${API_ENDPOINTS.RESUME.LIST}?source=${source}` : API_ENDPOINTS.RESUME.LIST;
       const result = await apiGet(endpoint);
       
       // 后端直接返回数组，不需要检查success字段
@@ -151,7 +151,7 @@ const ResumeLibrary = () => {
    */
   const handleDeleteResume = async (resumeId, resumeName) => {
     try {
-      const result = await apiDelete(`${API_ENDPOINTS.RESUME_LIBRARY}/${resumeId}`);
+      const result = await apiDelete(`${API_ENDPOINTS.RESUME.DELETE}/${resumeId}`);
       
       if (result.success) {
         message.success(`简历 "${resumeName}" 删除成功`);
@@ -170,7 +170,7 @@ const ResumeLibrary = () => {
    */
   const handleClearAllResumes = async () => {
     try {
-      const result = await apiDelete(API_ENDPOINTS.RESUME_LIBRARY);
+      const result = await apiDelete(API_ENDPOINTS.RESUME.DELETE);
       
       if (result.success) {
         message.success(result.message);

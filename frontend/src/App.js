@@ -1113,7 +1113,7 @@ function App() {
   const getRecommendedResumes = async (query) => {
     try {
       // 获取所有简历
-      const allResumes = await apiGet(API_ENDPOINTS.RESUME_LIBRARY);
+      const allResumes = await apiGet(API_ENDPOINTS.RESUME.LIST);
       
       // 根据查询关键词筛选简历
       let filteredResumes = allResumes;

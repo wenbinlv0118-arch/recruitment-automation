@@ -25,7 +25,7 @@ export const useData = () => {
 
   const fetchResumes = async () => {
     try {
-      const result = await apiGet(API_ENDPOINTS.RESUME_LIBRARY);
+      const result = await apiGet(API_ENDPOINTS.RESUME.LIST);
       if (result.success) {
         setResumes(result.data || []);
       } else {
@@ -41,7 +41,7 @@ export const useData = () => {
   const getRecommendedResumes = async (query) => {
     try {
       // 获取所有简历
-      const allResumes = await apiGet(API_ENDPOINTS.RESUME_LIBRARY);
+      const allResumes = await apiGet(API_ENDPOINTS.RESUME.LIST);
       
       // 根据查询关键词筛选简历
       let filteredResumes = allResumes;
