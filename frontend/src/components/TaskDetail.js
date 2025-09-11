@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { apiGet, apiPost, apiPut } from '../utils/apiClient';
+import { API_ENDPOINTS } from '../config/api';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -92,7 +93,7 @@ const TaskDetail = ({ visible, task, onCancel, onRefresh }) => {
     try {
       console.log(`正在更新候选人状态:`, { taskId: task.id, candidateId, status });
       
-      const result = await apiPut(`/api/tasks/${task.id}/candidates/${candidateId}/status`, { status });
+      const result = await apiPut(`${API_ENDPOINTS.TASKS.UPDATE_CANDIDATE_STATUS}/${task.id}/candidates/${candidateId}/status`, { status });
       console.log('API响应结果:', result);
 
       if (result.success) {
@@ -116,7 +117,7 @@ const TaskDetail = ({ visible, task, onCancel, onRefresh }) => {
 
     setLoading(true);
     try {
-      const result = await apiPost(`/api/tasks/${task.id}/comments`, {
+      const result = await apiPost(`${API_ENDPOINTS.TASKS.ADD_COMMENT}/${task.id}/comments`, {
         content: commentText,
         author: '当前用户'
       });

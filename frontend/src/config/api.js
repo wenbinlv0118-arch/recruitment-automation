@@ -68,7 +68,9 @@ export const API_ENDPOINTS = {
     CREATE: '/tasks',
     UPDATE: '/tasks',
     DELETE: '/tasks',
-    STATS: '/tasks/stats'
+    STATS: '/tasks/stats',
+    UPDATE_CANDIDATE_STATUS: '/tasks',
+    ADD_COMMENT: '/tasks'
   },
   
   // 知识库
@@ -205,8 +207,8 @@ export const buildApiUrl = (endpoint) => {
     // 开发环境使用代理
     return `/api${endpoint}`;
   }
-  // 生产环境使用完整URL
-  return `${currentConfig.baseURL}${endpoint}`;
+  // 生产环境使用完整URL，确保包含/api前缀
+  return `${currentConfig.baseURL}/api${endpoint}`;
 };
 
 /**

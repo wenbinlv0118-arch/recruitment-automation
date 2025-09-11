@@ -193,8 +193,8 @@ const TaskForm = ({ visible, task, onCancel, onSuccess }) => {
       };
 
       const result = task 
-        ? await apiPut(`/api/tasks/${task.id}`, taskData)
-        : await apiPost('/api/tasks', taskData);
+        ? await apiPut(`${API_ENDPOINTS.TASKS.UPDATE}/${task.id}`, taskData)
+        : await apiPost(API_ENDPOINTS.TASKS.CREATE, taskData);
 
       if (result.success) {
         message.success(task ? '任务更新成功' : '任务创建成功');

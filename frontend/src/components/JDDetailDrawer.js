@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Divider, Tag, Space, Card, Button, Input, Select, message, Form, Modal, Progress, Steps } from 'antd';
 import { apiPut } from '../utils/apiClient';
+import { API_ENDPOINTS } from '../config/api';
 import { 
   UserOutlined, 
   BookOutlined, 
@@ -275,7 +276,7 @@ const JDDetailDrawer = ({ visible, onClose, positionData }) => {
       const updatedData = { ...editData, ...values };
       
       // 调用API更新岗位信息
-      const response = await apiPut(`/api/positions/${positionData.id}`, updatedData);
+      const response = await apiPut(`${API_ENDPOINTS.POSITIONS.UPDATE}/${positionData.id}`, updatedData);
       
       setEditData(updatedData);
       setIsEditing(false);
