@@ -91,10 +91,11 @@ recruitment-automation/
    - 授权 Zeabur 访问指定仓库或所有仓库
    - 选择 `Recruitment-automation` 仓库
 
-3. **Monorepo 自动识别**
-   - Zeabur 会自动扫描项目结构
-   - 识别到 `backend/` 和 `frontend/` 目录
-   - 默认选择第一个 Node.js 应用（通常是 backend）
+3. **选择分支和配置 Monorepo**
+   - 在仓库导入页面，选择 **develop** 分支（推荐）或 **main** 分支
+   - 点击 **Import** 导入仓库
+   - Zeabur 会扫描项目结构，但需要手动指定服务目录
+   - 在服务配置中，设置 **Root Directory** 为 `backend`（后端服务）
 
 #### 2.2 配置后端构建
 
@@ -236,10 +237,11 @@ curl -I https://recruitment-backend-xxx.zeabur.app
    - 选择 **Git Service**
    - 选择相同的 `Recruitment-automation` 仓库
 
-2. **选择前端目录**
-   - Zeabur 会再次扫描 Monorepo 结构
-   - 这次选择 `frontend/` 目录
-   - 或者手动指定根目录为 `frontend`
+2. **配置前端服务**
+   - 同样选择 **develop** 分支（与后端保持一致）
+   - 点击 **Import** 导入仓库
+   - 在服务配置中，设置 **Root Directory** 为 `frontend`（前端服务）
+   - 确保服务名称不同，如 `recruitment-frontend`
 
 #### 3.2 配置前端构建
 

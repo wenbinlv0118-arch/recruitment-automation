@@ -36,17 +36,13 @@ git push origin develop
 1. **添加服务** → **Git Service**
 2. **配置 GitHub 访问权限**（首次使用需要）
 3. **选择仓库**: `Recruitment-automation`
-4. **Monorepo 配置**:
-   - Zeabur 会自动识别 `backend` 和 `frontend` 目录
-   - 创建 `zbpack.json` 文件指定后端服务：
-     ```json
-     {
-       "build_command": "cd backend && npm install && npm run build",
-       "start_command": "cd backend && npm start",
-       "install_command": "cd backend && npm install"
-     }
-     ```
-   - 或使用环境变量 `ZBPACK_BUILD_COMMAND` 和 `ZBPACK_START_COMMAND`
+   - **重要**：选择 `develop` 分支（推荐）或 `main` 分支
+   - 点击 **Import** 导入仓库
+4. **配置后端服务**:
+   - 在服务配置页面，设置 **Root Directory** 为 `backend`
+   - 服务名称建议设为 `recruitment-backend`
+   - Zeabur 会自动检测为 Node.js 应用
+   - 可选择创建 `zbpack.json` 配置文件（已提供）
 
 5. **环境变量配置**:
    ```env
@@ -75,7 +71,11 @@ git push origin develop
 
 1. **添加第二个服务** → **Git Service**
 2. **选择相同仓库** `Recruitment-automation`
-3. **前端 Monorepo 配置**:
+3. **配置前端服务**:
+   - 同样选择 `develop` 分支
+   - 设置 **Root Directory** 为 `frontend`
+   - 服务名称建议设为 `recruitment-frontend`
+4. **前端 Monorepo 配置**:
    - 创建前端专用的 `zbpack.json`：
      ```json
      {
