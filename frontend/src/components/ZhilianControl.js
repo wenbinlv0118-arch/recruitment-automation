@@ -274,7 +274,7 @@ const ZhilianControl = () => {
       
       // 第一步：初始化浏览器
       addLog('正在初始化浏览器...', 'info');
-      const initResult = await apiPost('/api/zhilian/init', {});
+      const initResult = await apiPost(API_ENDPOINTS.ZHILIAN.INIT_SERVICE, {});
       
       if (!initResult.success) {
         message.error(initResult.message);
@@ -298,7 +298,7 @@ const ZhilianControl = () => {
       
       // 第二步：打开智联招聘网站
       addLog('正在打开智联招聘网站...', 'info');
-      const openResult = await apiPost('/api/zhilian/execute-step', { step: 'open_website' });
+      const openResult = await apiPost(API_ENDPOINTS.ZHILIAN.EXECUTE_STEP, { step: 'open_website' });
       
       if (openResult.success) {
         message.success('智联招聘网站已打开，请登录！');
@@ -342,7 +342,7 @@ const ZhilianControl = () => {
       setIsLoading(true);
       addLog('正在停止智联招聘智能寻聘...', 'info');
       
-      const result = await apiPost('/api/zhilian/stop', {});
+      const result = await apiPost(API_ENDPOINTS.ZHILIAN.STOP_SERVICE, {});
       
       if (result.success) {
         message.success('智联招聘智能寻聘已停止');
