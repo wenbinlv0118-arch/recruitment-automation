@@ -25,6 +25,25 @@ if [ ! -f ~/.vnc/passwd ]; then
     x11vnc -storepasswd $VNC_PASSWORD ~/.vnc/passwd
 fi
 
+# 检查和配置浏览器
+echo "检查浏览器可用性..."
+if command -v chromium-browser >/dev/null 2>&1; then
+    echo "✓ 找到 chromium-browser"
+    BROWSER_CMD="chromium-browser"
+elif command -v google-chrome >/dev/null 2>&1; then
+    echo "✓ 找到 google-chrome"
+    BROWSER_CMD="google-chrome"
+elif command -v firefox >/dev/null 2>&1; then
+    echo "✓ 找到 firefox"
+    BROWSER_CMD="firefox"
+else
+    echo "⚠ 未找到可用的浏览器，尝试安装..."
+    apt-get update && apt-get install -y chromium-browser
+    BROWSER_CMD="chromium-browser"
+fi
+
+echo "使用浏览器: $BROWSER_CMD"
+
 # 检查端口是否可用
 echo "检查端口可用性..."
 if netstat -tuln | grep -q ":$VNC_PORT "; then

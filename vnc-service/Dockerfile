@@ -27,6 +27,12 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     && rm -rf /var/lib/apt/lists/*
 
+# 创建Chromium浏览器软链接以确保路径正确
+RUN ln -sf /usr/bin/chromium-browser /usr/local/bin/chromium-browser || \
+    ln -sf /snap/bin/chromium /usr/local/bin/chromium-browser || \
+    ln -sf /usr/bin/google-chrome /usr/local/bin/chromium-browser || \
+    echo "Chromium browser installed successfully"
+
 # 安装noVNC
 RUN git clone https://github.com/novnc/noVNC.git /opt/noVNC && \
     git clone https://github.com/novnc/websockify /opt/noVNC/utils/websockify && \
@@ -42,9 +48,11 @@ WORKDIR /app
 # 复制配置文件
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY start-vnc.sh /usr/local/bin/start-vnc.sh
+COPY start-browser.sh /usr/local/bin/start-browser.sh
 
 # 设置执行权限
-RUN chmod +x /usr/local/bin/start-vnc.sh
+RUN chmod +x /usr/local/bin/start-vnc.sh && \
+    chmod +x /usr/local/bin/start-browser.sh
 
 # 创建日志目录
 RUN mkdir -p /var/log/supervisor

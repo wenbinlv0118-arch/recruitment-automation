@@ -199,6 +199,45 @@ Supervisor会自动重启失败的进程：
 2. 检查防火墙设置
 3. 确认端口6080可访问
 
+### 4. 浏览器无法启动
+
+**问题**: 在VNC桌面中无法启动Chromium浏览器
+
+**常见错误**:
+- `chromium-browser: command not found`
+- 浏览器进程启动失败
+- 显示相关错误
+
+**解决方案**:
+1. **手动启动浏览器**:
+   ```bash
+   # 在VNC桌面的终端中执行
+   /usr/local/bin/start-browser.sh
+   ```
+
+2. **检查可用浏览器**:
+   ```bash
+   # 检查Chromium
+   which chromium-browser
+   
+   # 检查Chrome
+   which google-chrome
+   
+   # 检查Firefox
+   which firefox
+   ```
+
+3. **使用替代启动命令**:
+   ```bash
+   # 尝试不同的启动方式
+   chromium-browser --no-sandbox --disable-dev-shm-usage
+   google-chrome --no-sandbox --disable-dev-shm-usage
+   firefox
+   ```
+
+4. **检查服务日志**:
+   在Zeabur控制台查看browser服务的日志信息
+
 ### 4. 前端集成问题
 
 **问题**: 前端无法连接VNC服务
