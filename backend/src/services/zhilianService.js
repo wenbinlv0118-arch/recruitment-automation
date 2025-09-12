@@ -138,15 +138,34 @@ class ZhilianService {
         allArgs.push('--disable-dev-tools');
         allArgs.push('--disable-extensions');
         allArgs.push('--disable-plugins');
+        allArgs.push('--disable-remote-debugging');
+        allArgs.push('--disable-remote-fonts');
+        allArgs.push('--no-remote-debugging-port');
+        // 移除可能导致远程调试的参数
+        const debuggingArgs = ['--remote-debugging-pipe', '--remote-debugging-port', '--enable-automation'];
+        debuggingArgs.forEach(arg => {
+          const index = allArgs.indexOf(arg);
+          if (index > -1) {
+            allArgs.splice(index, 1);
+          }
+        });
       }
       
-      this.browser = await chromium.launch({
+      // 生产环境使用更严格的配置避免远程调试冲突
+      const launchOptions = {
         headless: isProduction, // 生产环境使用无头模式，开发环境显示界面
         args: allArgs,
         viewport: displayConfig.contextOptions.viewport,
-        // 生产环境完全禁用远程调试以避免与无头模式冲突
         devtools: false // 强制禁用devtools避免远程调试管道冲突
-      });
+      };
+      
+      // 生产环境额外禁用可能导致远程调试的选项
+      if (isProduction) {
+        launchOptions.chromiumSandbox = false;
+        launchOptions.ignoreDefaultArgs = ['--enable-automation'];
+      }
+      
+      this.browser = await chromium.launch(launchOptions);
       
       // 使用统一的上下文配置
       const context = await this.browser.newContext({
