@@ -57,6 +57,7 @@ WORKDIR /app
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY start-vnc.sh /usr/local/bin/start-vnc.sh
 COPY start-browser.sh /usr/local/bin/start-browser.sh
+COPY index.html /usr/local/bin/
 
 # 设置执行权限
 RUN chmod +x /usr/local/bin/start-vnc.sh && \

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNC 浏览器测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        p {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+        .status {
+            background: rgba(76, 175, 80, 0.8);
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .info {
+            margin-top: 30px;
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 VNC 浏览器服务</h1>
+        <p>恭喜！浏览器已成功启动并运行</p>
+        <p>您现在可以通过 VNC 客户端访问这个图形界面</p>
+        <div class="status">✅ 服务正常运行</div>
+        <div class="info">
+            <p>时间: <span id="time"></span></p>
+            <p>用户代理: <span id="userAgent"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // 显示当前时间
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('time').textContent = now.toLocaleString('zh-CN');
+        }
+        
+        // 显示用户代理
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        
+        // 每秒更新时间
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // 页面加载完成后的提示
+        console.log('VNC 浏览器测试页面加载完成');
+    </script>
+</body>
+</html>
