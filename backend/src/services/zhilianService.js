@@ -162,7 +162,19 @@ class ZhilianService {
       // 生产环境额外禁用可能导致远程调试的选项
       if (isProduction) {
         launchOptions.chromiumSandbox = false;
-        launchOptions.ignoreDefaultArgs = ['--enable-automation'];
+        // 强制忽略所有可能导致远程调试的默认参数
+        launchOptions.ignoreDefaultArgs = [
+          '--enable-automation',
+          '--remote-debugging-pipe',
+          '--remote-debugging-port',
+          '--enable-blink-features=IdleDetection'
+        ];
+        // 额外的环境变量设置
+        launchOptions.env = {
+          ...process.env,
+          PLAYWRIGHT_BROWSERS_PATH: undefined,
+          DEBUG: undefined
+        };
       }
       
       this.browser = await chromium.launch(launchOptions);
