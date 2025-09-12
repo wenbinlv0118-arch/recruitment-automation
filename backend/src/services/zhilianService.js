@@ -111,7 +111,6 @@ class ZhilianService {
         '--autoplay-policy=no-user-gesture-required', // 允许自动播放
         '--disable-permissions-api', // 禁用权限API检查
         '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer', // 禁用显示合成器
-        '--enable-automation', // 启用自动化模式
         '--disable-component-extensions-with-background-pages', // 禁用后台扩展
         '--disable-default-apps', // 禁用默认应用
         '--disable-extensions', // 禁用扩展
@@ -120,7 +119,6 @@ class ZhilianService {
         '--metrics-recording-only', // 仅记录指标
         '--no-default-browser-check', // 不检查默认浏览器
         '--safebrowsing-disable-auto-update', // 禁用安全浏览自动更新
-        '--enable-features=UseOzonePlatform', // 启用Ozone平台
         '--use-fake-ui-for-media-stream', // 使用虚假UI处理媒体流
         '--use-fake-device-for-media-stream', // 使用虚假设备处理媒体流
         '--disable-features=MediaRouter', // 禁用媒体路由
@@ -138,7 +136,9 @@ class ZhilianService {
       this.browser = await chromium.launch({
         headless: isProduction, // 生产环境使用无头模式，开发环境显示界面
         args: allArgs,
-        viewport: displayConfig.contextOptions.viewport
+        viewport: displayConfig.contextOptions.viewport,
+        // 生产环境禁用远程调试以避免与无头模式冲突
+        devtools: !isProduction
       });
       
       // 使用统一的上下文配置
