@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Input, Button, Space, Select, Switch, Typography } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, DesktopOutlined, GlobalOutlined } from '@ant-design/icons';
-import { buildVncUrl, checkVncConnection } from '../config/vnc';
+import { buildVncUrl, checkVncConnection, getCurrentVncConfig } from '../config/vnc';
 
 const { Text } = Typography;
 
@@ -236,7 +236,7 @@ const Browser = () => {
                 title="重新连接VNC"
               />
               <Text style={{ fontSize: '12px', color: '#666' }}>
-                远程桌面地址: {VNC_SERVER_URL}:{VNC_WEB_PORT}
+                远程桌面地址: {getCurrentVncConfig().serverUrl}
               </Text>
             </>
           )}

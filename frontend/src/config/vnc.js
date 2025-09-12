@@ -15,7 +15,7 @@ export const VNC_CONFIG = {
   
   // 生产环境配置 - Zeabur部署
   production: {
-    serverUrl: 'https://vnc-browser-recruitment.zeabur.app',
+    serverUrl: 'https://recruitment-automation-vnc.zeabur.app',
     webPort: '', // HTTPS默认端口
     vncPort: '5900',
     password: 'vnc123'
