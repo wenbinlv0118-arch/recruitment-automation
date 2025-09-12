@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     x11vnc \
     fluxbox \
+    x11-utils \
+    x11-xserver-utils \
     wget \
     curl \
     git \
@@ -41,6 +43,12 @@ RUN git clone https://github.com/novnc/noVNC.git /opt/noVNC && \
 # 创建VNC密码文件
 RUN mkdir -p ~/.vnc && \
     x11vnc -storepasswd $VNC_PASSWORD ~/.vnc/passwd
+
+# 创建必要的目录和权限设置
+RUN mkdir -p /tmp/chrome-user-data && \
+    chmod 755 /tmp/chrome-user-data && \
+    mkdir -p /dev/shm && \
+    chmod 1777 /dev/shm
 
 # 创建工作目录
 WORKDIR /app
