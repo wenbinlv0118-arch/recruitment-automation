@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Input, Button, Space, Select, Switch, Typography } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, DesktopOutlined, GlobalOutlined } from '@ant-design/icons';
+import { buildVncUrl, checkVncConnection } from '../config/vnc';
 
 const { Text } = Typography;
 
@@ -85,9 +86,7 @@ const Browser = () => {
   const [vncConnected, setVncConnected] = useState(false);
   
   // VNC服务器配置
-  const VNC_SERVER_URL = 'https://recruitment-vnc-browser.zeabur.app';
-  const VNC_WEB_PORT = '6080';
-  const vncUrl = `${VNC_SERVER_URL}:${VNC_WEB_PORT}/vnc.html?autoconnect=true&resize=scale&quality=6`;
+  const vncUrl = buildVncUrl();
 
   /**
    * 预设的常用网站列表
@@ -135,7 +134,7 @@ const Browser = () => {
     
     if (vncMode) {
       // 切换到VNC模式时，检测连接状态
-      checkVncConnection();
+      checkVncStatus();
     } else {
       setVncConnected(false);
     }
@@ -144,18 +143,22 @@ const Browser = () => {
   /**
    * 检测VNC服务器连接状态
    */
-  const checkVncConnection = async () => {
+  const checkVncStatus = async () => {
     try {
-      const response = await fetch(VNC_SERVER_URL, { 
-        method: 'HEAD',
-        mode: 'no-cors'
-      });
-      setVncConnected(true);
+      const isConnected = await checkVncConnection();
+      setVncConnected(isConnected);
     } catch (error) {
       console.warn('VNC服务器连接检测失败:', error);
       setVncConnected(false);
     }
   };
+
+  // 组件挂载时检查VNC连接状态
+  useEffect(() => {
+    if (isVncMode) {
+      checkVncStatus();
+    }
+  }, [isVncMode]);
 
   /**
    * 获取当前显示的URL
