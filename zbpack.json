@@ -16,12 +16,27 @@
       "environment": "static",
       "framework": "react",
       "spa": true
+    },
+    "vnc-browser": {
+      "dockerfile": "vnc-service/Dockerfile",
+      "context": "vnc-service",
+      "environment": "docker",
+      "ports": {
+        "6080": "HTTP"
+      },
+      "env": {
+        "VNC_RESOLUTION": "1280x720",
+        "VNC_PASSWORD": "vnc123",
+        "VNC_PORT": "5900",
+        "NO_VNC_PORT": "6080",
+        "DISPLAY": ":1"
+      }
     }
   },
   "meta": {
     "name": "Recruitment Automation",
-    "description": "智能招聘自动化平台 - Zeabur 部署配置",
-    "version": "1.0.0",
+    "description": "智能招聘自动化平台 - 支持VNC远程桌面监控 - Zeabur 部署配置",
+    "version": "1.1.0",
     "author": "Recruitment Team",
     "repository": "https://github.com/wenbinlv0118-arch/recruitment-automation"
   }
