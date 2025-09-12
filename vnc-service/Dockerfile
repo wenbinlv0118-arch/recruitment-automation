@@ -8,6 +8,9 @@ ENV VNC_PORT=5900
 ENV NO_VNC_PORT=6080
 ENV VNC_RESOLUTION=1280x720
 ENV VNC_PASSWORD=vnc123
+ENV LANG=zh_CN.UTF-8
+ENV LANGUAGE=zh_CN:zh
+ENV LC_ALL=zh_CN.UTF-8
 
 # 安装必要软件包
 RUN apt-get update && apt-get install -y \
@@ -29,7 +32,17 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     gnupg \
     software-properties-common \
+    fonts-noto-cjk \
+    fonts-noto-cjk-extra \
+    fonts-wqy-zenhei \
+    fonts-wqy-microhei \
+    language-pack-zh-hans \
+    locales \
     && rm -rf /var/lib/apt/lists/*
+
+# 配置中文locale
+RUN locale-gen zh_CN.UTF-8 && \
+    update-locale LANG=zh_CN.UTF-8
 
 # 安装Google Chrome
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
