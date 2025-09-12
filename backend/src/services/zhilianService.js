@@ -153,8 +153,7 @@ class ZhilianService {
       
       // 生产环境使用更严格的配置避免远程调试冲突
       const launchOptions = {
-        // 临时禁用无头模式以避免远程调试管道冲突
-        headless: false, // 强制使用有头模式避免headless与remote-debugging-pipe冲突
+        headless: isProduction, // 生产环境使用无头模式，开发环境显示界面
         args: allArgs,
         viewport: displayConfig.contextOptions.viewport,
         devtools: false // 强制禁用devtools避免远程调试管道冲突
@@ -163,15 +162,7 @@ class ZhilianService {
       // 生产环境额外禁用可能导致远程调试的选项
       if (isProduction) {
         launchOptions.chromiumSandbox = false;
-        // 强制忽略所有默认参数，完全自定义启动参数
-        launchOptions.ignoreDefaultArgs = true;
-        // 额外的环境变量设置
-        launchOptions.env = {
-          ...process.env,
-          PLAYWRIGHT_BROWSERS_PATH: undefined,
-          DEBUG: undefined,
-          DISPLAY: ':99' // 虚拟显示器
-        };
+        launchOptions.ignoreDefaultArgs = ['--enable-automation'];
       }
       
       this.browser = await chromium.launch(launchOptions);
