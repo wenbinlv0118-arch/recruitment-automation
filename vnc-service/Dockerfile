@@ -61,18 +61,19 @@ RUN mkdir -p /tmp/chrome-user-data && \
 
 # 创建工作目录
 WORKDIR /app
-
 # 复制配置文件
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY start-vnc.sh /usr/local/bin/start-vnc.sh
 COPY start-browser.sh /usr/local/bin/start-browser.sh
+COPY index.html /usr/local/bin/index.html
 COPY test-browsers.sh /usr/local/bin/test-browsers.sh
-COPY index.html /usr/local/bin/
+COPY diagnose-browser.sh /usr/local/bin/diagnose-browser.sh
 
 # 设置执行权限
 RUN chmod +x /usr/local/bin/start-vnc.sh && \
     chmod +x /usr/local/bin/start-browser.sh && \
-    chmod +x /usr/local/bin/test-browsers.sh
+    chmod +x /usr/local/bin/test-browsers.sh && \
+    chmod +x /usr/local/bin/diagnose-browser.sh
 
 # 创建日志目录
 RUN mkdir -p /var/log/supervisor

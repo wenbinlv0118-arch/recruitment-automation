@@ -10,6 +10,17 @@ echo "=== 启动浏览器 ==="
 # 设置显示环境
 export DISPLAY=:1
 
+# 诊断信息
+echo "系统诊断信息:"
+echo "  - 当前用户: $(whoami)"
+echo "  - 当前目录: $(pwd)"
+echo "  - DISPLAY: $DISPLAY"
+echo "  - 可用内存: $(free -h | grep Mem | awk '{print $7}' || echo '未知')"
+echo "  - /tmp 空间: $(df -h /tmp | tail -1 | awk '{print $4}' || echo '未知')"
+echo "  - 目标文件存在性: $([ -f '/usr/local/bin/index.html' ] && echo '存在' || echo '不存在')"
+echo "  - 用户数据目录权限: $(ls -ld /tmp 2>/dev/null | awk '{print $1}' || echo '未知')"
+echo ""
+
 # 等待X11服务就绪
 echo "等待X11服务就绪..."
 for i in {1..30}; do
@@ -34,26 +45,53 @@ echo "检查可用的浏览器..."
 
 if command -v chromium-browser >/dev/null 2>&1; then
     echo "启动 Chromium 浏览器..."
-    # 使用更简化的启动参数，避免可能导致退出状态2的问题
+    
+    # 检查目标文件是否存在
+    if [ ! -f "/usr/local/bin/index.html" ]; then
+        echo "警告: /usr/local/bin/index.html 不存在，使用默认页面"
+        TARGET_URL="about:blank"
+    else
+        TARGET_URL="file:///usr/local/bin/index.html"
+    fi
+    
+    # 创建用户数据目录
+    mkdir -p /tmp/chrome-user-data
+    chmod 755 /tmp/chrome-user-data
+    
+    echo "启动参数: chromium-browser --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1280,720 --user-data-dir=/tmp/chrome-user-data --no-first-run --no-default-browser-check $TARGET_URL"
+    
+    # 使用最简化的启动参数
     chromium-browser --no-sandbox --disable-dev-shm-usage \
-        --disable-gpu --disable-software-rasterizer \
-        --window-size=1280,720 --start-maximized \
+        --disable-gpu --window-size=1280,720 \
         --user-data-dir=/tmp/chrome-user-data \
-        --disable-web-security --disable-features=VizDisplayCompositor \
         --no-first-run --no-default-browser-check \
-        file:///usr/local/bin/index.html \
+        "$TARGET_URL" \
         > /var/log/supervisor/browser.log 2>&1 &
     BROWSER_PID=$!
     echo "Chromium 浏览器已启动，PID: $BROWSER_PID"
 elif command -v google-chrome-stable >/dev/null 2>&1; then
     echo "启动 Google Chrome 浏览器..."
+    
+    # 检查目标文件是否存在
+    if [ ! -f "/usr/local/bin/index.html" ]; then
+        echo "警告: /usr/local/bin/index.html 不存在，使用默认页面"
+        TARGET_URL="about:blank"
+    else
+        TARGET_URL="file:///usr/local/bin/index.html"
+    fi
+    
+    # 创建用户数据目录
+    mkdir -p /tmp/chrome-user-data
+    chmod 755 /tmp/chrome-user-data
+    
+    echo "启动参数: google-chrome-stable --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1280,720 --user-data-dir=/tmp/chrome-user-data --no-first-run --no-default-browser-check $TARGET_URL"
+    
+    # 使用最简化的启动参数
     google-chrome-stable --no-sandbox --disable-dev-shm-usage \
-        --disable-gpu --disable-software-rasterizer \
-        --window-size=1280,720 --start-maximized \
+        --disable-gpu --window-size=1280,720 \
         --user-data-dir=/tmp/chrome-user-data \
-        --disable-web-security --disable-features=VizDisplayCompositor \
         --no-first-run --no-default-browser-check \
-        file:///usr/local/bin/index.html \
+        "$TARGET_URL" \
         > /var/log/supervisor/browser.log 2>&1 &
     BROWSER_PID=$!
     echo "Google Chrome 浏览器已启动，PID: $BROWSER_PID"
