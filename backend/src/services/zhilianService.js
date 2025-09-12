@@ -133,12 +133,19 @@ class ZhilianService {
       // 根据环境决定是否使用无头模式
       const isProduction = process.env.NODE_ENV === 'production' || process.env.ZEABUR_ENVIRONMENT;
       
+      // 生产环境需要禁用远程调试相关参数
+      if (isProduction) {
+        allArgs.push('--disable-dev-tools');
+        allArgs.push('--disable-extensions');
+        allArgs.push('--disable-plugins');
+      }
+      
       this.browser = await chromium.launch({
         headless: isProduction, // 生产环境使用无头模式，开发环境显示界面
         args: allArgs,
         viewport: displayConfig.contextOptions.viewport,
-        // 生产环境禁用远程调试以避免与无头模式冲突
-        devtools: !isProduction
+        // 生产环境完全禁用远程调试以避免与无头模式冲突
+        devtools: false // 强制禁用devtools避免远程调试管道冲突
       });
       
       // 使用统一的上下文配置
