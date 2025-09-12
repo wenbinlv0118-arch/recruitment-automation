@@ -1,5 +1,4 @@
 {
-  "$schema": "https://zeabur.com/schemas/zbpack.json",
   "build_command": "echo 'Monorepo detected, please specify service'",
   "services": {
     "backend": {
