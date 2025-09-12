@@ -45,9 +45,9 @@ if command -v chromium-browser >/dev/null 2>&1; then
         > /var/log/supervisor/browser.log 2>&1 &
     BROWSER_PID=$!
     echo "Chromium 浏览器已启动，PID: $BROWSER_PID"
-elif command -v google-chrome >/dev/null 2>&1; then
+elif command -v google-chrome-stable >/dev/null 2>&1; then
     echo "启动 Google Chrome 浏览器..."
-    google-chrome --no-sandbox --disable-dev-shm-usage \
+    google-chrome-stable --no-sandbox --disable-dev-shm-usage \
         --disable-gpu --disable-software-rasterizer \
         --window-size=1280,720 --start-maximized \
         --user-data-dir=/tmp/chrome-user-data \
@@ -68,7 +68,7 @@ else
     echo "错误: 未找到可用的浏览器"
     echo "已安装的浏览器检查结果:"
     echo "  - chromium-browser: $(which chromium-browser 2>/dev/null || echo '未找到')"
-    echo "  - google-chrome: $(which google-chrome 2>/dev/null || echo '未找到')"
+    echo "  - google-chrome-stable: $(which google-chrome-stable 2>/dev/null || echo '未找到')"
     echo "  - firefox: $(which firefox 2>/dev/null || echo '未找到')"
     exit 1
 fi

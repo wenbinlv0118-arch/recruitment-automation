@@ -27,13 +27,22 @@ RUN apt-get update && apt-get install -y \
     firefox \
     supervisor \
     net-tools \
+    gnupg \
+    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# 创建Chromium浏览器软链接以确保路径正确
-RUN ln -sf /usr/bin/chromium-browser /usr/local/bin/chromium-browser || \
-    ln -sf /snap/bin/chromium /usr/local/bin/chromium-browser || \
-    ln -sf /usr/bin/google-chrome /usr/local/bin/chromium-browser || \
-    echo "Chromium browser installed successfully"
+# 安装Google Chrome
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
+    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && \
+    apt-get install -y google-chrome-stable && \
+    rm -rf /var/lib/apt/lists/*
+
+# 创建浏览器软链接以确保路径正确
+RUN ln -sf /usr/bin/chromium-browser /usr/local/bin/chromium-browser && \
+    ln -sf /usr/bin/google-chrome-stable /usr/local/bin/google-chrome && \
+    ln -sf /usr/bin/firefox /usr/local/bin/firefox && \
+    echo "所有浏览器软链接创建完成"
 
 # 安装noVNC
 RUN git clone https://github.com/novnc/noVNC.git /opt/noVNC && \
@@ -57,11 +66,13 @@ WORKDIR /app
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY start-vnc.sh /usr/local/bin/start-vnc.sh
 COPY start-browser.sh /usr/local/bin/start-browser.sh
+COPY test-browsers.sh /usr/local/bin/test-browsers.sh
 COPY index.html /usr/local/bin/
 
 # 设置执行权限
 RUN chmod +x /usr/local/bin/start-vnc.sh && \
-    chmod +x /usr/local/bin/start-browser.sh
+    chmod +x /usr/local/bin/start-browser.sh && \
+    chmod +x /usr/local/bin/test-browsers.sh
 
 # 创建日志目录
 RUN mkdir -p /var/log/supervisor
