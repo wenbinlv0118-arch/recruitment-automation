@@ -122,7 +122,9 @@ class ZhilianService {
         '--use-fake-ui-for-media-stream', // 使用虚假UI处理媒体流
         '--use-fake-device-for-media-stream', // 使用虚假设备处理媒体流
         '--disable-features=MediaRouter', // 禁用媒体路由
-        '--disable-ipc-flooding-protection' // 禁用IPC洪水保护
+        '--disable-ipc-flooding-protection', // 禁用IPC洪水保护
+        '--disable-dev-tools', // 禁用开发者工具
+        '--disable-remote-debugging' // 禁用远程调试
       ];
       
       // 合并显示优化参数
@@ -135,18 +137,25 @@ class ZhilianService {
       
       // 生产环境需要禁用远程调试相关参数
       if (isProduction) {
-        allArgs.push('--disable-dev-tools');
-        allArgs.push('--disable-extensions');
+        // 添加生产环境专用参数
         allArgs.push('--disable-plugins');
-        allArgs.push('--disable-remote-debugging');
         allArgs.push('--disable-remote-fonts');
         allArgs.push('--no-remote-debugging-port');
-        // 移除可能导致远程调试的参数
-        const debuggingArgs = ['--remote-debugging-pipe', '--remote-debugging-port', '--enable-automation'];
-        debuggingArgs.forEach(arg => {
-          const index = allArgs.indexOf(arg);
+        allArgs.push('--disable-blink-features=AutomationControlled'); // 禁用自动化控制标识
+        
+        // 移除可能导致远程调试冲突的参数
+        const conflictingArgs = [
+          '--remote-debugging-pipe', 
+          '--remote-debugging-port', 
+          '--enable-automation',
+          '--remote-debugging-address',
+          '--remote-debugging-socket-name'
+        ];
+        conflictingArgs.forEach(arg => {
+          const index = allArgs.findIndex(existingArg => existingArg.startsWith(arg));
           if (index > -1) {
             allArgs.splice(index, 1);
+            logger.info(`移除冲突参数: ${arg}`);
           }
         });
       }
@@ -156,13 +165,22 @@ class ZhilianService {
         headless: isProduction, // 生产环境使用无头模式，开发环境显示界面
         args: allArgs,
         viewport: displayConfig.contextOptions.viewport,
-        devtools: false // 强制禁用devtools避免远程调试管道冲突
+        devtools: false, // 强制禁用devtools避免远程调试管道冲突
+        chromiumSandbox: false // 禁用沙箱以避免权限问题
       };
       
-      // 生产环境额外禁用可能导致远程调试的选项
+      // 生产环境额外配置
       if (isProduction) {
-        launchOptions.chromiumSandbox = false;
-        launchOptions.ignoreDefaultArgs = ['--enable-automation'];
+        // 忽略可能导致冲突的默认参数
+        launchOptions.ignoreDefaultArgs = [
+          '--enable-automation',
+          '--enable-blink-features=IdleDetection',
+          '--remote-debugging-pipe'
+        ];
+        
+        logger.info('生产环境浏览器配置：无头模式，已禁用所有调试功能');
+      } else {
+        logger.info('开发环境浏览器配置：有界面模式，调试功能已禁用');
       }
       
       this.browser = await chromium.launch(launchOptions);
