@@ -1,7 +1,7 @@
 # 使用官方 Node.js 18 镜像作为基础镜像
 FROM node:18-slim
 
-# 安装 Playwright 所需的系统依赖和 Xvfb
+# 安装 Playwright 所需的系统依赖和 Xvfb（根据Zeabur优化建议）
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -11,16 +11,36 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
+    libc6 \
+    libcairo2 \
     libcups2 \
     libdbus-1-3 \
     libdrm2 \
+    libexpat1 \
+    libfontconfig1 \
+    libgbm1 \
+    libgcc1 \
+    libglib2.0-0 \
     libgtk-3-0 \
     libnspr4 \
     libnss3 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libstdc++6 \
+    libx11-6 \
     libx11-xcb1 \
+    libxcb1 \
     libxcomposite1 \
+    libxcursor1 \
     libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
     libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    lsb-release \
     xdg-utils \
     libu2f-udev \
     libvulkan1 \
@@ -39,6 +59,10 @@ ENV DISPLAY=:99
 ENV DBUS_SESSION_BUS_ADDRESS=/dev/null
 ENV BROWSER_HEADLESS=true
 ENV XVFB_WHD=1920x1080x24
+
+# Playwright 生产环境优化配置（根据Zeabur建议）
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./

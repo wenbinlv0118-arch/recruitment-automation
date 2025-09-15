@@ -87,6 +87,35 @@ class ZhilianService {
   }
 
   /**
+   * 使用重试机制启动浏览器
+   * @param {Object} launchOptions - 浏览器启动选项
+   * @param {number} maxRetries - 最大重试次数
+   * @returns {Promise<Browser>} 浏览器实例
+   */
+  async launchBrowserWithRetry(launchOptions, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        logger.info(`浏览器启动第 ${attempt} 次尝试`);
+        const browser = await chromium.launch(launchOptions);
+        logger.info('浏览器启动成功');
+        return browser;
+      } catch (error) {
+        logger.error(`浏览器启动第 ${attempt} 次尝试失败:`, error.message);
+        
+        if (attempt === maxRetries) {
+          logger.error('浏览器启动达到最大重试次数，启动失败');
+          throw new Error(`浏览器启动失败，已重试 ${maxRetries} 次: ${error.message}`);
+        }
+        
+        // 指数退避策略：等待时间 = 1000ms * 2^(attempt-1)
+        const waitTime = 1000 * Math.pow(2, attempt - 1);
+        logger.info(`等待 ${waitTime}ms 后进行第 ${attempt + 1} 次重试`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  /**
    * 初始化浏览器 - 针对智联招聘优化
    * 使用统一的环境配置管理模块
    */
@@ -112,9 +141,23 @@ class ZhilianService {
       // 打印环境配置信息
       environmentConfig.printConfig();
       
-      // 合并环境配置和显示配置的启动参数
+      // 合并环境配置和显示配置的启动参数（根据Zeabur优化建议）
       const baseArgs = [
         '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
+        '--disable-extensions',
+        '--disable-plugins',
+        '--disable-default-apps',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--no-first-run',
+        '--no-zygote',
         '--autoplay-policy=no-user-gesture-required',
         '--disable-permissions-api',
         '--disable-component-extensions-with-background-pages',
@@ -189,7 +232,8 @@ class ZhilianService {
         ...envBrowserConfig.options
       };
       
-      this.browser = await chromium.launch(launchOptions);
+      // 使用改进的重试机制启动浏览器
+      this.browser = await this.launchBrowserWithRetry(launchOptions);
       
       // 使用统一的上下文配置
       const context = await this.browser.newContext({
