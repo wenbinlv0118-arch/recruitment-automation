@@ -47,6 +47,10 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
+# 创建非root用户以提高安全性
+RUN groupadd --gid 1000 node \
+  && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
+
 # 设置工作目录
 WORKDIR /app
 
@@ -81,6 +85,13 @@ RUN mkdir -p storage/resumes
 
 # 给启动脚本添加执行权限
 RUN chmod +x start-with-xvfb.sh
+
+# 设置目录权限，确保node用户可以访问
+RUN chown -R node:node /app
+RUN chmod -R 755 /app
+
+# 切换到非root用户
+USER node
 
 # 暴露端口
 EXPOSE 5001

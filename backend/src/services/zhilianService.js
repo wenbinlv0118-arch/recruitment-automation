@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 const logger = require('../utils/logger');
 const ResumeModel = require('../models/resumeModel');
+const memoryMonitor = require('../utils/memoryMonitor');
 const browserDisplayConfig = require('../config/browserDisplayConfig');
 const { environmentConfig, getBrowserConfig, validateConfig } = require('../config/environmentConfig');
 // 简单的简历分析函数
@@ -95,12 +96,35 @@ class ZhilianService {
   async launchBrowserWithRetry(launchOptions, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        logger.info(`浏览器启动第 ${attempt} 次尝试`);
+        // 记录系统内存状态
+        const memUsage = process.memoryUsage();
+        logger.info(`浏览器启动第 ${attempt} 次尝试 - 内存使用: RSS=${Math.round(memUsage.rss/1024/1024)}MB, Heap=${Math.round(memUsage.heapUsed/1024/1024)}MB`);
+        
+        // 记录启动参数
+        logger.info('浏览器启动参数:', JSON.stringify(launchOptions, null, 2));
+        
         const browser = await chromium.launch(launchOptions);
+        
+        // 监听浏览器进程事件
+        if (browser && browser.process) {
+          browser.process().on('exit', (code, signal) => {
+            logger.error(`浏览器进程退出 - 退出码: ${code}, 信号: ${signal}`);
+          });
+          
+          browser.process().on('error', (error) => {
+            logger.error('浏览器进程错误:', error);
+          });
+        }
+        
         logger.info('浏览器启动成功');
         return browser;
       } catch (error) {
-        logger.error(`浏览器启动第 ${attempt} 次尝试失败:`, error.message);
+        logger.error(`浏览器启动第 ${attempt} 次尝试失败:`, {
+          message: error.message,
+          stack: error.stack,
+          code: error.code,
+          errno: error.errno
+        });
         
         if (attempt === maxRetries) {
           logger.error('浏览器启动达到最大重试次数，启动失败');
@@ -122,6 +146,16 @@ class ZhilianService {
   async initializeBrowser() {
     return await this.withErrorHandling(async () => {
       logger.info('正在初始化智联招聘浏览器...');
+      
+      // 开始内存监控
+      memoryMonitor.startMonitoring(30000); // 30秒间隔
+      memoryMonitor.recordMemoryUsage();
+      
+      // 检查内存状态
+      const memStats = memoryMonitor.getMemoryStats();
+      if (memStats.current.rss > 800) { // 如果RSS超过800MB
+        logger.warn(`内存使用较高: RSS=${memStats.current.rss}MB，可能影响浏览器稳定性`);
+      }
       
       // 验证环境配置
       const validation = validateConfig();

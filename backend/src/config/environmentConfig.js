@@ -153,7 +153,16 @@ class EnvironmentConfig {
       '--no-zygote',
       '--disable-gpu',
       '--disable-web-security',
-      '--disable-features=VizDisplayCompositor'
+      '--disable-features=VizDisplayCompositor',
+      // 内存和稳定性优化参数
+      '--max-old-space-size=512',
+      '--memory-pressure-off',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-renderer-backgrounding',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-ipc-flooding-protection',
+      '--single-process'
     ];
 
     // 生产环境额外参数
@@ -168,7 +177,18 @@ class EnvironmentConfig {
         '--no-remote-debugging-pipe',
         '--disable-dev-tools',
         '--disable-extensions-http-throttling',
-        '--disable-component-extensions-with-background-pages'
+        '--disable-component-extensions-with-background-pages',
+        // 生产环境内存和进程优化
+        '--max_old_space_size=256',
+        '--disable-crash-reporter',
+        '--disable-logging',
+        '--disable-gpu-process-crash-limit',
+        '--disable-hang-monitor',
+        '--disable-prompt-on-repost',
+        '--disable-client-side-phishing-detection',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--no-crash-upload'
       );
     }
 
