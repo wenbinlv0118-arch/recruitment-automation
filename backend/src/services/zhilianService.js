@@ -168,7 +168,7 @@ class ZhilianService {
       });
       
       // 在生产环境中强制添加禁用远程调试的参数
-      const shouldUseHeadless = envBrowserConfig.headless === 'new' || envBrowserConfig.headless === true;
+      const shouldUseHeadless = envBrowserConfig.headless === true;
       if (shouldUseHeadless) {
         filteredArgs.push(
           '--disable-remote-debugging',
@@ -179,6 +179,7 @@ class ZhilianService {
       
       logger.info(`最终启动参数: ${filteredArgs.length}个`);
       logger.info(`Headless 模式: ${shouldUseHeadless}`);
+      logger.info(`环境配置headless值: ${envBrowserConfig.headless} (类型: ${typeof envBrowserConfig.headless})`);
       
       // 使用环境配置启动浏览器，确保 headless 参数为布尔值
       const launchOptions = {
