@@ -127,8 +127,11 @@ class EnvironmentConfig {
    * @returns {Object} 浏览器启动配置
    */
   getBrowserConfig() {
+    const shouldUseHeadless = this.shouldUseHeadless();
+    
     const config = {
-      headless: this.shouldUseHeadless(),
+      // 生产环境使用headless模式
+      headless: shouldUseHeadless,
       args: this.getBrowserArgs(),
       timeout: this.getBrowserTimeout()
     };
@@ -159,7 +162,13 @@ class EnvironmentConfig {
         '--disable-plugins',
         '--disable-remote-fonts',
         '--no-remote-debugging-port',
-        '--disable-blink-features=AutomationControlled'
+        '--disable-blink-features=AutomationControlled',
+        // 明确禁用所有远程调试功能
+        '--disable-remote-debugging',
+        '--no-remote-debugging-pipe',
+        '--disable-dev-tools',
+        '--disable-extensions-http-throttling',
+        '--disable-component-extensions-with-background-pages'
       );
     }
 

@@ -144,7 +144,7 @@ class ZhilianService {
       logger.info(`浏览器启动参数已优化 (${uniqueArgs.length}个参数)`);
       logger.info(`无头模式: ${envBrowserConfig.headless}`);
       
-      // 移除可能导致冲突的参数
+      // 移除可能导致冲突的参数（扩展列表）
       const conflictingArgs = [
         '--remote-debugging-pipe', 
         '--remote-debugging-port', 
@@ -152,13 +152,29 @@ class ZhilianService {
         '--remote-debugging-address',
         '--remote-debugging-socket-name',
         '--no-remote-debugging-port',
-        '--disable-remote-debugging'
+        '--disable-remote-debugging',
+        '--enable-remote-debugging',
+        '--remote-debugging',
+        '--debug-port',
+        '--inspect',
+        '--inspect-brk'
       ];
       
       // 过滤掉冲突参数
       const filteredArgs = uniqueArgs.filter(arg => {
-        return !conflictingArgs.some(conflictArg => arg.startsWith(conflictArg));
+        return !conflictingArgs.some(conflictArg => 
+          arg.startsWith(conflictArg) || arg.includes('remote-debugging') || arg.includes('inspect')
+        );
       });
+      
+      // 在生产环境中强制添加禁用远程调试的参数
+      if (envBrowserConfig.headless === 'new') {
+        filteredArgs.push(
+          '--disable-remote-debugging',
+          '--no-remote-debugging-port',
+          '--disable-dev-tools'
+        );
+      }
       
       logger.info(`最终启动参数: ${filteredArgs.length}个`);
       
