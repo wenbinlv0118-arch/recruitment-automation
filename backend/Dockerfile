@@ -1,7 +1,7 @@
 # 使用官方 Node.js 18 镜像作为基础镜像
 FROM node:18-slim
 
-# 安装 Playwright 所需的系统依赖
+# 安装 Playwright 所需的系统依赖和 Xvfb
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     libu2f-udev \
     libvulkan1 \
+    xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
@@ -36,6 +37,8 @@ ENV PORT=3001
 # 设置虚拟显示环境变量，解决X11显示问题
 ENV DISPLAY=:99
 ENV DBUS_SESSION_BUS_ADDRESS=/dev/null
+ENV BROWSER_HEADLESS=true
+ENV XVFB_WHD=1920x1080x24
 
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
@@ -52,8 +55,11 @@ COPY . .
 # 创建存储目录
 RUN mkdir -p storage/resumes
 
+# 给启动脚本添加执行权限
+RUN chmod +x start-with-xvfb.sh
+
 # 暴露端口
 EXPOSE 5001
 
-# 启动应用
-CMD ["npm", "start"]
+# 使用启动脚本启动应用（包含Xvfb支持）
+CMD ["./start-with-xvfb.sh"]

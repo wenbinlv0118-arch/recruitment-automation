@@ -1,11 +1,30 @@
-require('dotenv').config();
+// 环境配置加载优先级：.env.local > .env.production > .env
+const path = require('path');
+const fs = require('fs-extra');
+
+// 检查并加载本地环境配置
+const localEnvPath = path.join(__dirname, '../.env.local');
+if (fs.existsSync(localEnvPath)) {
+  require('dotenv').config({ path: localEnvPath });
+  console.log('已加载本地环境配置: .env.local');
+} else {
+  // 根据 NODE_ENV 加载对应的环境配置
+  const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+  const envPath = path.join(__dirname, `../${envFile}`);
+  
+  if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+    console.log(`已加载环境配置: ${envFile}`);
+  } else {
+    require('dotenv').config();
+    console.log('已加载默认环境配置');
+  }
+}
 
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
-const path = require('path');
-const fs = require('fs-extra');
 const multer = require('multer');
 const resumeModel = require('./models/resumeModel');
 

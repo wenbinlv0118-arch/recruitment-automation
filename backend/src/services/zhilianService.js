@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const logger = require('../utils/logger');
 const ResumeModel = require('../models/resumeModel');
 const browserDisplayConfig = require('../config/browserDisplayConfig');
+const { environmentConfig, getBrowserConfig, validateConfig } = require('../config/environmentConfig');
 // 简单的简历分析函数
 const analyzeResumeQuality = (resumeData) => {
   return {
@@ -87,101 +88,87 @@ class ZhilianService {
 
   /**
    * 初始化浏览器 - 针对智联招聘优化
-   * 使用统一的显示配置解决 Chromium 和 Chrome 显示差异问题
+   * 使用统一的环境配置管理模块
    */
   async initializeBrowser() {
     return await this.withErrorHandling(async () => {
       logger.info('正在初始化智联招聘浏览器...');
       
-      // 获取智联招聘专用的显示配置
+      // 验证环境配置
+      const validation = validateConfig();
+      if (!validation.isValid) {
+        logger.error('环境配置验证失败:', validation.issues);
+        throw new Error(`环境配置错误: ${validation.issues.join(', ')}`);
+      }
+      
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach(warning => logger.warn(warning));
+      }
+      
+      // 获取环境优化的浏览器配置
+      const envBrowserConfig = getBrowserConfig();
       const displayConfig = browserDisplayConfig.zhilian;
       
-      // 基础启动参数
+      // 打印环境配置信息
+      environmentConfig.printConfig();
+      
+      // 合并环境配置和显示配置的启动参数
       const baseArgs = [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor',
         '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        '--autoplay-policy=no-user-gesture-required', // 允许自动播放
-        '--disable-permissions-api', // 禁用权限API检查
-        '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer', // 禁用显示合成器
-        '--disable-component-extensions-with-background-pages', // 禁用后台扩展
-        '--disable-default-apps', // 禁用默认应用
-        '--disable-extensions', // 禁用扩展
-        '--disable-background-networking', // 禁用后台网络
-        '--disable-sync', // 禁用同步
-        '--metrics-recording-only', // 仅记录指标
-        '--no-default-browser-check', // 不检查默认浏览器
-        '--safebrowsing-disable-auto-update', // 禁用安全浏览自动更新
-        '--use-fake-ui-for-media-stream', // 使用虚假UI处理媒体流
-        '--use-fake-device-for-media-stream', // 使用虚假设备处理媒体流
-        '--disable-features=MediaRouter', // 禁用媒体路由
-        '--disable-ipc-flooding-protection', // 禁用IPC洪水保护
-        '--disable-dev-tools', // 禁用开发者工具
-        '--disable-remote-debugging' // 禁用远程调试
+        '--autoplay-policy=no-user-gesture-required',
+        '--disable-permissions-api',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-background-networking',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--no-default-browser-check',
+        '--safebrowsing-disable-auto-update',
+        '--use-fake-ui-for-media-stream',
+        '--use-fake-device-for-media-stream',
+        '--disable-features=MediaRouter',
+        '--disable-ipc-flooding-protection',
+        '--disable-dev-tools',
+        '--disable-remote-debugging'
       ];
       
-      // 合并显示优化参数
-      const allArgs = [...baseArgs, ...displayConfig.launchArgs];
+      // 合并所有启动参数：环境配置 + 显示配置 + 基础配置
+      const allArgs = [
+        ...envBrowserConfig.args,
+        ...displayConfig.launchArgs,
+        ...baseArgs
+      ];
       
-      logger.info('浏览器启动参数已优化，包含显示统一配置');
+      // 去重参数
+      const uniqueArgs = [...new Set(allArgs)];
       
-      // 根据环境决定是否使用无头模式
-      const isProduction = process.env.NODE_ENV === 'production' || process.env.ZEABUR_ENVIRONMENT;
+      logger.info(`浏览器启动参数已优化 (${uniqueArgs.length}个参数)`);
+      logger.info(`无头模式: ${envBrowserConfig.headless}`);
       
-      // 生产环境需要禁用远程调试相关参数
-      if (isProduction) {
-        // 添加生产环境专用参数
-        allArgs.push('--disable-plugins');
-        allArgs.push('--disable-remote-fonts');
-        allArgs.push('--no-remote-debugging-port');
-        allArgs.push('--disable-blink-features=AutomationControlled'); // 禁用自动化控制标识
-        
-        // 移除可能导致远程调试冲突的参数
-        const conflictingArgs = [
-          '--remote-debugging-pipe', 
-          '--remote-debugging-port', 
-          '--enable-automation',
-          '--remote-debugging-address',
-          '--remote-debugging-socket-name'
-        ];
-        conflictingArgs.forEach(arg => {
-          const index = allArgs.findIndex(existingArg => existingArg.startsWith(arg));
-          if (index > -1) {
-            allArgs.splice(index, 1);
-            logger.info(`移除冲突参数: ${arg}`);
-          }
-        });
-      }
+      // 移除可能导致冲突的参数
+      const conflictingArgs = [
+        '--remote-debugging-pipe', 
+        '--remote-debugging-port', 
+        '--enable-automation',
+        '--remote-debugging-address',
+        '--remote-debugging-socket-name',
+        '--no-remote-debugging-port',
+        '--disable-remote-debugging'
+      ];
       
-      // 生产环境使用更严格的配置避免远程调试冲突
+      // 过滤掉冲突参数
+      const filteredArgs = uniqueArgs.filter(arg => {
+        return !conflictingArgs.some(conflictArg => arg.startsWith(conflictArg));
+      });
+      
+      logger.info(`最终启动参数: ${filteredArgs.length}个`);
+      
+      // 使用环境配置启动浏览器
       const launchOptions = {
-        headless: isProduction, // 生产环境使用无头模式，开发环境显示界面
-        args: allArgs,
-        viewport: displayConfig.contextOptions.viewport,
-        devtools: false, // 强制禁用devtools避免远程调试管道冲突
-        chromiumSandbox: false // 禁用沙箱以避免权限问题
+        headless: envBrowserConfig.headless,
+        args: filteredArgs,
+        ...displayConfig.contextOptions,
+        ...envBrowserConfig.options
       };
-      
-      // 生产环境额外配置
-      if (isProduction) {
-        // 忽略可能导致冲突的默认参数
-        launchOptions.ignoreDefaultArgs = [
-          '--enable-automation',
-          '--enable-blink-features=IdleDetection',
-          '--remote-debugging-pipe'
-        ];
-        
-        logger.info('生产环境浏览器配置：无头模式，已禁用所有调试功能');
-      } else {
-        logger.info('开发环境浏览器配置：有界面模式，调试功能已禁用');
-      }
       
       this.browser = await chromium.launch(launchOptions);
       

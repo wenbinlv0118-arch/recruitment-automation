@@ -6,6 +6,12 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "start:prod": "NODE_ENV=production node src/index.js",
+    "start:zeabur": "NODE_ENV=production ZEABUR_ENVIRONMENT=true node src/index.js",
+    "start:headless": "HEADLESS_MODE=true node src/index.js",
+    "test:env": "node scripts/test-env-config.js",
+    "test:env:prod": "NODE_ENV=production node scripts/test-env-config.js",
+    "test:env:zeabur": "NODE_ENV=production ZEABUR_ENVIRONMENT=true node scripts/test-env-config.js",
     "start:optimized": "node --expose-gc --max-old-space-size=2048 start-optimized.js",
     "dev:optimized": "nodemon --expose-gc --max-old-space-size=2048 start-optimized.js",
     "build": "echo 'Backend build completed - Netlify Functions ready'",
