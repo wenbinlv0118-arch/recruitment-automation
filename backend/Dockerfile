@@ -1,5 +1,5 @@
-# 使用官方 Node.js 18 镜像作为基础镜像
-FROM node:18-slim
+# 使用官方 Node.js 20 镜像作为基础镜像
+FROM node:20-slim
 
 # 安装 Playwright 所需的系统依赖和 Xvfb（根据Zeabur优化建议）
 RUN apt-get update && apt-get install -y \
