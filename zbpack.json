@@ -6,6 +6,7 @@
       "context": "backend",
       "environment": "docker",
       "framework": "express",
+      "node_version": "20",
       "env": {
         "BROWSER_HEADLESS": "true",
         "DISPLAY": ":99",
