@@ -17,7 +17,7 @@
       "build_command": "cd frontend && npm ci && npm run build",
       "output_dir": "frontend/build",
       "install_command": "cd frontend && npm ci",
-      "node_version": "18",
+      "node_version": "20",
       "cache_dependencies": true,
       "environment": "static",
       "framework": "react",
