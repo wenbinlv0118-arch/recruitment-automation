@@ -1,4 +1,3 @@
-const { chromium } = require('playwright');
 const logger = require('../utils/logger');
 const ResumeModel = require('../models/resumeModel');
 const memoryMonitor = require('../utils/memoryMonitor');
@@ -15,6 +14,7 @@ try {
   logger.error('Playwright 模块加载失败:', error.message);
   // 在运行时会再次尝试加载
 }
+
 // 简单的简历分析函数
 const analyzeResumeQuality = (resumeData) => {
   return {
