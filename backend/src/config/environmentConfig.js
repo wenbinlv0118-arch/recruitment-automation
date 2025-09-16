@@ -133,7 +133,14 @@ class EnvironmentConfig {
       // 生产环境使用headless模式
       headless: shouldUseHeadless,
       args: this.getBrowserArgs(),
-      timeout: this.getBrowserTimeout()
+      timeout: this.getBrowserTimeout(),
+      options: {
+        // 确保在headless模式下禁用远程调试
+        ...(shouldUseHeadless && {
+          devtools: false,
+          ignoreDefaultArgs: ['--enable-automation']
+        })
+      }
     };
 
     return config;

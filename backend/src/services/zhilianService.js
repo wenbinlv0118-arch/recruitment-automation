@@ -272,12 +272,59 @@ class ZhilianService {
         '--memory-pressure-off'
       ];
       
+      // 定义可能导致冲突的参数列表
+      const conflictingArgs = [
+        '--remote-debugging-pipe', 
+        '--remote-debugging-port', 
+        '--enable-automation',
+        '--remote-debugging-address',
+        '--remote-debugging-socket-name',
+        '--debug-port',
+        '--inspect',
+        '--inspect-brk',
+        '--enable-remote-debugging',
+        '--headless=new', // 移除新版headless参数
+        '--headless=chrome' // 移除chrome headless参数
+      ];
+      
       // 合并所有启动参数：环境配置 + 显示配置 + 基础配置
-      const allArgs = [
+      const mergedArgs = [
         ...envBrowserConfig.args,
         ...displayConfig.launchArgs,
         ...baseArgs
       ];
+      
+      // 过滤掉冲突参数和重复参数
+      const filteredArgs = mergedArgs.filter((arg, index, array) => {
+        // 移除冲突参数
+        const isConflicting = conflictingArgs.some(conflictArg => 
+          arg.startsWith(conflictArg) || 
+          arg.includes('remote-debugging') || 
+          arg.includes('inspect') ||
+          arg.includes('devtools') ||
+          (arg.startsWith('--headless=') && arg !== '--headless')
+        );
+        
+        if (isConflicting) {
+          logger.warn(`移除冲突参数: ${arg}`);
+          return false;
+        }
+        
+        // 移除重复参数（保留第一个出现的）
+        return array.indexOf(arg) === index;
+      });
+      
+      // 确保headless参数的一致性
+      const headlessArgs = filteredArgs.filter(arg => arg.startsWith('--headless'));
+      if (headlessArgs.length > 1) {
+        logger.warn(`检测到多个headless参数: ${headlessArgs.join(', ')}`);
+        // 移除所有headless参数，只保留标准的
+        const withoutHeadless = filteredArgs.filter(arg => !arg.startsWith('--headless'));
+        withoutHeadless.push('--headless'); // 添加标准headless参数
+        filteredArgs.splice(0, filteredArgs.length, ...withoutHeadless);
+      }
+      
+      const allArgs = filteredArgs;
       
       // 去重参数
       const uniqueArgs = [...new Set(allArgs)];
@@ -291,33 +338,6 @@ class ZhilianService {
       logger.info(`容器环境: ${isContainerEnv}`);
       logger.info(`最终Headless模式: ${shouldUseHeadless}`);
       
-      // 移除可能导致冲突的参数（扩展列表）
-      const conflictingArgs = [
-        '--remote-debugging-pipe', 
-        '--remote-debugging-port', 
-        '--enable-automation',
-        '--remote-debugging-address',
-        '--remote-debugging-socket-name',
-        '--debug-port',
-        '--inspect',
-        '--inspect-brk',
-        '--enable-remote-debugging',
-        '--headless=new', // 移除新版headless参数
-        '--headless=chrome', // 移除chrome headless参数
-        '--no-remote-debugging-pipe' // 确保移除远程调试管道
-      ];
-      
-      // 过滤掉冲突参数（更严格的过滤）
-      const filteredArgs = uniqueArgs.filter(arg => {
-        return !conflictingArgs.some(conflictArg => 
-          arg.startsWith(conflictArg) || 
-          arg.includes('remote-debugging') || 
-          arg.includes('inspect') ||
-          arg.includes('devtools') ||
-          (arg.startsWith('--headless=') && arg !== '--headless')
-        );
-      });
-      
       // 在生产环境中强制确保禁用远程调试
       if (shouldUseHeadless) {
         // 确保这些参数存在且唯一
@@ -328,22 +348,13 @@ class ZhilianService {
         ];
         
         ensureArgs.forEach(arg => {
-          if (!filteredArgs.includes(arg)) {
-            filteredArgs.push(arg);
+          if (!uniqueArgs.includes(arg)) {
+            uniqueArgs.push(arg);
           }
         });
       }
       
-      // 特别处理headless参数 - 确保只有一个headless参数
-      const headlessArgs = filteredArgs.filter(arg => arg.startsWith('--headless'));
-      if (headlessArgs.length > 1) {
-        // 移除所有headless参数，只保留一个
-        const withoutHeadless = filteredArgs.filter(arg => !arg.startsWith('--headless'));
-        withoutHeadless.push('--headless'); // 添加标准headless参数
-        filteredArgs.splice(0, filteredArgs.length, ...withoutHeadless);
-      }
-      
-      logger.info(`最终启动参数: ${filteredArgs.length}个`);
+      logger.info(`最终启动参数: ${uniqueArgs.length}个`);
       logger.info(`Headless 模式: ${shouldUseHeadless}`);
       logger.info(`容器环境: ${isContainerEnv}`);
       logger.info(`环境配置headless值: ${envBrowserConfig.headless} (类型: ${typeof envBrowserConfig.headless})`);
@@ -351,7 +362,7 @@ class ZhilianService {
       // 使用环境配置启动浏览器，确保 headless 参数为布尔值
       const launchOptions = {
         headless: shouldUseHeadless, // 确保传递布尔值而不是字符串
-        args: filteredArgs,
+        args: uniqueArgs,
         ...displayConfig.contextOptions,
         ...envBrowserConfig.options,
         // 容器环境优化参数
