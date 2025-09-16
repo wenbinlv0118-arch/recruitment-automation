@@ -174,7 +174,6 @@ class EnvironmentConfig {
         '--disable-blink-features=AutomationControlled',
         // 明确禁用所有远程调试功能
         '--disable-remote-debugging',
-        '--no-remote-debugging-pipe',
         '--disable-dev-tools',
         '--disable-extensions-http-throttling',
         '--disable-component-extensions-with-background-pages',

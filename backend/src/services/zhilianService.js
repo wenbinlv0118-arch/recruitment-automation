@@ -303,7 +303,8 @@ class ZhilianService {
         '--inspect-brk',
         '--enable-remote-debugging',
         '--headless=new', // 移除新版headless参数
-        '--headless=chrome' // 移除chrome headless参数
+        '--headless=chrome', // 移除chrome headless参数
+        '--no-remote-debugging-pipe' // 确保移除远程调试管道
       ];
       
       // 过滤掉冲突参数（更严格的过滤）
@@ -331,6 +332,15 @@ class ZhilianService {
             filteredArgs.push(arg);
           }
         });
+      }
+      
+      // 特别处理headless参数 - 确保只有一个headless参数
+      const headlessArgs = filteredArgs.filter(arg => arg.startsWith('--headless'));
+      if (headlessArgs.length > 1) {
+        // 移除所有headless参数，只保留一个
+        const withoutHeadless = filteredArgs.filter(arg => !arg.startsWith('--headless'));
+        withoutHeadless.push('--headless'); // 添加标准headless参数
+        filteredArgs.splice(0, filteredArgs.length, ...withoutHeadless);
       }
       
       logger.info(`最终启动参数: ${filteredArgs.length}个`);

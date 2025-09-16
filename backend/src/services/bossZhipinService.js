@@ -111,43 +111,101 @@ class BossZhipinService {
     try {
       logger.info('正在启动 Boss 直聘自动化浏览器...');
       
+      // 使用与智联招聘相同的参数处理方式
+      const isContainerEnv = process.env.NODE_ENV === 'production' || process.env.ZEABUR || process.env.CONTAINER;
+      const shouldUseHeadless = isContainerEnv || process.env.BROWSER_HEADLESS === 'true';
+      
+      // 基础参数
+      const baseArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-blink-features=AutomationControlled', // 禁用自动化控制检测
+        '--disable-features=VizDisplayCompositor',
+        '--disable-web-security',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--disable-popup-blocking', // 禁用弹窗阻止，确保新标签页能正常打开
+        '--disable-background-tab-throttling', // 禁用后台标签页限制
+        '--autoplay-policy=no-user-gesture-required', // 允许自动播放
+        '--disable-permissions-api', // 禁用权限API检查
+        '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer', // 禁用显示合成器
+        '--disable-component-extensions-with-background-pages', // 禁用后台扩展
+        '--disable-default-apps', // 禁用默认应用
+        '--disable-extensions', // 禁用扩展
+        '--disable-background-networking', // 禁用后台网络
+        '--disable-sync', // 禁用同步
+        '--metrics-recording-only', // 仅记录指标
+        '--no-default-browser-check', // 不检查默认浏览器
+        '--no-first-run', // 不显示首次运行界面
+        '--safebrowsing-disable-auto-update', // 禁用安全浏览自动更新
+        '--enable-features=UseOzonePlatform', // 启用Ozone平台
+        '--use-fake-ui-for-media-stream', // 使用虚假UI处理媒体流
+        '--use-fake-device-for-media-stream', // 使用虚假设备处理媒体流
+        '--disable-features=MediaRouter', // 禁用媒体路由
+        '--disable-ipc-flooding-protection', // 禁用IPC洪水保护
+        '--disable-remote-debugging', // 禁用远程调试
+        '--no-remote-debugging-port', // 禁用远程调试端口
+        '--disable-dev-tools', // 禁用开发者工具
+        '--disable-logging', // 禁用日志
+        '--disable-gpu-process-crash-limit', // 禁用GPU进程崩溃限制
+        '--disable-hang-monitor', // 禁用挂起监控
+        '--disable-prompt-on-repost', // 禁用重新提交提示
+        '--disable-client-side-phishing-detection', // 禁用客户端钓鱼检测
+        '--disable-crash-reporter', // 禁用崩溃报告
+        '--max-old-space-size=512', // 限制内存使用
+        '--memory-pressure-off' // 关闭内存压力
+      ];
+      
+      // 移除可能导致冲突的参数
+      const conflictingArgs = [
+        '--remote-debugging-pipe', 
+        '--remote-debugging-port', 
+        '--enable-automation',
+        '--remote-debugging-address',
+        '--remote-debugging-socket-name',
+        '--debug-port',
+        '--inspect',
+        '--inspect-brk',
+        '--enable-remote-debugging',
+        '--headless=new', // 移除新版headless参数
+        '--headless=chrome' // 移除chrome headless参数
+      ];
+      
+      // 过滤掉冲突参数
+      const filteredArgs = baseArgs.filter(arg => {
+        return !conflictingArgs.some(conflictArg => 
+          arg.startsWith(conflictArg) || 
+          arg.includes('remote-debugging') || 
+          arg.includes('inspect') ||
+          arg.includes('devtools') ||
+          (arg.startsWith('--headless=') && arg !== '--headless')
+        );
+      });
+      
+      // 特别处理headless参数
+      const headlessArgs = filteredArgs.filter(arg => arg.startsWith('--headless'));
+      if (headlessArgs.length > 1) {
+        // 移除所有headless参数，只保留一个
+        const withoutHeadless = filteredArgs.filter(arg => !arg.startsWith('--headless'));
+        withoutHeadless.push('--headless'); // 添加标准headless参数
+        filteredArgs.splice(0, filteredArgs.length, ...withoutHeadless);
+      }
+      
       this.browser = await chromium.launch({
-        headless: false, // 开发阶段使用有头模式，便于调试
+        headless: shouldUseHeadless,
         slowMo: 500, // 适度放慢操作速度
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--disable-blink-features=AutomationControlled', // 禁用自动化控制检测
-          '--disable-features=VizDisplayCompositor',
-          '--disable-web-security',
-          '--disable-features=TranslateUI',
-          '--disable-ipc-flooding-protection',
-          '--disable-popup-blocking', // 禁用弹窗阻止，确保新标签页能正常打开
-          '--disable-background-tab-throttling', // 禁用后台标签页限制
-          '--autoplay-policy=no-user-gesture-required', // 允许自动播放
-          '--disable-permissions-api', // 禁用权限API检查
-          '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer', // 禁用显示合成器
-          '--enable-automation', // 启用自动化模式
-          '--disable-component-extensions-with-background-pages', // 禁用后台扩展
-          '--disable-default-apps', // 禁用默认应用
-          '--disable-extensions', // 禁用扩展
-          '--disable-background-networking', // 禁用后台网络
-          '--disable-sync', // 禁用同步
-          '--metrics-recording-only', // 仅记录指标
-          '--no-default-browser-check', // 不检查默认浏览器
-          '--no-first-run', // 不显示首次运行界面
-          '--safebrowsing-disable-auto-update', // 禁用安全浏览自动更新
-          '--enable-features=UseOzonePlatform', // 启用Ozone平台
-          '--use-fake-ui-for-media-stream', // 使用虚假UI处理媒体流
-          '--use-fake-device-for-media-stream', // 使用虚假设备处理媒体流
-          '--disable-features=MediaRouter', // 禁用媒体路由
-          '--disable-ipc-flooding-protection' // 禁用IPC洪水保护
-        ]
+        args: filteredArgs,
+        // 容器环境优化参数
+        ...(isContainerEnv && {
+          timeout: 60000, // 增加启动超时时间
+          handleSIGINT: false,
+          handleSIGTERM: false
+        })
       });
 
       // 创建浏览器上下文，配置剪贴板权限自动授权
@@ -231,9 +289,6 @@ class BossZhipinService {
           };
         }
       });
-
-      // 设置弹窗处理 - 已禁用
-      // await this.setupPopupHandling();
 
       logger.info('Boss 直聘自动化浏览器启动成功');
       return true;
