@@ -167,7 +167,7 @@ class EnvironmentConfig {
       '--disable-gpu',
       '--disable-web-security',
       '--disable-features=VizDisplayCompositor',
-      // D-Bus 错误修复参数 - 全面禁用
+      // D-Bus 错误修复参数 - 全面禁用（修复colon错误）
       '--no-dbus',
       '--disable-dbus',
       '--disable-system-font-check',
@@ -175,6 +175,7 @@ class EnvironmentConfig {
       '--disable-sync',
       '--disable-translate',
       '--disable-features=TranslateUI',
+      '--disable-ipc-flooding-protection',
       
       // 系统服务和IPC禁用
       '--disable-accessibility',
@@ -186,6 +187,8 @@ class EnvironmentConfig {
       '--no-service-autorun',
       '--disable-hang-monitor',
       '--disable-prompt-on-repost',
+      '--disable-extensions',
+      '--disable-component-extensions-with-background-pages',
       
       // 媒体和硬件访问禁用
       '--disable-audio-output',
@@ -194,6 +197,14 @@ class EnvironmentConfig {
       
       // 网络和更新服务禁用
       '--disable-remote-fonts',
+      '--disable-background-downloads',
+      '--disable-add-to-shelf',
+      '--disable-datasaver-prompt',
+      '--disable-desktop-notifications',
+      '--disable-device-discovery-notifications',
+      '--disable-infobars',
+      '--disable-translate-new-ux',
+      '--disable-file-system',
       
       // 内存和稳定性优化参数
       '--max-old-space-size=512',

@@ -14,14 +14,18 @@ echo "=== 禁用D-Bus服务 ==="
 rm -rf /run/dbus 2>/dev/null || true
 rm -rf /var/run/dbus 2>/dev/null || true
 
-# 设置D-Bus环境变量
-export DBUS_SESSION_BUS_ADDRESS=/dev/null
-export DBUS_SYSTEM_BUS_ADDRESS=/dev/null
+# 设置D-Bus环境变量（修复colon错误）
+export DBUS_SESSION_BUS_ADDRESS=""
+export DBUS_SYSTEM_BUS_ADDRESS=""
 export NO_DBUS=1
 export DISABLE_DBUS=1
 export NO_AT_BRIDGE=1
 export GSETTINGS_BACKEND=memory
 export GDK_BACKEND=x11
+
+# 额外的D-Bus禁用变量
+export DBUS_FATAL_WARNINGS=0
+export DBUS_VERBOSE=0
 
 echo "D-Bus服务已完全禁用"
 
