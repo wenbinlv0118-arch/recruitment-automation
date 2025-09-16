@@ -1,9 +1,8 @@
 {
-  "build_command": "echo 'Monorepo detected, please specify service'",
+  "build_command": "echo 'Monorepo: Please select specific service to deploy'",
   "services": {
     "backend": {
-      "dockerfile": "backend/Dockerfile",
-      "context": "backend",
+      "root_dir": "backend",
       "environment": "docker",
       "framework": "express",
       "node_version": "20",
@@ -23,9 +22,10 @@
       }
     },
     "frontend": {
-      "build_command": "cd frontend && npm ci && npm run build",
-      "output_dir": "frontend/build",
-      "install_command": "cd frontend && npm ci",
+      "root_dir": "frontend",
+      "build_command": "npm ci && npm run build",
+      "output_dir": "build",
+      "install_command": "npm ci",
       "node_version": "20",
       "cache_dependencies": true,
       "environment": "static",
@@ -37,8 +37,7 @@
       }
     },
     "vnc-browser": {
-      "dockerfile": "vnc-service/Dockerfile",
-      "context": "vnc-service",
+      "root_dir": "vnc-service",
       "environment": "docker",
       "ports": {
         "6080": "HTTP",
@@ -63,16 +62,18 @@
   },
   "meta": {
     "name": "Recruitment Automation",
-    "description": "智能招聘自动化平台 - 支持VNC远程桌面监控 - Zeabur 部署配置 v2.0",
-    "version": "2.0.0",
+    "description": "智能招聘自动化平台 - 支持VNC远程桌面监控 - Zeabur Monorepo 部署配置 v3.0",
+    "version": "3.0.0",
     "author": "Recruitment Team",
     "repository": "https://github.com/wenbinlv0118-arch/recruitment-automation",
-    "keywords": ["recruitment", "automation", "vnc", "browser", "zeabur"],
+    "keywords": ["recruitment", "automation", "vnc", "browser", "zeabur", "monorepo"],
     "deployment": {
       "platform": "zeabur",
+      "architecture": "monorepo",
       "optimized_for": "container",
       "supports_vnc": true,
-      "browser_automation": true
+      "browser_automation": true,
+      "services": ["backend", "frontend", "vnc-browser"]
     }
   }
 }
