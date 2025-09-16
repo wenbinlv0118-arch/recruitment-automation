@@ -269,7 +269,12 @@ class ZhilianService {
         '--disable-client-side-phishing-detection',
         '--disable-crash-reporter',
         '--max-old-space-size=512', // 限制内存使用
-        '--memory-pressure-off'
+        '--memory-pressure-off',
+        // D-Bus 错误修复参数
+        '--no-dbus',
+        '--disable-dbus',
+        '--disable-system-font-check',
+        '--disable-font-subpixel-positioning'
       ];
       
       // 定义可能导致冲突的参数列表

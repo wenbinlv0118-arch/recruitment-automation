@@ -167,6 +167,14 @@ class EnvironmentConfig {
       '--disable-gpu',
       '--disable-web-security',
       '--disable-features=VizDisplayCompositor',
+      // D-Bus 错误修复参数
+      '--no-dbus',
+      '--disable-dbus',
+      '--disable-system-font-check',
+      '--disable-font-subpixel-positioning',
+      '--disable-sync',
+      '--disable-translate',
+      '--disable-features=TranslateUI',
       // 内存和稳定性优化参数
       '--max-old-space-size=512',
       '--memory-pressure-off',
