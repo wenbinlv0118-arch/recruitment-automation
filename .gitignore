@@ -38,3 +38,7 @@ Thumbs.db
 # Local Netlify folder
 .netlify
 .vercel
+.trae/documents/故障排除和维护指南.md
+.trae/documents/免费部署技术架构文档.md
+.trae/documents/免费在线部署完整指南.md
+.trae/documents/一键部署脚本和配置.md

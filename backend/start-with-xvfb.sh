@@ -7,6 +7,24 @@ set -e
 
 echo "=== 后端服务启动脚本 - Zeabur优化版 ==="
 
+# 禁用D-Bus服务
+echo "=== 禁用D-Bus服务 ==="
+
+# 确保D-Bus相关目录不存在或不可访问
+rm -rf /run/dbus 2>/dev/null || true
+rm -rf /var/run/dbus 2>/dev/null || true
+
+# 设置D-Bus环境变量
+export DBUS_SESSION_BUS_ADDRESS=/dev/null
+export DBUS_SYSTEM_BUS_ADDRESS=/dev/null
+export NO_DBUS=1
+export DISABLE_DBUS=1
+export NO_AT_BRIDGE=1
+export GSETTINGS_BACKEND=memory
+export GDK_BACKEND=x11
+
+echo "D-Bus服务已完全禁用"
+
 # 执行 Playwright 验证
 echo "执行 Playwright 验证..."
 if [ -f "/usr/local/bin/verify-playwright.sh" ]; then
