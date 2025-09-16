@@ -5,6 +5,23 @@
 
 set -e
 
+echo "=== 后端服务启动脚本 - Zeabur优化版 ==="
+
+# 执行 Playwright 验证
+echo "执行 Playwright 验证..."
+if [ -f "/usr/local/bin/verify-playwright.sh" ]; then
+    echo "运行 Playwright 验证脚本..."
+    if ! /usr/local/bin/verify-playwright.sh; then
+        echo "⚠ Playwright 验证失败，但尝试继续启动..."
+        # 记录验证失败，但不停止服务
+        echo "警告: Playwright 验证失败，可能影响浏览器自动化功能" > /tmp/playwright-validation-warning.log
+    else
+        echo "✓ Playwright 验证通过"
+    fi
+else
+    echo "警告: Playwright 验证脚本不存在，跳过验证"
+fi
+
 echo "启动 Xvfb 虚拟显示服务器..."
 # 启动 Xvfb 虚拟显示服务器
 Xvfb :99 -screen 0 ${XVFB_WHD:-1920x1080x24} -ac +extension GLX +render -noreset &

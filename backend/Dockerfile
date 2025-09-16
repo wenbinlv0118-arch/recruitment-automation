@@ -51,9 +51,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# 创建非root用户以提高安全性
-RUN groupadd --gid 1000 node \
-  && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
+# 创建非root用户以提高安全性（Zeabur 环境检查优化）
+RUN echo "=== 检查和创建node用户 ===" && \
+    if id -u node >/dev/null 2>&1; then \
+        echo "node用户已存在，跳过创建"; \
+    else \
+        echo "创建node用户组和用户..."; \
+        groupadd --gid 1000 node && \
+        useradd --uid 1000 --gid node --shell /bin/bash --create-home node && \
+        echo "node用户创建成功"; \
+    fi
 
 # 设置工作目录
 WORKDIR /app
@@ -80,19 +87,42 @@ ENV PLAYWRIGHT_DISABLE_FORCED_TERMINATION=true
 COPY package*.json ./
 
 # 安装依赖（优化版本）
-RUN npm ci --only=production --no-audit --no-fund
+RUN echo "=== 安装Node.js依赖 ===" && \
+    npm ci --only=production --no-audit --no-fund || { echo "ERROR: npm依赖安装失败"; cat /app/package.json; exit 1; }
 
-# 安装 Playwright 浏览器（优化版本）
-RUN npx playwright install chromium --with-deps
+# 安装 Playwright 浏览器（严格验证版本）
+RUN echo "=== 安装Playwright浏览器 ===" && \
+    echo "开始安装Chromium浏览器..." && \
+    npx playwright install chromium --with-deps || { echo "ERROR: Playwright Chromium安装失败"; npx playwright install --help; exit 1; } && \
+    echo "Chromium安装完成" && \
+    # 验证Playwright浏览器安装
+    echo "验证Playwright浏览器安装..." && \
+    npx playwright --version || { echo "ERROR: Playwright命令不可用"; exit 1; } && \
+    # 检查浏览器文件是否存在
+    echo "检查Playwright浏览器文件..." && \
+    find /ms-playwright -name "*chromium*" -type d | head -5 || echo "警告: 未找到Chromium目录" && \
+    # 验证浏览器可执行性（只做基本检查，不真正启动）
+    echo "验证Playwright浏览器基本可用性..." && \
+    node -e "const { chromium } = require('playwright'); console.log('Playwright Chromium 模块加载成功');" || { echo "ERROR: Playwright Chromium模块加载失败"; exit 1; } && \
+    echo "=== Playwright浏览器安装验证完成 ==="
 
 # 复制应用代码
 COPY . .
 
+# 复制验证脚本
+COPY verify-playwright.sh /usr/local/bin/verify-playwright.sh
+
 # 创建存储目录和设置权限（合并操作）
 RUN mkdir -p storage/resumes \
     && chmod +x start-with-xvfb.sh \
+    && chmod +x /usr/local/bin/verify-playwright.sh \
     && chown -R node:node /app \
     && chmod -R 755 /app
+
+# 执行最终的 Playwright 验证（构建时检查）
+RUN echo "=== 执行最终 Playwright 验证 ===" && \
+    /usr/local/bin/verify-playwright.sh || { echo "ERROR: Playwright 验证失败，停止构建"; exit 1; } && \
+    echo "=== Playwright 验证通过，构建继续 ==="
 
 # 切换到非root用户
 USER node

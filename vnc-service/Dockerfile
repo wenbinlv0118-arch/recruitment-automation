@@ -55,23 +55,49 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN locale-gen zh_CN.UTF-8 && \
     update-locale LANG=zh_CN.UTF-8
 
-# 安装Google Chrome（针对Zeabur环境优化）
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
+# 安装Google Chrome（严格验证版本 - Zeabur环境）
+RUN echo "=== 开始安装Google Chrome ===" && \
+    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - || { echo "ERROR: 无法添加Google Chrome GPG密钥"; exit 1; } && \
     echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends google-chrome-stable && \
+    apt-get update || { echo "ERROR: 更新软件包列表失败"; exit 1; } && \
+    echo "正在安装Google Chrome..." && \
+    apt-get install -y --no-install-recommends google-chrome-stable || { echo "ERROR: Google Chrome安装失败"; apt-cache policy google-chrome-stable; exit 1; } && \
+    echo "Google Chrome安装完成" && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
-# 创建浏览器软链接以确保路径正确（优化版本）
-RUN ln -sf /usr/bin/chromium-browser /usr/local/bin/chromium-browser && \
+# 严格验证所有浏览器安装和创建软链接
+RUN echo "=== 开始浏览器验证和软链接创建 ===" && \
+    # 检查所有浏览器二进制文件是否存在
+    echo "检查浏览器二进制文件..." && \
+    test -f /usr/bin/chromium-browser || { echo "ERROR: Chromium浏览器二进制文件不存在: /usr/bin/chromium-browser"; ls -la /usr/bin/ | grep -i chrom; exit 1; } && \
+    test -f /usr/bin/google-chrome-stable || { echo "ERROR: Google Chrome浏览器二进制文件不存在: /usr/bin/google-chrome-stable"; ls -la /usr/bin/ | grep -i chrome; exit 1; } && \
+    test -f /usr/bin/firefox || { echo "ERROR: Firefox浏览器二进制文件不存在: /usr/bin/firefox"; ls -la /usr/bin/ | grep -i firefox; exit 1; } && \
+    echo "所有浏览器二进制文件检查通过" && \
+    # 创建软链接
+    echo "创建浏览器软链接..." && \
+    ln -sf /usr/bin/chromium-browser /usr/local/bin/chromium-browser && \
     ln -sf /usr/bin/google-chrome-stable /usr/local/bin/google-chrome && \
     ln -sf /usr/bin/firefox /usr/local/bin/firefox && \
-    # 验证浏览器安装
-    google-chrome-stable --version && \
-    chromium-browser --version && \
-    firefox --version && \
-    echo "所有浏览器软链接创建完成"
+    echo "软链接创建完成" && \
+    # 严格验证每个浏览器版本（必须成功）
+    echo "验证Google Chrome版本..." && \
+    google-chrome-stable --version || { echo "ERROR: Google Chrome版本检查失败"; which google-chrome-stable; file /usr/bin/google-chrome-stable; exit 1; } && \
+    echo "验证Chromium版本..." && \
+    chromium-browser --version || { echo "ERROR: Chromium版本检查失败"; which chromium-browser; file /usr/bin/chromium-browser; exit 1; } && \
+    echo "验证Firefox版本..." && \
+    firefox --version || { echo "ERROR: Firefox版本检查失败"; which firefox; file /usr/bin/firefox; exit 1; } && \
+    # 验证软链接
+    echo "验证软链接..." && \
+    test -L /usr/local/bin/google-chrome || { echo "ERROR: Google Chrome软链接创建失败"; exit 1; } && \
+    test -L /usr/local/bin/chromium-browser || { echo "ERROR: Chromium软链接创建失败"; exit 1; } && \
+    test -L /usr/local/bin/firefox || { echo "ERROR: Firefox软链接创建失败"; exit 1; } && \
+    # 最终验证：通过软链接执行版本检查
+    echo "通过软链接验证浏览器可执行性..." && \
+    /usr/local/bin/google-chrome --version || { echo "ERROR: Google Chrome软链接不可执行"; exit 1; } && \
+    /usr/local/bin/chromium-browser --version || { echo "ERROR: Chromium软链接不可执行"; exit 1; } && \
+    /usr/local/bin/firefox --version || { echo "ERROR: Firefox软链接不可执行"; exit 1; } && \
+    echo "=== 所有浏览器安装验证完成 ==="
 
 # 安装noVNC（优化版本）
 RUN git clone --depth 1 https://github.com/novnc/noVNC.git /opt/noVNC && \
@@ -95,12 +121,19 @@ COPY start-browser.sh /usr/local/bin/start-browser.sh
 COPY index.html /usr/local/bin/index.html
 COPY test-browsers.sh /usr/local/bin/test-browsers.sh
 COPY diagnose-browser.sh /usr/local/bin/diagnose-browser.sh
+COPY verify-browsers.sh /usr/local/bin/verify-browsers.sh
 
 # 设置执行权限（合并命令）
 RUN chmod +x /usr/local/bin/start-vnc.sh \
               /usr/local/bin/start-browser.sh \
               /usr/local/bin/test-browsers.sh \
-              /usr/local/bin/diagnose-browser.sh
+              /usr/local/bin/diagnose-browser.sh \
+              /usr/local/bin/verify-browsers.sh
+
+# 执行最终的严格浏览器验证（构建时检查）
+RUN echo "=== 执行最终浏览器验证 ===" && \
+    /usr/local/bin/verify-browsers.sh || { echo "ERROR: 最终浏览器验证失败，停止构建"; exit 1; } && \
+    echo "=== 所有浏览器验证通过，构建继续 ==="
 
 # 暴露端口（Zeabur环境适配）
 EXPOSE $VNC_PORT $NO_VNC_PORT

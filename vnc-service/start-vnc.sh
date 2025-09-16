@@ -25,7 +25,21 @@ if [ ! -f ~/.vnc/passwd ]; then
     x11vnc -storepasswd $VNC_PASSWORD ~/.vnc/passwd
 fi
 
-# 检查和配置浏览器
+# 检查和配置浏览器（严格验证版本）
+echo "执行浏览器验证..."
+if [ -f "/usr/local/bin/verify-browsers.sh" ]; then
+    echo "运行浏览器验证脚本..."
+    if ! /usr/local/bin/verify-browsers.sh; then
+        echo "✗ 浏览器验证失败，但尝试继续启动..."
+        # 记录验证失败，但不停止服务
+        echo "警告: 浏览器验证失败，可能影响浏览器自动化功能" > /var/log/browser-validation-warning.log
+    else
+        echo "✓ 浏览器验证通过"
+    fi
+else
+    echo "警告: 浏览器验证脚本不存在，跳过验证"
+fi
+
 echo "检查浏览器可用性..."
 if command -v chromium-browser >/dev/null 2>&1; then
     echo "✓ 找到 chromium-browser"
