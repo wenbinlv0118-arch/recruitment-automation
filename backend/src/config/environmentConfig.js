@@ -138,7 +138,13 @@ class EnvironmentConfig {
         // 确保在headless模式下禁用远程调试
         ...(shouldUseHeadless && {
           devtools: false,
-          ignoreDefaultArgs: ['--enable-automation']
+          // 忽略可能导致远程调试冲突的默认参数
+          ignoreDefaultArgs: [
+            '--enable-automation',
+            '--enable-blink-features=IdleDetection',
+            '--remote-debugging-pipe',
+            '--remote-debugging-port'
+          ]
         })
       }
     };

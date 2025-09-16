@@ -365,6 +365,14 @@ class ZhilianService {
         args: uniqueArgs,
         ...displayConfig.contextOptions,
         ...envBrowserConfig.options,
+        // 强制禁用所有调试功能
+        devtools: false,
+        // 忽略默认的自动化参数，避免冲突
+        ignoreDefaultArgs: [
+          '--enable-automation',
+          '--enable-blink-features=IdleDetection',
+          '--remote-debugging-pipe'
+        ],
         // 容器环境优化参数
         ...(isContainerEnv && {
           timeout: 60000, // 增加启动超时时间
