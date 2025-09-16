@@ -94,49 +94,79 @@ class ZhilianService {
    * @returns {Promise<Browser>} 浏览器实例
    */
   async launchBrowserWithRetry(launchOptions, maxRetries = 3) {
+    let lastError = null;
+    
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // 记录系统内存状态
         const memUsage = process.memoryUsage();
         logger.info(`浏览器启动第 ${attempt} 次尝试 - 内存使用: RSS=${Math.round(memUsage.rss/1024/1024)}MB, Heap=${Math.round(memUsage.heapUsed/1024/1024)}MB`);
         
-        // 记录启动参数
-        logger.info('浏览器启动参数:', JSON.stringify(launchOptions, null, 2));
+        // 记录启动参数（仅在第一次尝试时）
+        if (attempt === 1) {
+          logger.info('浏览器启动参数:', JSON.stringify({
+            headless: launchOptions.headless,
+            argsCount: launchOptions.args?.length || 0,
+            timeout: launchOptions.timeout
+          }, null, 2));
+        }
         
         const browser = await chromium.launch(launchOptions);
         
         // 监听浏览器进程事件
         if (browser && browser.process) {
           browser.process().on('exit', (code, signal) => {
-            logger.error(`浏览器进程退出 - 退出码: ${code}, 信号: ${signal}`);
+            logger.warn(`浏览器进程退出 - 退出码: ${code}, 信号: ${signal}`);
           });
           
           browser.process().on('error', (error) => {
-            logger.error('浏览器进程错误:', error);
+            logger.error('浏览器进程错误:', error.message);
           });
         }
         
         logger.info('浏览器启动成功');
         return browser;
+        
       } catch (error) {
+        lastError = error;
+        
+        // 检查是否是致命错误（不应重试）
+        const fatalErrors = [
+          'headless commands are not compatible with remote debugging',
+          'failed to launch browser',
+          'browser executable not found',
+          'permission denied'
+        ];
+        
+        const isFatalError = fatalErrors.some(pattern => 
+          error.message.toLowerCase().includes(pattern)
+        );
+        
+        if (isFatalError) {
+          logger.error(`检测到致命错误，停止重试: ${error.message}`);
+          break;
+        }
+        
         logger.error(`浏览器启动第 ${attempt} 次尝试失败:`, {
           message: error.message,
-          stack: error.stack,
           code: error.code,
           errno: error.errno
         });
         
         if (attempt === maxRetries) {
           logger.error('浏览器启动达到最大重试次数，启动失败');
-          throw new Error(`浏览器启动失败，已重试 ${maxRetries} 次: ${error.message}`);
+          break;
         }
         
         // 指数退避策略：等待时间 = 1000ms * 2^(attempt-1)
-        const waitTime = 1000 * Math.pow(2, attempt - 1);
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // 最大5秒
         logger.info(`等待 ${waitTime}ms 后进行第 ${attempt + 1} 次重试`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
+    
+    // 所有重试都失败了，抛出最后一个错误
+    throw new Error(`浏览器启动失败，已重试 ${maxRetries} 次: ${lastError?.message || '未知错误'}`);
   }
 
   /**
@@ -175,11 +205,11 @@ class ZhilianService {
       // 打印环境配置信息
       environmentConfig.printConfig();
       
-      // 合并环境配置和显示配置的启动参数（根据Zeabur优化建议）
+      // 合并环境配置和显示配置的启动参数（根据Zeabur容器环境优化）
       const baseArgs = [
         '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         '--no-sandbox',
-        '--disable-setuid-sandbox',
+        '--disable-setuid-sandbox', 
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-web-security',
@@ -188,10 +218,11 @@ class ZhilianService {
         '--disable-plugins',
         '--disable-default-apps',
         '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
+        '--disable-backgrounding-occluded-windows', 
         '--disable-renderer-backgrounding',
         '--no-first-run',
         '--no-zygote',
+        '--single-process', // 容器环境优化
         '--autoplay-policy=no-user-gesture-required',
         '--disable-permissions-api',
         '--disable-component-extensions-with-background-pages',
@@ -205,7 +236,16 @@ class ZhilianService {
         '--disable-features=MediaRouter',
         '--disable-ipc-flooding-protection',
         '--disable-dev-tools',
-        '--disable-remote-debugging'
+        '--disable-remote-debugging',
+        '--no-remote-debugging-port', // 明确禁用远程调试端口
+        '--disable-logging', // 减少日志输出
+        '--disable-gpu-process-crash-limit',
+        '--disable-hang-monitor',
+        '--disable-prompt-on-repost',
+        '--disable-client-side-phishing-detection',
+        '--disable-crash-reporter',
+        '--max-old-space-size=512', // 限制内存使用
+        '--memory-pressure-off'
       ];
       
       // 合并所有启动参数：环境配置 + 显示配置 + 基础配置
@@ -228,34 +268,48 @@ class ZhilianService {
         '--enable-automation',
         '--remote-debugging-address',
         '--remote-debugging-socket-name',
-        '--no-remote-debugging-port',
-        '--disable-remote-debugging',
-        '--enable-remote-debugging',
-        '--remote-debugging',
         '--debug-port',
         '--inspect',
-        '--inspect-brk'
+        '--inspect-brk',
+        '--enable-remote-debugging',
+        '--headless=new', // 移除新版headless参数
+        '--headless=chrome' // 移除chrome headless参数
       ];
       
-      // 过滤掉冲突参数
+      // 过滤掉冲突参数（更严格的过滤）
       const filteredArgs = uniqueArgs.filter(arg => {
         return !conflictingArgs.some(conflictArg => 
-          arg.startsWith(conflictArg) || arg.includes('remote-debugging') || arg.includes('inspect')
+          arg.startsWith(conflictArg) || 
+          arg.includes('remote-debugging') || 
+          arg.includes('inspect') ||
+          arg.includes('devtools') ||
+          (arg.startsWith('--headless=') && arg !== '--headless')
         );
       });
       
-      // 在生产环境中强制添加禁用远程调试的参数
-      const shouldUseHeadless = envBrowserConfig.headless === true;
+      // 在生产环境中强制确保禁用远程调试
       if (shouldUseHeadless) {
-        filteredArgs.push(
+        // 确保这些参数存在且唯一
+        const ensureArgs = [
           '--disable-remote-debugging',
           '--no-remote-debugging-port',
           '--disable-dev-tools'
-        );
+        ];
+        
+        ensureArgs.forEach(arg => {
+          if (!filteredArgs.includes(arg)) {
+            filteredArgs.push(arg);
+          }
+        });
       }
+      
+      // 确保 headless 为布尔值，并在容器环境中强制使用 headless 模式
+      const isContainerEnv = process.env.NODE_ENV === 'production' || process.env.ZEABUR || process.env.CONTAINER;
+      const shouldUseHeadless = isContainerEnv || envBrowserConfig.headless === true || envBrowserConfig.headless === 'true';
       
       logger.info(`最终启动参数: ${filteredArgs.length}个`);
       logger.info(`Headless 模式: ${shouldUseHeadless}`);
+      logger.info(`容器环境: ${isContainerEnv}`);
       logger.info(`环境配置headless值: ${envBrowserConfig.headless} (类型: ${typeof envBrowserConfig.headless})`);
       
       // 使用环境配置启动浏览器，确保 headless 参数为布尔值
@@ -263,7 +317,13 @@ class ZhilianService {
         headless: shouldUseHeadless, // 确保传递布尔值而不是字符串
         args: filteredArgs,
         ...displayConfig.contextOptions,
-        ...envBrowserConfig.options
+        ...envBrowserConfig.options,
+        // 容器环境优化参数
+        ...(isContainerEnv && {
+          timeout: 60000, // 增加启动超时时间
+          handleSIGINT: false,
+          handleSIGTERM: false
+        })
       };
       
       // 使用改进的重试机制启动浏览器

@@ -1,11 +1,13 @@
-# 使用官方 Node.js 20 镜像作为基础镜像
+# 使用官方 Node.js 20 镜像作为基础镜像 - Zeabur优化版
 FROM node:20-slim
 
-# 安装 Playwright 所需的系统依赖和 Xvfb（根据Zeabur优化建议）
-RUN apt-get update && apt-get install -y \
+# 安装 Playwright 所需的系统依赖和 Xvfb（根据Zeabur优化建议 + 容器环境优化）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # 系统基础包
     wget \
     gnupg \
     ca-certificates \
+    # 浏览器运行依赖
     fonts-liberation \
     libappindicator3-1 \
     libasound2 \
@@ -44,8 +46,10 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     libu2f-udev \
     libvulkan1 \
+    # X服务器虚拟化
     xvfb \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # 创建非root用户以提高安全性
 RUN groupadd --gid 1000 node \
@@ -54,9 +58,11 @@ RUN groupadd --gid 1000 node \
 # 设置工作目录
 WORKDIR /app
 
-# 设置环境变量
+# 设置环境变量（Zeabur优化）
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV ZEABUR=true
+ENV CONTAINER=true
 
 # 设置虚拟显示环境变量，解决X11显示问题
 ENV DISPLAY=:99
@@ -64,31 +70,29 @@ ENV DBUS_SESSION_BUS_ADDRESS=/dev/null
 ENV BROWSER_HEADLESS=true
 ENV XVFB_WHD=1920x1080x24
 
-# Playwright 生产环境优化配置（根据Zeabur建议）
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+# Playwright 生产环境优化配置（根据Zeabur建议 + 容器优化）
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
+ENV PLAYWRIGHT_DISABLE_FORCED_TERMINATION=true
 
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci --only=production
+# 安装依赖（优化版本）
+RUN npm ci --only=production --no-audit --no-fund
 
-# 安装 Playwright 浏览器
-RUN npx playwright install chromium
+# 安装 Playwright 浏览器（优化版本）
+RUN npx playwright install chromium --with-deps
 
 # 复制应用代码
 COPY . .
 
-# 创建存储目录
-RUN mkdir -p storage/resumes
-
-# 给启动脚本添加执行权限
-RUN chmod +x start-with-xvfb.sh
-
-# 设置目录权限，确保node用户可以访问
-RUN chown -R node:node /app
-RUN chmod -R 755 /app
+# 创建存储目录和设置权限（合并操作）
+RUN mkdir -p storage/resumes \
+    && chmod +x start-with-xvfb.sh \
+    && chown -R node:node /app \
+    && chmod -R 755 /app
 
 # 切换到非root用户
 USER node

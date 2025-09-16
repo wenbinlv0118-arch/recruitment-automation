@@ -11,7 +11,15 @@
         "BROWSER_HEADLESS": "true",
         "DISPLAY": ":99",
         "XVFB_WHD": "1920x1080x24",
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "ZEABUR": "true",
+        "CONTAINER": "true",
+        "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright",
+        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "0"
+      },
+      "resources": {
+        "memory": "1Gi",
+        "cpu": "0.5"
       }
     },
     "frontend": {
@@ -22,29 +30,49 @@
       "cache_dependencies": true,
       "environment": "static",
       "framework": "react",
-      "spa": true
+      "spa": true,
+      "env": {
+        "NODE_ENV": "production",
+        "REACT_APP_NODE_ENV": "production"
+      }
     },
     "vnc-browser": {
       "dockerfile": "vnc-service/Dockerfile",
       "context": "vnc-service",
       "environment": "docker",
       "ports": {
-        "6080": "HTTP"
+        "6080": "HTTP",
+        "5900": "TCP"
       },
       "env": {
         "VNC_RESOLUTION": "1280x720",
         "VNC_PASSWORD": "vnc123",
         "VNC_PORT": "5900",
         "NO_VNC_PORT": "6080",
-        "DISPLAY": ":1"
-      }
+        "DISPLAY": ":1",
+        "NODE_ENV": "production",
+        "ZEABUR": "true",
+        "CONTAINER": "true"
+      },
+      "resources": {
+        "memory": "2Gi",
+        "cpu": "1"
+      },
+      "volumes": ["/data"]
     }
   },
   "meta": {
     "name": "Recruitment Automation",
-    "description": "智能招聘自动化平台 - 支持VNC远程桌面监控 - Zeabur 部署配置",
-    "version": "1.1.0",
+    "description": "智能招聘自动化平台 - 支持VNC远程桌面监控 - Zeabur 部署配置 v2.0",
+    "version": "2.0.0",
     "author": "Recruitment Team",
-    "repository": "https://github.com/wenbinlv0118-arch/recruitment-automation"
+    "repository": "https://github.com/wenbinlv0118-arch/recruitment-automation",
+    "keywords": ["recruitment", "automation", "vnc", "browser", "zeabur"],
+    "deployment": {
+      "platform": "zeabur",
+      "optimized_for": "container",
+      "supports_vnc": true,
+      "browser_automation": true
+    }
   }
 }
