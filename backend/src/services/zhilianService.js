@@ -4,6 +4,17 @@ const ResumeModel = require('../models/resumeModel');
 const memoryMonitor = require('../utils/memoryMonitor');
 const browserDisplayConfig = require('../config/browserDisplayConfig');
 const { environmentConfig, getBrowserConfig, validateConfig } = require('../config/environmentConfig');
+
+// 安全加载 Playwright 模块
+let chromium = null;
+try {
+  const playwright = require('playwright');
+  chromium = playwright.chromium;
+  logger.info('Playwright 模块加载成功');
+} catch (error) {
+  logger.error('Playwright 模块加载失败:', error.message);
+  // 在运行时会再次尝试加载
+}
 // 简单的简历分析函数
 const analyzeResumeQuality = (resumeData) => {
   return {
@@ -95,6 +106,19 @@ class ZhilianService {
    */
   async launchBrowserWithRetry(launchOptions, maxRetries = 3) {
     let lastError = null;
+    
+    // 运行时检查 Playwright 模块
+    if (!chromium) {
+      logger.warn('Playwright chromium 未加载，尝试重新加载...');
+      try {
+        const playwright = require('playwright');
+        chromium = playwright.chromium;
+        logger.info('Playwright 模块重新加载成功');
+      } catch (error) {
+        logger.error('Playwright 模块重新加载失败:', error.message);
+        throw new Error(`Playwright 模块不可用: ${error.message}`);
+      }
+    }
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -258,8 +282,14 @@ class ZhilianService {
       // 去重参数
       const uniqueArgs = [...new Set(allArgs)];
       
+      // 确保 headless 为布尔值，并在容器环境中强制使用 headless 模式（提前声明）
+      const isContainerEnv = process.env.NODE_ENV === 'production' || process.env.ZEABUR || process.env.CONTAINER;
+      const shouldUseHeadless = isContainerEnv || envBrowserConfig.headless === true || envBrowserConfig.headless === 'true';
+      
       logger.info(`浏览器启动参数已优化 (${uniqueArgs.length}个参数)`);
       logger.info(`无头模式: ${envBrowserConfig.headless}`);
+      logger.info(`容器环境: ${isContainerEnv}`);
+      logger.info(`最终Headless模式: ${shouldUseHeadless}`);
       
       // 移除可能导致冲突的参数（扩展列表）
       const conflictingArgs = [
@@ -302,10 +332,6 @@ class ZhilianService {
           }
         });
       }
-      
-      // 确保 headless 为布尔值，并在容器环境中强制使用 headless 模式
-      const isContainerEnv = process.env.NODE_ENV === 'production' || process.env.ZEABUR || process.env.CONTAINER;
-      const shouldUseHeadless = isContainerEnv || envBrowserConfig.headless === true || envBrowserConfig.headless === 'true';
       
       logger.info(`最终启动参数: ${filteredArgs.length}个`);
       logger.info(`Headless 模式: ${shouldUseHeadless}`);
