@@ -51,4 +51,4 @@ RUN npx playwright install chromium --with-deps
 COPY . .
 
 EXPOSE 3001
-CMD ["npm", "start"]
+CMD ["npm", "start"]# 构建时间: Wed Sep 17 16:13:05 CST 2025
