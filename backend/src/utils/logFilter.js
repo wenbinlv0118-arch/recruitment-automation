@@ -14,9 +14,14 @@ class LogFilter {
       /dbus-daemon/i,
       /org\.freedesktop\.DBus/i,
       /bus\.cc.*error/i,
+      /bus\.cc:\d+.*Failed to connect/i,
       /DBUS_SESSION_BUS_ADDRESS/i,
       /No such file or directory.*dbus/i,
-      /Permission denied.*dbus/i
+      /Permission denied.*dbus/i,
+      /\/run\/dbus\/system_bus_socket/i,
+      /bluez_dbus_manager/i,
+      /Floss manager service not available/i,
+      /cannot set Floss enable\/disable/i
     ];
 
     // 其他可忽略的系统警告模式
@@ -25,7 +30,12 @@ class LogFilter {
       /sandbox.*warning/i,
       /accessibility.*warning/i,
       /desktop.*notification.*failed/i,
-      /system.*integration.*failed/i
+      /system.*integration.*failed/i,
+      /ContextResult::kTransientFailure/i,
+      /Failed to send GpuControl\.CreateCommandBuffer/i,
+      /command_buffer_proxy_impl\.cc/i,
+      /device\/bluetooth\/dbus/i,
+      /gpu\/ipc\/client/i
     ];
 
     // 严重错误模式（不应被过滤）
@@ -47,6 +57,7 @@ class LogFilter {
    * @returns {boolean} - true表示应该过滤（不显示），false表示应该保留
    */
   shouldFilter(message, level = 'info') {
+    // 空消息不过滤
     if (!message || typeof message !== 'string') {
       return false;
     }
@@ -61,8 +72,8 @@ class LogFilter {
       return true;
     }
 
-    // 检查是否为其他系统警告
-    if (level === 'warn' && this.isSystemWarning(message)) {
+    // 检查是否为其他系统警告（包括错误级别的GPU问题）
+    if (this.isSystemWarning(message)) {
       return true;
     }
 
