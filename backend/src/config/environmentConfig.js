@@ -5,6 +5,7 @@
 
 const os = require('os');
 const logger = require('../utils/logger');
+const { browserErrorHandler } = require('../utils/browserErrorHandler');
 
 /**
  * 环境类型枚举
@@ -146,6 +147,14 @@ class EnvironmentConfig {
             '--remote-debugging-port'
           ]
         })
+      },
+      // 错误处理配置
+      errorHandler: {
+        enabled: this.isProduction(),
+        handler: browserErrorHandler,
+        ignoreDbusErrors: true,
+        ignoreSystemWarnings: true,
+        maxRetries: 3
       }
     };
 
@@ -198,6 +207,25 @@ class EnvironmentConfig {
       '--disable-popup-blocking',
       '--no-service-autorun',
       '--disable-hang-monitor',
+      
+      // 强化D-Bus系统总线禁用（针对/run/dbus/system_bus_socket错误）
+      '--disable-features=SystemNotifications',
+      '--disable-features=SystemTray',
+      '--disable-features=SystemKeyboardLock',
+      '--disable-features=SystemMediaControls',
+      '--disable-features=SystemDisplays',
+      '--disable-features=SystemAudio',
+      '--disable-system-proxy-config-service',
+      '--disable-system-timezone',
+      '--disable-system-color-chooser',
+      '--disable-system-font-family',
+      '--disable-system-keyboard-lock',
+      '--disable-system-media-controls',
+      '--disable-system-display-info',
+      '--disable-system-audio-info',
+      '--no-system-proxy-config-service',
+      '--no-system-font-fallback',
+      '--no-system-notification-service',
       '--disable-prompt-on-repost',
       '--disable-extensions',
       '--disable-component-extensions-with-background-pages',

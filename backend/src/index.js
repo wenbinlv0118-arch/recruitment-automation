@@ -2,6 +2,11 @@
 const path = require('path');
 const fs = require('fs-extra');
 
+// 在生产环境中启用日志过滤（必须在其他模块加载前）
+if (process.env.NODE_ENV === 'production') {
+  require('./utils/logFilter');
+}
+
 // 检查并加载本地环境配置
 const localEnvPath = path.join(__dirname, '../.env.local');
 if (fs.existsSync(localEnvPath)) {
