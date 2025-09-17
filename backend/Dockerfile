@@ -49,7 +49,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # X服务器虚拟化
     xvfb \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && apt-get clean \
+    # 系统层面禁用D-Bus服务（彻底修复系统总线错误）
+    && echo "=== 禁用D-Bus系统服务 ===" \
+    && systemctl disable dbus 2>/dev/null || true \
+    && systemctl mask dbus 2>/dev/null || true \
+    # 创建虚拟D-Bus目录和套接字文件
+    && mkdir -p /run/dbus \
+    && touch /run/dbus/system_bus_socket \
+    && chmod 000 /run/dbus/system_bus_socket \
+    && echo "D-Bus系统服务已完全禁用"
 
 # 创建非root用户以提高安全性（Zeabur 环境检查优化）
 RUN echo "=== 检查和创建node用户 ===" && \
@@ -76,7 +85,7 @@ ENV DISPLAY=:99
 ENV BROWSER_HEADLESS=true
 ENV XVFB_WHD=1920x1080x24
 
-# D-Bus 完全禁用配置（修复colon错误）
+# D-Bus 完全禁用配置（修复colon错误和系统总线错误）
 ENV DBUS_SESSION_BUS_ADDRESS=""
 ENV DBUS_SYSTEM_BUS_ADDRESS=""
 ENV NO_DBUS=1
@@ -90,6 +99,17 @@ ENV GDK_BACKEND=x11
 # 额外的D-Bus禁用变量
 ENV DBUS_FATAL_WARNINGS=0
 ENV DBUS_VERBOSE=0
+
+# 彻底禁用系统集成和D-Bus相关服务
+ENV XDG_RUNTIME_DIR="/tmp"
+ENV PULSE_RUNTIME_PATH="/tmp"
+ENV DBUS_STARTER_BUS_TYPE=""
+ENV DBUS_SESSION_BUS_PID=""
+ENV DBUS_SYSTEM_BUS_PID=""
+
+# 禁用桌面集成功能
+ENV DISABLE_DESKTOP_NOTIFICATIONS=1
+ENV DISABLE_SYSTEM_NOTIFICATIONS=1
 
 # Playwright 生产环境优化配置（根据Zeabur建议 + 容器优化）
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0

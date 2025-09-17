@@ -167,15 +167,27 @@ class EnvironmentConfig {
       '--disable-gpu',
       '--disable-web-security',
       '--disable-features=VizDisplayCompositor',
-      // D-Bus 错误修复参数 - 全面禁用（修复colon错误）
+      // 增强的D-Bus和系统服务禁用参数（修复colon错误和系统总线错误）
       '--no-dbus',
       '--disable-dbus',
+      '--disable-system-dbus',
       '--disable-system-font-check',
       '--disable-font-subpixel-positioning',
       '--disable-sync',
       '--disable-translate',
       '--disable-features=TranslateUI',
       '--disable-ipc-flooding-protection',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-field-trial-config',
+      '--disable-back-forward-cache',
+      
+      // 彻底禁用D-Bus和系统集成
+      '--disable-desktop-notifications',
+      '--disable-system-notifications',
+      '--disable-session-crashed-bubble',
+      '--disable-crash-reporter',
+      '--disable-breakpad',
       
       // 系统服务和IPC禁用
       '--disable-accessibility',

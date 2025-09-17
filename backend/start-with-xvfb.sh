@@ -14,7 +14,7 @@ echo "=== 禁用D-Bus服务 ==="
 rm -rf /run/dbus 2>/dev/null || true
 rm -rf /var/run/dbus 2>/dev/null || true
 
-# 设置D-Bus环境变量（修复colon错误）
+# 设置D-Bus环境变量（修复colon错误和系统总线错误）
 export DBUS_SESSION_BUS_ADDRESS=""
 export DBUS_SYSTEM_BUS_ADDRESS=""
 export NO_DBUS=1
@@ -26,6 +26,17 @@ export GDK_BACKEND=x11
 # 额外的D-Bus禁用变量
 export DBUS_FATAL_WARNINGS=0
 export DBUS_VERBOSE=0
+
+# 彻底禁用系统集成和D-Bus相关服务
+export XDG_RUNTIME_DIR="/tmp"
+export PULSE_RUNTIME_PATH="/tmp"
+export DBUS_STARTER_BUS_TYPE=""
+export DBUS_SESSION_BUS_PID=""
+export DBUS_SYSTEM_BUS_PID=""
+
+# 禁用桌面集成功能
+export DISABLE_DESKTOP_NOTIFICATIONS=1
+export DISABLE_SYSTEM_NOTIFICATIONS=1
 
 echo "D-Bus服务已完全禁用"
 
