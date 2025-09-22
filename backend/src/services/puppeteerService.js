@@ -50,7 +50,14 @@ class PuppeteerService {
 
       // 针对Zeabur环境的特殊配置
       if (process.env.ZEABUR_ENVIRONMENT) {
-        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome';
+        // 只有在明确设置了PUPPETEER_EXECUTABLE_PATH时才使用自定义路径
+        // 否则让Puppeteer自动检测浏览器（支持Playwright安装的浏览器）
+        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+          launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+          console.log('Zeabur环境使用自定义浏览器路径:', process.env.PUPPETEER_EXECUTABLE_PATH);
+        } else {
+          console.log('Zeabur环境让Puppeteer自动检测浏览器路径');
+        }
         launchOptions.dumpio = false;
       }
 

@@ -131,8 +131,8 @@ class EnvironmentConfig {
     const shouldUseHeadless = this.shouldUseHeadless();
     
     const config = {
-      // 生产环境使用headless模式
-      headless: shouldUseHeadless,
+      // 生产环境使用新的headless模式
+      headless: shouldUseHeadless ? "new" : false,
       args: this.getBrowserArgs(),
       timeout: this.getBrowserTimeout(),
       options: {

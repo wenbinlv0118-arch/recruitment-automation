@@ -162,8 +162,14 @@ class ZhilianService {
 
       // 容器环境特殊处理
       if (process.env.ZEABUR || process.env.CONTAINER) {
-        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
-        logger.info('检测到容器环境，使用优化配置');
+        // 只有在明确设置了PUPPETEER_EXECUTABLE_PATH时才使用自定义路径
+        // 否则让Puppeteer自动检测浏览器（支持Playwright安装的浏览器）
+        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+          launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+          logger.info('容器环境使用自定义浏览器路径:', process.env.PUPPETEER_EXECUTABLE_PATH);
+        } else {
+          logger.info('容器环境让Puppeteer自动检测浏览器路径');
+        }
       }
 
       this.browser = await this.launchBrowserWithRetry(launchOptions);
