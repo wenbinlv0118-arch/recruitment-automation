@@ -264,7 +264,7 @@ chmod +x deploy/scripts/get-supabase-config.sh
 ```bash
 # 创建后端部署配置
 cat > backend/Dockerfile << 'EOF'
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 

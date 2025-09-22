@@ -6,7 +6,7 @@
       "environment": "docker",
       "framework": "express",
       "node_version": "20",
-      "install_command": "npm install --ignore-scripts",
+      "install_command": "PUPPETEER_SKIP_DOWNLOAD=true PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm ci",
       "build_command": "npm run build",
       "env": {
         "BROWSER_HEADLESS": "true",
@@ -17,7 +17,9 @@
         "CONTAINER": "true",
         "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright",
         "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "0",
-        "npm_config_ignore_scripts": "true"
+        "npm_config_ignore_scripts": "true",
+        "PUPPETEER_SKIP_DOWNLOAD": "true",
+        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true"
       },
       "resources": {
         "memory": "1Gi",
