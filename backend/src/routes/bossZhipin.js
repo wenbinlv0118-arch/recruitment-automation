@@ -66,7 +66,7 @@ router.get('/status', async (req, res) => {
       });
     }
     
-    const status = bossZhipinService.getCurrentStatus();
+    const status = bossZhipinService.getStatus();
     
     res.json({
       success: true,
@@ -96,7 +96,7 @@ router.post('/check-login', async (req, res) => {
     }
     
     const isLoggedIn = await bossZhipinService.checkLoginStatus();
-    const currentStatus = bossZhipinService.getCurrentStatus();
+    const currentStatus = bossZhipinService.getStatus();
     
     res.json({
       success: true,
@@ -235,7 +235,7 @@ router.post('/execute-step', async (req, res) => {
       data: {
         step,
         result,
-        status: bossZhipinService.getCurrentStatus()
+        status: bossZhipinService.getStatus()
       }
     });
     

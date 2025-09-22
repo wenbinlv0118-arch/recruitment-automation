@@ -87,7 +87,7 @@ class BossService {
         };
       }
       
-      const status = this.bossZhipinService.getCurrentStatus();
+      const status = await this.bossZhipinService.getStatus();
       return {
         success: true,
         hasBrowser: status.hasBrowser || false,

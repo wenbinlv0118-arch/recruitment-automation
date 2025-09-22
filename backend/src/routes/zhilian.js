@@ -66,7 +66,7 @@ router.post('/start', async (req, res) => {
     const service = initializeZhilianService(io);
     
     // 检查是否已有任务在运行
-    const currentStatus = service.getCurrentStatus();
+    const currentStatus = service.getStatus();
     if (currentStatus.browsing.isActive) {
       return res.status(409).json({
         success: false,
@@ -82,7 +82,7 @@ router.post('/start', async (req, res) => {
           io.emit('zhilianTaskCompleted', {
             success: true,
             message: '智联招聘智能寻聘任务完成',
-            status: service.getCurrentStatus()
+            status: service.getStatus()
           });
         }
       })
@@ -93,7 +93,7 @@ router.post('/start', async (req, res) => {
             success: false,
             message: '智联招聘智能寻聘任务失败',
             error: error.message,
-            status: service.getCurrentStatus()
+            status: service.getStatus()
           });
         }
       });
@@ -106,7 +106,7 @@ router.post('/start', async (req, res) => {
         mode,
         filters,
         targetCount,
-        status: service.getCurrentStatus()
+        status: service.getStatus()
       }
     });
     
@@ -219,7 +219,7 @@ router.post('/stop-browsing', async (req, res) => {
     res.json({
       success: true,
       message: '候选人浏览已停止',
-      status: zhilianService.getCurrentStatus()
+      status: zhilianService.getStatus()
     });
     
   } catch (error) {
@@ -250,7 +250,7 @@ router.post('/reset-browsing', async (req, res) => {
     res.json({
       success: true,
       message: '候选人浏览状态已重置',
-      status: zhilianService.getCurrentStatus()
+      status: zhilianService.getStatus()
     });
     
   } catch (error) {
@@ -428,7 +428,7 @@ router.post('/init', async (req, res) => {
       success: true,
       message: '智联招聘服务初始化成功',
       data: {
-        status: service.getCurrentStatus()
+        status: service.getStatus()
       }
     });
     
@@ -493,7 +493,7 @@ router.get('/login-status', async (req, res) => {
     const isLoggedIn = await zhilianService.checkLoginStatus();
     
     // 获取完整的状态信息
-    const statusData = zhilianService.getCurrentStatus();
+    const statusData = zhilianService.getStatus();
     
     res.json({
       success: true,
@@ -565,7 +565,7 @@ router.post('/execute-step', async (req, res) => {
       data: {
         step,
         result,
-        status: zhilianService.getCurrentStatus()
+        status: zhilianService.getStatus()
       }
     });
     
@@ -595,7 +595,7 @@ router.post('/start-resume-processing', async (req, res) => {
     }
     
     // 检查是否已有任务在运行
-    const currentStatus = zhilianService.getCurrentStatus();
+    const currentStatus = zhilianService.getStatus();
     if (currentStatus.resumeProcessing.isActive) {
       return res.status(409).json({
         success: false,
@@ -614,7 +614,7 @@ router.post('/start-resume-processing', async (req, res) => {
           io.emit('zhilianResumeProcessingCompleted', {
             success: true,
             message: '智联招聘简历处理任务完成',
-            status: zhilianService.getCurrentStatus()
+            status: zhilianService.getStatus()
           });
         }
       })
@@ -625,7 +625,7 @@ router.post('/start-resume-processing', async (req, res) => {
             success: false,
             message: '智联招聘简历处理任务失败',
             error: error.message,
-            status: zhilianService.getCurrentStatus()
+            status: zhilianService.getStatus()
           });
         }
       });
@@ -634,7 +634,7 @@ router.post('/start-resume-processing', async (req, res) => {
       success: true,
       message: '简历处理任务已启动',
       data: {
-        status: zhilianService.getCurrentStatus()
+        status: zhilianService.getStatus()
       }
     });
     
@@ -668,7 +668,7 @@ router.post('/stop-resume-processing', async (req, res) => {
     res.json({
       success: true,
       message: '简历处理已停止',
-      status: zhilianService.getCurrentStatus()
+      status: zhilianService.getStatus()
     });
     
   } catch (error) {
