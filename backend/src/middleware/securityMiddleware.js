@@ -54,29 +54,33 @@ const helmetOptions = {
   }
 };
 
-// 速率限制配置
+// 速率限制配置 - 配置为与trust proxy兼容
 const globalLimiter = rateLimit({
   "windowMs": 900000,
   "max": 1000,
   "message": "请求过于频繁，请稍后再试",
   "standardHeaders": true,
-  "legacyHeaders": false
+  "legacyHeaders": false,
+  "trustProxy": true
 });
 const apiLimiter = rateLimit({
   "windowMs": 900000,
   "max": 500,
-  "message": "API请求过于频繁，请稍后再试"
+  "message": "API请求过于频繁，请稍后再试",
+  "trustProxy": true
 });
 const authLimiter = rateLimit({
   "windowMs": 900000,
   "max": 10,
   "message": "登录尝试过于频繁，请15分钟后再试",
-  "skipSuccessfulRequests": true
+  "skipSuccessfulRequests": true,
+  "trustProxy": true
 });
 const uploadLimiter = rateLimit({
   "windowMs": 3600000,
   "max": 50,
-  "message": "文件上传过于频繁，请稍后再试"
+  "message": "文件上传过于频繁，请稍后再试",
+  "trustProxy": true
 });
 
 // 输入验证中间件

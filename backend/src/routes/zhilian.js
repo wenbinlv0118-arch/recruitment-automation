@@ -345,7 +345,7 @@ router.post('/stop', async (req, res) => {
     res.json({
       success: true,
       message: '智联招聘智能寻聘已停止',
-      status: zhilianService.getCurrentStatus()
+      status: zhilianService.getStatus()
     });
     
   } catch (error) {
