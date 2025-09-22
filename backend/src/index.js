@@ -36,7 +36,8 @@ const resumeModel = require('./models/resumeModel');
 const app = express();
 
 // 配置 trust proxy 以正确处理代理头部
-app.set('trust proxy', true);
+// 设置为1表示信任第一层代理，避免安全警告
+app.set('trust proxy', 1);
 
 const server = http.createServer(app);
 const io = socketIo(server, {
