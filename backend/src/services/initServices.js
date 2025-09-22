@@ -28,9 +28,9 @@ async function initAllServices() {
 
   // 初始化知识库服务
   try {
-    const DatabaseManager = require('../database/init');
-    const dbManager = new DatabaseManager();
-    services.knowledgeService = new KnowledgeService(dbManager);
+    const { DatabaseAdapter } = require('../database/adapter');
+    const dbAdapter = new DatabaseAdapter();
+    services.knowledgeService = new KnowledgeService(dbAdapter);
     console.log('知识库服务初始化成功');
   } catch (error) {
     console.error('知识库服务初始化失败:', error.message);

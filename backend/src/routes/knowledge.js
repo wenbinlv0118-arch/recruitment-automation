@@ -1,18 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const DatabaseManager = require('../database/init');
+const { DatabaseAdapter } = require('../database/adapter');
 const KnowledgeService = require('../services/knowledgeService');
 const LLMService = require('../services/llmService');
 
 // 初始化服务
-let dbManager, knowledgeService, llmService;
+let dbAdapter, knowledgeService, llmService;
 
 // 初始化函数
 async function initializeServices() {
-  if (!dbManager) {
-    dbManager = new DatabaseManager();
-    await dbManager.init();
-    knowledgeService = new KnowledgeService(dbManager);
+  if (!dbAdapter) {
+    dbAdapter = new DatabaseAdapter();
+    await dbAdapter.init();
+    knowledgeService = new KnowledgeService(dbAdapter);
     llmService = new LLMService();
   }
 }

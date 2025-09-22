@@ -42,7 +42,7 @@ ENV GDK_BACKEND=x11
 
 # 复制和安装依赖
 COPY package*.json ./
-RUN npm ci --only=production --no-audit --no-fund
+RUN npm ci --omit=dev --no-audit --no-fund
 
 # 安装Playwright
 RUN npx playwright install chromium --with-deps

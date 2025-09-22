@@ -442,9 +442,9 @@ try {
 const KnowledgeService = require('./services/knowledgeService');
 let knowledgeService;
 try {
-  const DatabaseManager = require('./database/init');
-  const dbManager = new DatabaseManager();
-  knowledgeService = new KnowledgeService(dbManager);
+  const { DatabaseAdapter } = require('./database/adapter');
+  const dbAdapter = new DatabaseAdapter();
+  knowledgeService = new KnowledgeService(dbAdapter);
   console.log('知识库服务初始化成功');
 } catch (error) {
   console.error('知识库服务初始化失败:', error.message);
