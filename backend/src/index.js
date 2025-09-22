@@ -34,6 +34,10 @@ const multer = require('multer');
 const resumeModel = require('./models/resumeModel');
 
 const app = express();
+
+// 配置 trust proxy 以正确处理代理头部
+app.set('trust proxy', true);
+
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {

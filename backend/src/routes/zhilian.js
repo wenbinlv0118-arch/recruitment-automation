@@ -311,7 +311,7 @@ router.get('/status', async (req, res) => {
       });
     }
     
-    const status = zhilianService.getCurrentStatus();
+    const status = zhilianService.getStatus();
     res.json({
       success: true,
       data: status
