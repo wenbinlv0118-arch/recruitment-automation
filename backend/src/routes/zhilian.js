@@ -547,7 +547,7 @@ router.post('/execute-step', async (req, res) => {
         result = await zhilianService.initializeBrowser();
         break;
       case 'open_website':
-        result = await zhilianService.openZhilianWebsite();
+        result = await zhilianService.navigateToZhilian();
         break;
       case 'check_login':
         result = await zhilianService.checkLoginStatus();

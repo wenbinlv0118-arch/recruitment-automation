@@ -159,7 +159,7 @@ class BossZhipinService {
       });
       
       // 等待页面加载
-      await this.page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       logger.info('成功导航到Boss直聘');
       return true;

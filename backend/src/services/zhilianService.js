@@ -208,7 +208,7 @@ class ZhilianService {
       });
       
       // 等待页面加载完成
-      await this.page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       logger.info('成功导航到智联招聘网站');
       
       return true;
