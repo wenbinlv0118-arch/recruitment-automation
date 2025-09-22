@@ -1,0 +1,57 @@
+# 优化后的Dockerfile
+# 基于Node.js 20 Alpine版本减少镜像大小
+FROM node:20-alpine
+
+# 安装系统依赖（合并RUN命令减少层数）
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    xvfb \
+    dbus \
+    && rm -rf /var/cache/apk/*
+
+# 创建非root用户
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+# 设置工作目录
+WORKDIR /app
+
+# 设置环境变量
+ENV NODE_ENV=production
+ENV DISPLAY=:99
+ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+# 复制package文件并安装依赖
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# 安装Playwright
+RUN npx playwright install chromium
+
+# 复制应用代码
+COPY . .
+
+# 创建必要目录并设置权限
+RUN mkdir -p uploads downloads temp reports backups metrics && \
+    chown -R nextjs:nodejs /app
+
+# 切换到非root用户
+USER nextjs
+
+# 暴露端口
+EXPOSE 3000
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# 启动应用
+CMD ["./start-with-xvfb.sh"]

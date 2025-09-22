@@ -2,7 +2,7 @@
 
 ## 📋 部署方案概览
 
-本指南将帮助您完全免费部署智能招聘系统，适合小白用户，包含自动化脚本。
+本指南将帮助您完全免费部署智能招聘系统，适合小白用户，包含自动化脚本和最新的优化配置。
 
 ### 🎯 推荐免费方案
 - **前端**: 腾讯云EdgeOne Pages（国内访问友好）
@@ -1306,6 +1306,145 @@ chmod +x deploy/scripts/monitor.sh
 2. 添加更多监控和告警功能
 3. 实施自动化CI/CD流程
 4. 优化性能和用户体验
+
+---
+
+## 🔧 性能优化与安全配置
+
+### Docker配置优化
+
+我们提供了优化后的Docker配置，可以显著提升性能：
+
+```bash
+# 使用优化后的配置
+cp optimizations/Dockerfile.optimized backend/Dockerfile
+cp optimizations/start-with-xvfb.optimized.sh backend/start-with-xvfb.sh
+
+# 重新构建镜像
+docker build -t recruitment-automation:optimized .
+```
+
+### 性能分析
+
+```bash
+# 运行性能分析
+node scripts/optimize-docker-config.js
+
+# 查看优化报告
+cat reports/docker-optimization-report.md
+```
+
+### 环境变量安全
+
+```bash
+# 验证环境变量配置
+node scripts/fix-environment-config.js
+
+# 测试网络安全
+node scripts/test-network-security.sh
+```
+
+### 数据持久化安全
+
+```bash
+# 验证数据持久化配置
+node scripts/fix-data-persistence.js
+
+# 运行数据完整性检查
+node scripts/data-integrity-check.js
+```
+
+## 📊 监控与验证
+
+### 生产环境验证
+
+```bash
+# 运行完整的生产环境验证
+node scripts/production-fix-validator.js
+
+# 查看验证报告
+cat reports/production-validation-report.md
+```
+
+### 持续监控
+
+```bash
+# 设置数据监控
+node scripts/data-monitoring.js
+
+# 性能监控
+node performance-analyzer.js
+```
+
+## 🚨 故障排除与紧急恢复
+
+### 快速诊断
+
+```bash
+# 运行完整诊断
+node scripts/production-fix-validator.js
+
+# 查看详细故障排除指南
+cat TROUBLESHOOTING_GUIDE.md
+```
+
+### 常见问题解决
+
+1. **容器启动失败**
+   ```bash
+   # 检查Docker配置
+   node scripts/optimize-docker-config.js
+   
+   # 验证Playwright配置
+   ./backend/verify-playwright.sh
+   ```
+
+2. **数据库连接问题**
+   ```bash
+   # 修复数据持久化问题
+   node scripts/fix-data-persistence.js
+   
+   # 验证连接
+   node scripts/data-persistence-validator.js validate
+   ```
+
+3. **环境变量问题**
+   ```bash
+   # 修复环境配置
+   node scripts/fix-environment-config.js
+   
+   # 验证配置
+   node scripts/fix-environment-config.js validate
+   ```
+
+4. **性能问题**
+   ```bash
+   # 内存优化
+   node memory-optimizer.js
+   
+   # 启动优化
+   node startup-optimizer.js
+   ```
+
+### 紧急恢复
+
+如果遇到严重问题，请参考 `TROUBLESHOOTING_GUIDE.md` 中的紧急恢复程序。
+
+### 日志查看
+
+```bash
+# 查看应用日志
+docker logs recruitment-automation
+
+# 查看详细日志
+docker logs -f recruitment-automation
+
+# 查看错误日志
+tail -f backend/data/logs/error.log
+
+# 查看系统日志
+tail -f backend/data/logs/system.log
+```
 
 ---
 

@@ -1,8 +1,113 @@
 # 部署检查清单
 
-在部署智能招聘自动化系统之前，请确保完成以下检查项目。
+在部署智能招聘自动化系统之前，请确保完成以下检查项目。本清单已更新包含最新的优化配置和安全修复。
 
 ## 📋 部署前检查清单
+
+### ✅ 环境配置检查
+
+- [ ] **环境变量配置**
+  ```bash
+  node scripts/fix-environment-config.js validate
+  ```
+  - [ ] `SUPABASE_URL` 已设置
+  - [ ] `SUPABASE_ANON_KEY` 已设置
+  - [ ] `SUPABASE_SERVICE_KEY` 已设置
+  - [ ] `JWT_SECRET` 已设置（64字符随机字符串）
+  - [ ] `NODE_ENV=production` 已设置
+  - [ ] `ALLOWED_ORIGINS` 已正确配置
+
+- [ ] **网络安全配置**
+  ```bash
+  node scripts/test-network-security.sh
+  ```
+  - [ ] CORS配置正确
+  - [ ] SSL证书有效
+  - [ ] 安全头已配置
+  - [ ] 防火墙规则正确
+
+- [ ] **数据持久化配置**
+  ```bash
+  node scripts/fix-data-persistence.js
+  ```
+  - [ ] 数据库连接正常
+  - [ ] 备份机制已配置
+  - [ ] 数据完整性检查通过
+  - [ ] 存储权限正确
+
+### ✅ Docker配置检查
+
+- [ ] **基础配置**
+  ```bash
+  node scripts/optimize-docker-config.js
+  ```
+  - [ ] Dockerfile优化完成
+  - [ ] 启动脚本配置正确
+  - [ ] 用户权限设置正确
+  - [ ] 环境变量正确传递
+
+- [ ] **Playwright配置**
+  ```bash
+  ./backend/verify-playwright.sh
+  ```
+  - [ ] Chromium浏览器安装成功
+  - [ ] Xvfb虚拟显示配置正确
+  - [ ] 浏览器启动测试通过
+  - [ ] 依赖包完整安装
+
+### ✅ 应用程序检查
+
+- [ ] **依赖包安装**
+  ```bash
+  npm audit
+  npm list --depth=0
+  ```
+  - [ ] 所有依赖包已安装
+  - [ ] 无安全漏洞
+  - [ ] 版本兼容性检查通过
+
+- [ ] **功能测试**
+  ```bash
+  node scripts/production-fix-validator.js
+  ```
+  - [ ] 应用启动成功
+  - [ ] API端点响应正常
+  - [ ] 数据库操作正常
+  - [ ] 文件上传功能正常
+
+### ✅ 性能优化检查
+
+- [ ] **内存优化**
+  ```bash
+  node memory-optimizer.js
+  ```
+  - [ ] 内存使用优化
+  - [ ] 垃圾回收配置
+  - [ ] 内存泄漏检查
+
+- [ ] **启动优化**
+  ```bash
+  node startup-optimizer.js
+  ```
+  - [ ] 启动时间优化
+  - [ ] 资源加载优化
+  - [ ] 缓存配置正确
+
+### ✅ 监控和日志检查
+
+- [ ] **日志配置**
+  - [ ] 日志目录权限正确
+  - [ ] 日志轮转配置
+  - [ ] 错误日志记录正常
+  - [ ] 访问日志记录正常
+
+- [ ] **监控设置**
+  ```bash
+  node scripts/data-monitoring.js
+  ```
+  - [ ] 健康检查端点配置
+  - [ ] 性能监控配置
+  - [ ] 告警机制设置
 
 ### 🔧 环境准备
 

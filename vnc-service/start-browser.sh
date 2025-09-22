@@ -23,22 +23,39 @@ echo ""
 
 # 等待X11服务就绪
 echo "等待X11服务就绪..."
-for i in {1..30}; do
+for i in {1..60}; do
     if xdpyinfo -display :1 >/dev/null 2>&1; then
         echo "X11服务已就绪"
         break
     fi
-    if [ $i -eq 30 ]; then
+    if [ $i -eq 60 ]; then
         echo "错误: X11服务启动超时"
-        exit 1
+        # 尝试手动启动Xvfb
+        echo "尝试手动启动Xvfb..."
+        /usr/bin/Xvfb :1 -screen 0 1280x720x24 -ac +extension GLX +render -noreset -dpi 96 &
+        sleep 5
+        if xdpyinfo -display :1 >/dev/null 2>&1; then
+            echo "手动启动X11服务成功"
+            break
+        else
+            echo "手动启动X11服务失败"
+            exit 1
+        fi
     fi
-    echo "等待X11服务启动... ($i/30)"
-    sleep 2
+    echo "等待X11服务启动... ($i/60)"
+    sleep 1
 done
 
 # 等待窗口管理器就绪
 echo "等待窗口管理器就绪..."
-sleep 5
+sleep 3
+
+# 检查窗口管理器是否运行
+if ! pgrep -f fluxbox >/dev/null 2>&1; then
+    echo "启动窗口管理器..."
+    fluxbox &
+    sleep 2
+fi
 
 # 检查可用的浏览器并启动
 echo "检查可用的浏览器..."
@@ -60,11 +77,17 @@ if command -v chromium-browser >/dev/null 2>&1; then
     
     echo "启动参数: chromium-browser --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1280,720 --user-data-dir=/tmp/chrome-user-data --no-first-run --no-default-browser-check $TARGET_URL"
     
-    # 使用最简化的启动参数
+    # 使用优化的启动参数
     chromium-browser --no-sandbox --disable-dev-shm-usage \
-        --disable-gpu --window-size=1280,720 \
+        --disable-gpu --disable-software-rasterizer \
+        --disable-background-timer-throttling \
+        --disable-backgrounding-occluded-windows \
+        --disable-renderer-backgrounding \
+        --window-size=1280,720 \
         --user-data-dir=/tmp/chrome-user-data \
         --no-first-run --no-default-browser-check \
+        --disable-extensions --disable-plugins \
+        --disable-web-security --allow-running-insecure-content \
         "$TARGET_URL" \
         > /var/log/supervisor/browser.log 2>&1 &
     BROWSER_PID=$!

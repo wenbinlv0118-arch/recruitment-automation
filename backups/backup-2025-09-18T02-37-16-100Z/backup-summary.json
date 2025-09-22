@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-09-18T02:37:16.104Z",
+  "tables": {
+    "users": {
+      "status": "failed",
+      "error": "TypeError: fetch failed"
+    },
+    "resumes": {
+      "status": "failed",
+      "error": "TypeError: fetch failed"
+    },
+    "jobs": {
+      "status": "failed",
+      "error": "TypeError: fetch failed"
+    },
+    "applications": {
+      "status": "failed",
+      "error": "TypeError: fetch failed"
+    }
+  },
+  "totalRecords": 0
+}

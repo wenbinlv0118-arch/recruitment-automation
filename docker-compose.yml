@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: recruitment-backend
+    ports:
+      - "3001:3001"  # 后端API端口
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - ZEABUR=false
+      - CONTAINER=true
+      - DISPLAY=:99
+      - DBUS_SESSION_BUS_ADDRESS=/dev/null
+      - BROWSER_HEADLESS=true
+      - XVFB_WHD=1920x1080x24
+      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
+      - PLAYWRIGHT_DISABLE_FORCED_TERMINATION=true
+      - VNC_HOST=vnc-service
+      - VNC_PORT=5900
+    volumes:
+      - ./backend/storage:/app/storage
+      - ./backend/.env.local:/app/.env.local:ro
+      - ./backend/uploads:/app/uploads
+      - ./backend/downloads:/app/downloads
+      - ./backend/reports:/app/reports
+      - ./backend/data:/app/data
+    networks:
+      - recruitment-network
+    depends_on:
+      - vnc-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # VNC桌面服务
+  vnc-service:
+    image: dorowu/ubuntu-desktop-lxde-vnc:focal
+    container_name: recruitment-vnc
+    ports:
+      - "5900:5900"  # VNC端口
+      - "6080:80"     # noVNC Web端口
+    environment:
+      - VNC_PASSWORD=recruitment123
+      - RESOLUTION=1920x1080
+    volumes:
+      - vnc-data:/home/ubuntu
+      - ./vnc-service/downloads:/home/ubuntu/Downloads
+    networks:
+      - recruitment-network
+    restart: unless-stopped
+    shm_size: 2gb
+    security_opt:
+      - seccomp:unconfined
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "5900"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Nginx反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: recruitment-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+    networks:
+      - recruitment-network
+    depends_on:
+      - backend
+      - vnc-service
+    restart: unless-stopped
+    profiles:
+      - production  # 仅在生产环境启用
+
+volumes:
+  vnc-data:
+    driver: local
+
+networks:
+  recruitment-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -18,11 +18,58 @@ function registerAllRoutes(app) {
   const knowledgeRoutes = require('./knowledge');
   const taskRoutes = require('./tasks');
   const positionRoutes = require('./positions');
-  const companySearchRoutes = require('./companySearch');
 
   // 健康检查路由
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: '服务运行正常' });
+  });
+
+  // Playwright功能测试路由
+  app.post('/api/test/playwright', async (req, res) => {
+    try {
+      const { chromium } = require('playwright');
+      const { url, action } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ success: false, error: '缺少URL参数' });
+      }
+      
+      // 启动浏览器
+      const browser = await chromium.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      
+      const page = await browser.newPage();
+      
+      // 导航到指定URL
+      await page.goto(url, { waitUntil: 'networkidle' });
+      
+      // 获取页面标题
+      const title = await page.title();
+      
+      // 关闭浏览器
+      await browser.close();
+      
+      res.json({ 
+        success: true, 
+        data: {
+          url,
+          title,
+          action: action || 'navigate',
+          timestamp: new Date().toISOString(),
+          message: 'Playwright测试成功'
+        }
+      });
+      
+    } catch (error) {
+      console.error('Playwright测试失败:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: `Playwright测试失败: ${error.message}`,
+        details: error.stack
+      });
+    }
   });
 
   // 获取下载的简历列表
@@ -241,7 +288,7 @@ function registerAllRoutes(app) {
   app.use('/api/knowledge', knowledgeRoutes);
   app.use('/api/tasks', taskRoutes);
   app.use('/api/positions', positionRoutes);
-  app.use('/api/company-search', companySearchRoutes);
+  // app.use('/api/company-search', companySearchRoutes); // 暂时注释，等待companySearch模块创建
 }
 
 module.exports = {

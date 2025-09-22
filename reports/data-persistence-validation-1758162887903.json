@@ -1,0 +1,145 @@
+{
+  "timestamp": "2025-09-18T02:34:47.901Z",
+  "summary": {
+    "totalChecks": 4,
+    "passed": 1,
+    "failed": 2,
+    "warnings": 1,
+    "errors": 3,
+    "warningCount": 3
+  },
+  "results": [
+    {
+      "category": "Database Structure",
+      "status": "failed",
+      "details": {
+        "tables": {
+          "existing": [],
+          "missing": [],
+          "details": {}
+        },
+        "indexes": {
+          "count": 0,
+          "details": []
+        },
+        "constraints": {
+          "count": 0,
+          "details": []
+        },
+        "functions": {
+          "count": 0,
+          "details": []
+        }
+      }
+    },
+    {
+      "category": "Storage Buckets",
+      "status": "failed",
+      "details": {
+        "buckets": {
+          "existing": [],
+          "missing": [],
+          "details": {}
+        },
+        "policies": {
+          "count": 0,
+          "details": []
+        },
+        "permissions": {
+          "valid": true,
+          "issues": []
+        }
+      }
+    },
+    {
+      "category": "Backup Mechanism",
+      "status": "warning",
+      "details": {
+        "automated": {
+          "enabled": false,
+          "schedule": null,
+          "lastBackup": null
+        },
+        "retention": {
+          "configured": false,
+          "days": 0
+        },
+        "testing": {
+          "lastTest": null,
+          "successful": false
+        },
+        "recovery": {
+          "documented": false,
+          "tested": false
+        }
+      }
+    },
+    {
+      "category": "Data Monitoring",
+      "status": "passed",
+      "details": {
+        "healthChecks": {
+          "configured": false,
+          "endpoints": []
+        },
+        "alerts": {
+          "configured": false,
+          "rules": []
+        },
+        "logging": {
+          "enabled": true,
+          "level": "debug"
+        },
+        "metrics": {
+          "collected": false,
+          "dashboards": []
+        }
+      }
+    }
+  ],
+  "errors": [
+    "缺少Supabase连接配置",
+    "数据库连接未初始化",
+    "数据库连接未初始化"
+  ],
+  "warnings": [
+    "自托管数据库需要配置备份策略",
+    "缺少灾难恢复文档",
+    "缺少备份测试记录"
+  ],
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "数据库优化",
+      "items": [
+        "定期分析查询性能",
+        "优化数据库索引",
+        "实施数据归档策略",
+        "监控数据库连接池",
+        "配置查询超时限制"
+      ]
+    },
+    {
+      "priority": "critical",
+      "category": "备份策略",
+      "items": [
+        "验证备份完整性",
+        "测试恢复流程",
+        "建立异地备份",
+        "文档化恢复程序",
+        "定期备份测试"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "监控告警",
+      "items": [
+        "设置数据库性能告警",
+        "监控存储空间使用",
+        "配置连接数告警",
+        "实施慢查询监控",
+        "建立数据质量检查"
+      ]
+    }
+  ]
+}

@@ -10,10 +10,8 @@
     "supabase:setup": "node supabase/setup.js",
     "supabase:test": "node supabase/setup.js test",
     "supabase:install": "node install-supabase.js",
-
     "build": "cd frontend && npm run build",
     "build:backend": "cd backend && npm run build",
-
     "test": "cd backend && npm test && cd ../frontend && npm test",
     "lint": "cd backend && npm run lint && cd ../frontend && npm run lint"
   },
@@ -22,9 +20,10 @@
   },
   "dependencies": {
     "@playwright/test": "^1.55.0",
-    "@supabase/supabase-js": "^2.57.2",
+    "@supabase/supabase-js": "^2.57.4",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
     "fs-extra": "^11.1.1",
     "http-proxy-middleware": "^3.0.5",
     "multer": "^1.4.5-lts.1",

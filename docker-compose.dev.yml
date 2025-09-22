@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # 后端服务（开发模式）
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: recruitment-backend-dev
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DEBUG=recruitment:*
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./backend/storage:/app/storage
+      - ./backend/uploads:/app/uploads
+    networks:
+      - recruitment-dev
+    restart: unless-stopped
+    command: ["npm", "run", "dev"]
+
+  # VNC服务（开发模式）
+  vnc-dev:
+    build:
+      context: ./vnc-service
+      dockerfile: Dockerfile
+    container_name: recruitment-vnc-dev
+    ports:
+      - "5900:5900"
+      - "6080:6080"
+    environment:
+      - DISPLAY=:0
+      - VNC_PASSWORD=dev123
+      - RESOLUTION=1280x720
+    networks:
+      - recruitment-dev
+    restart: unless-stopped
+    shm_size: 1gb
+
+networks:
+  recruitment-dev:
+    driver: bridge

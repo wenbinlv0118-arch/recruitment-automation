@@ -374,8 +374,14 @@ const upload = multer({ storage: storage });
 // 中间件
 // 导入缓存中间件
 const cacheMiddleware = require('./middleware/cacheMiddleware');
+const securityMiddleware = require('./middleware/securityMiddleware');
 
-app.use(cors());
+// 安全中间件配置
+app.use(securityMiddleware.helmet);
+app.use(securityMiddleware.cors);
+app.use(securityMiddleware.globalLimiter);
+
+// 基础中间件
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -392,6 +398,11 @@ app.use('/api/tasks', cacheMiddleware.shortTerm);
 app.use('/api/resume-library/stats', cacheMiddleware.mediumTerm);
 // 知识库检索使用短期缓存
 app.use('/api/knowledge/search', cacheMiddleware.shortTerm);
+
+// API速率限制中间件
+app.use('/api/', securityMiddleware.apiLimiter);
+app.use('/api/resume-library/upload', securityMiddleware.uploadLimiter);
+app.use('/api/resume-library/upload-async', securityMiddleware.uploadLimiter);
 
 // 确保存储目录存在
 const storageDir = path.join(__dirname, '../storage/resumes');
@@ -440,8 +451,12 @@ try {
   knowledgeService = null;
 }
 
-// API路由
-app.get('/api/health', (req, res) => {
+// 注册所有路由（包括健康检查和测试路由）
+const { registerAllRoutes } = require('./routes/index');
+registerAllRoutes(app);
+
+// 保留原有的健康检查路由作为备用
+app.get('/api/health-backup', (req, res) => {
   res.json({ status: 'ok', message: '服务运行正常' });
 });
 

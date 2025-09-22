@@ -1,0 +1,24 @@
+{
+  "timestamp": "2025-09-18T06:39:15.818Z",
+  "environment": {
+    "nodeVersion": "v22.17.1",
+    "platform": "darwin",
+    "arch": "x64"
+  },
+  "results": [
+    {
+      "success": true,
+      "browser": "chromium"
+    },
+    {
+      "success": false,
+      "browser": "firefox",
+      "error": "page.goto: NS_ERROR_CONNECTION_REFUSED\nCall log:\n\u001b[2m  - navigating to \"https://www.baidu.com/\", waiting until \"networkidle\"\u001b[22m\n"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1
+  }
+}
