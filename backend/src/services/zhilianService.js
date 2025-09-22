@@ -399,6 +399,175 @@ class ZhilianService {
   }
 
   /**
+   * 检查登录状态
+   */
+  async checkLoginStatus() {
+    try {
+      if (!this.page) {
+        this.isLoggedIn = false;
+        return false;
+      }
+
+      // 检查是否在登录页面或需要登录
+      const currentUrl = this.page.url();
+      
+      // 检查常见的登录相关元素
+      const loginSelectors = [
+        '.login-btn',
+        '.login-form',
+        '[data-testid="login"]',
+        '.passport-login',
+        '#loginname',
+        '.login-container'
+      ];
+
+      let hasLoginElements = false;
+      for (const selector of loginSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element) {
+            hasLoginElements = true;
+            break;
+          }
+        } catch (error) {
+          // 忽略选择器错误，继续检查下一个
+        }
+      }
+
+      // 检查用户信息相关元素（表示已登录）
+      const userSelectors = [
+        '.user-info',
+        '.user-name',
+        '.avatar',
+        '.profile-info',
+        '[data-testid="user-menu"]'
+      ];
+
+      let hasUserElements = false;
+      for (const selector of userSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element) {
+            hasUserElements = true;
+            break;
+          }
+        } catch (error) {
+          // 忽略选择器错误，继续检查下一个
+        }
+      }
+
+      // 如果有用户元素且没有登录元素，认为已登录
+      this.isLoggedIn = hasUserElements && !hasLoginElements;
+      
+      logger.info(`登录状态检查: ${this.isLoggedIn ? '已登录' : '未登录'}`);
+      return this.isLoggedIn;
+      
+    } catch (error) {
+      logger.error('检查登录状态失败:', error.message);
+      this.isLoggedIn = false;
+      return false;
+    }
+  }
+
+  /**
+   * 获取候选人浏览状态
+   */
+  getBrowsingStatus() {
+    return {
+      ...this.browsingStatus,
+      progress: {
+        processed: this.browsingStatus.processedCount,
+        total: this.browsingStatus.targetCount,
+        percentage: this.browsingStatus.targetCount > 0 
+          ? Math.round((this.browsingStatus.processedCount / this.browsingStatus.targetCount) * 100)
+          : 0
+      }
+    };
+  }
+
+  /**
+   * 获取简历处理状态
+   */
+  getResumeProcessingStatus() {
+    return {
+      ...this.resumeProcessingStatus,
+      progress: {
+        processed: this.resumeProcessingStatus.processedCount,
+        total: this.resumeProcessingStatus.resumes.length,
+        percentage: this.resumeProcessingStatus.resumes.length > 0
+          ? Math.round((this.resumeProcessingStatus.processedCount / this.resumeProcessingStatus.resumes.length) * 100)
+          : 0
+      }
+    };
+  }
+
+  /**
+   * 重置候选人浏览状态
+   */
+  async resetBrowsingStatus() {
+    this.browsingStatus = {
+      isActive: false,
+      mode: null,
+      candidates: [],
+      processedCount: 0,
+      collectedCount: 0,
+      failedCount: 0,
+      currentIndex: 0,
+      filters: {},
+      startTime: null,
+      targetCount: 0,
+      currentPage: 1,
+      totalPages: 0
+    };
+    logger.info('候选人浏览状态已重置');
+  }
+
+  /**
+   * 开始简历处理
+   */
+  async startResumeProcessing() {
+    try {
+      if (this.resumeProcessingStatus.isActive) {
+        throw new Error('简历处理任务已在运行中');
+      }
+
+      this.resumeProcessingStatus.isActive = true;
+      this.resumeProcessingStatus.startTime = new Date();
+      this.resumeProcessingStatus.step = 'collecting';
+      
+      logger.info('开始简历处理任务...');
+      
+      // 这里可以添加具体的简历处理逻辑
+      // 目前只是一个基础框架
+      
+      this.resumeProcessingStatus.step = 'completed';
+      this.resumeProcessingStatus.isActive = false;
+      
+      logger.info('简历处理任务完成');
+      
+      return {
+        success: true,
+        processed: this.resumeProcessingStatus.processedCount,
+        completed: this.resumeProcessingStatus.completedCount,
+        failed: this.resumeProcessingStatus.failedCount
+      };
+      
+    } catch (error) {
+      this.resumeProcessingStatus.isActive = false;
+      this.resumeProcessingStatus.step = 'error';
+      logger.error('简历处理任务失败:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * 关闭浏览器（别名方法）
+   */
+  async closeBrowser() {
+    return await this.close();
+  }
+
+  /**
    * 关闭浏览器
    */
   async close() {
