@@ -107,7 +107,7 @@ recruitment-automation/
   "build_command": "cd backend && npm install && npm run build",
   "start_command": "cd backend && npm start",
   "install_command": "cd backend && npm install",
-  "node_version": "18",
+  "node_version": "20",
   "cache_dependencies": true
 }
 ```
@@ -254,13 +254,13 @@ curl -I https://recruitment-backend-xxx.zeabur.app
     "backend": {
       "build_command": "cd backend && npm install && npm run build",
       "start_command": "cd backend && npm start",
-      "node_version": "18"
+      "node_version": "20"
     },
     "frontend": {
       "build_command": "cd frontend && npm install && npm run build",
       "output_dir": "frontend/dist",
       "install_command": "cd frontend && npm install",
-      "node_version": "18"
+      "node_version": "20"
     }
   }
 }
