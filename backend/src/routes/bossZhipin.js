@@ -21,14 +21,14 @@ router.post('/start', async (req, res) => {
     
     // 如果已有服务实例，先关闭
     if (bossZhipinService) {
-      await bossZhipinService.closeBrowser();
+      await bossZhipinService.stopCurrentTask();
     }
     
     // 创建新的服务实例，传递io实例以支持页面切换保护
     bossZhipinService = new BossZhipinService(io);
     
     // 启动初始化流程
-    await bossZhipinService.initializeFullProcess();
+    await bossZhipinService.initializeBrowser();
     
     res.json({
       success: true,
@@ -166,7 +166,7 @@ router.post('/wait-login', async (req, res) => {
 router.post('/stop', async (req, res) => {
   try {
     if (bossZhipinService) {
-      await bossZhipinService.closeBrowser();
+      await bossZhipinService.stopCurrentTask();
       bossZhipinService = null;
       
       res.json({

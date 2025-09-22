@@ -53,7 +53,7 @@ class BossService {
   async stop() {
     try {
       if (this.bossZhipinService) {
-        await this.bossZhipinService.closeBrowser();
+        await this.bossZhipinService.stopCurrentTask();
         this.bossZhipinService = null;
         logger.info('Boss直聘测试服务已停止');
       }
