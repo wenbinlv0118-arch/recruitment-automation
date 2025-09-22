@@ -6,6 +6,8 @@
       "environment": "docker",
       "framework": "express",
       "node_version": "20",
+      "install_command": "npm install --ignore-scripts",
+      "build_command": "npm run build",
       "env": {
         "BROWSER_HEADLESS": "true",
         "DISPLAY": ":99",
@@ -14,7 +16,8 @@
         "ZEABUR": "true",
         "CONTAINER": "true",
         "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright",
-        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "0"
+        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "0",
+        "npm_config_ignore_scripts": "true"
       },
       "resources": {
         "memory": "1Gi",
@@ -23,9 +26,9 @@
     },
     "frontend": {
       "root_dir": "frontend",
-      "build_command": "npm ci && npm run build",
+      "build_command": "npm install && npm run build",
       "output_dir": "build",
-      "install_command": "npm ci",
+      "install_command": "npm install",
       "node_version": "20",
       "cache_dependencies": true,
       "environment": "static",
