@@ -1,10 +1,13 @@
 /**
  * Boss直聘服务类 - Puppeteer版本
  * 专为Zeabur容器环境优化，解决Playwright依赖问题
+ * 支持VNC远程显示服务
  */
 
 const logger = require('../utils/logger');
 const ResumeModel = require('../models/resumeModel');
+const vncService = require('./vncService');
+const { environmentConfig } = require('../config/environmentConfig');
 
 // 使用Puppeteer替代Playwright
 const puppeteer = require('puppeteer');
@@ -17,6 +20,8 @@ class BossZhipinService {
     this.currentStatus = 'not_initialized';
     this.io = io;
     this.isStopped = false;
+    this.vncSession = null;
+    this.environmentConfig = environmentConfig;
     
     // 候选人浏览状态跟踪
     this.browsingStatus = {
@@ -43,43 +48,19 @@ class BossZhipinService {
       logger.info('正在启动 Boss 直聘自动化浏览器...');
       this.currentStatus = 'initializing';
       
+      // 检查并初始化VNC服务
+      if (this.environmentConfig.hasVncService()) {
+        logger.info('🖥️ 检测到VNC服务，初始化VNC会话...');
+        this.vncSession = await vncService.initializeSession();
+      }
+      
       // 检测环境
       const isContainerEnv = process.env.NODE_ENV === 'production' || process.env.ZEABUR || process.env.CONTAINER;
-      const shouldUseHeadless = isContainerEnv || process.env.BROWSER_HEADLESS === 'true';
       
-      // Puppeteer启动参数 - 使用新的headless模式
+      // Puppeteer启动参数 - 使用环境配置
       const launchOptions = {
-        headless: shouldUseHeadless ? "new" : false,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-extensions',
-          '--disable-default-apps',
-          '--disable-sync',
-          '--disable-translate',
-          '--hide-scrollbars',
-          '--metrics-recording-only',
-          '--mute-audio',
-          '--no-first-run',
-          '--safebrowsing-disable-auto-update',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-features=VizDisplayCompositor',
-          '--disable-web-security',
-          '--disable-blink-features=AutomationControlled',
-          '--disable-popup-blocking',
-          '--disable-background-tab-throttling',
-          '--autoplay-policy=no-user-gesture-required',
-          '--disable-permissions-api',
-          '--disable-component-extensions-with-background-pages',
-          '--disable-background-networking',
-          '--disable-crash-reporter',
-          '--max-old-space-size=512',
-          '--memory-pressure-off'
-        ],
+        headless: this.environmentConfig.shouldUseHeadless(),
+        args: this.environmentConfig.getBrowserArgs(),
         defaultViewport: {
           width: 1366,
           height: 768
@@ -96,6 +77,15 @@ class BossZhipinService {
           logger.info('容器环境使用自定义浏览器路径:', process.env.PUPPETEER_EXECUTABLE_PATH);
         } else {
           logger.info('容器环境让Puppeteer自动检测浏览器路径');
+        }
+        
+        // VNC环境下的特殊配置
+        if (this.vncSession) {
+          logger.info('🖥️ 配置VNC显示环境');
+          launchOptions.env = {
+            ...process.env,
+            DISPLAY: this.vncSession.display || ':1'
+          };
         }
       }
 
@@ -358,6 +348,18 @@ class BossZhipinService {
    */
   async cleanup() {
     await this.stopCurrentTask();
+    
+    // 清理VNC会话
+    if (this.vncSession) {
+      try {
+        await vncService.cleanupSession(this.vncSession.id);
+        this.vncSession = null;
+        logger.info('🖥️ VNC会话已清理');
+      } catch (error) {
+        logger.error('清理VNC会话失败:', error);
+      }
+    }
+    
     logger.info('BossZhipinService 资源已清理');
   }
 }

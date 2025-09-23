@@ -109,8 +109,8 @@ async function testDragSelectionIntegration() {
       console.log('OCR服务清理完成');
     };
     
-    // 调用closeBrowser方法测试清理逻辑
-    await bossService.closeBrowser();
+    // 调用stop方法测试清理逻辑
+    await bossService.stop();
     
     console.log('✓ 服务清理功能测试通过');
     

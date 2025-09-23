@@ -1,14 +1,19 @@
 /**
  * Puppeteer服务模块 - 生产环境优化版本
  * 专为Zeabur容器环境设计，解决Playwright依赖问题
+ * 支持VNC远程显示服务
  */
 
 const puppeteer = require('puppeteer');
+const vncService = require('./vncService');
+const { getEnvironmentConfig } = require('../config/environmentConfig');
 
 class PuppeteerService {
   constructor() {
     this.browser = null;
     this.isInitialized = false;
+    this.vncSession = null;
+    this.environmentConfig = getEnvironmentConfig();
   }
 
   /**
@@ -22,26 +27,15 @@ class PuppeteerService {
     try {
       console.log('🚀 初始化Puppeteer浏览器...');
 
+      // 检查并初始化VNC服务
+      if (this.environmentConfig.hasVncService()) {
+        console.log('🖥️ 检测到VNC服务，初始化VNC会话...');
+        this.vncSession = await vncService.initializeSession();
+      }
+
       const launchOptions = {
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-extensions',
-          '--disable-default-apps',
-          '--disable-sync',
-          '--disable-translate',
-          '--hide-scrollbars',
-          '--metrics-recording-only',
-          '--mute-audio',
-          '--no-first-run',
-          '--safebrowsing-disable-auto-update',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding'
-        ],
+        headless: this.environmentConfig.shouldUseHeadless(),
+        args: this.environmentConfig.getBrowserArgs(),
         defaultViewport: {
           width: 1920,
           height: 1080
@@ -59,6 +53,15 @@ class PuppeteerService {
           console.log('Zeabur环境让Puppeteer自动检测浏览器路径');
         }
         launchOptions.dumpio = false;
+        
+        // VNC环境下的特殊配置
+        if (this.vncSession) {
+          console.log('🖥️ 配置VNC显示环境');
+          launchOptions.env = {
+            ...process.env,
+            DISPLAY: this.vncSession.display || ':1'
+          };
+        }
       }
 
       this.browser = await puppeteer.launch(launchOptions);
@@ -234,6 +237,17 @@ class PuppeteerService {
         console.log('✅ 浏览器已关闭');
       } catch (error) {
         console.error('❌ 关闭浏览器失败:', error.message);
+      }
+    }
+    
+    // 清理VNC会话
+    if (this.vncSession) {
+      try {
+        await vncService.cleanupSession(this.vncSession.id);
+        this.vncSession = null;
+        console.log('✅ VNC会话已清理');
+      } catch (error) {
+        console.error('❌ 清理VNC会话失败:', error.message);
       }
     }
   }

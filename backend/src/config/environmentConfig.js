@@ -67,7 +67,9 @@ class EnvironmentConfig {
       platform: this.platform,
       isProduction: this.isProduction(),
       shouldUseHeadless: this.shouldUseHeadless(),
-      browserConfig: this.getBrowserConfig()
+      browserConfig: this.getBrowserConfig(),
+      vncConfig: this.getVncConfig(),
+      serviceUrls: this.getServiceUrls()
     };
 
     logger.info(`环境配置已生成: ${this.environment} on ${this.platform}`);
@@ -91,6 +93,11 @@ class EnvironmentConfig {
    * @returns {boolean}
    */
   shouldUseHeadless() {
+    // 如果配置了VNC服务，优先使用VNC显示
+    if (this.hasVncService()) {
+      return false; // VNC环境下不使用headless，通过VNC显示
+    }
+
     // 生产环境或云平台环境必须使用无头模式
     if (this.environment === ENVIRONMENT_TYPES.ZEABUR || 
         this.environment === ENVIRONMENT_TYPES.PRODUCTION ||
@@ -176,6 +183,14 @@ class EnvironmentConfig {
       '--disable-gpu',
       '--disable-web-security',
       '--disable-features=VizDisplayCompositor',
+      
+      // VNC显示支持配置
+      ...(this.hasVncService() ? [
+        `--display=${process.env.VNC_DISPLAY || ':1'}`,
+        '--enable-logging',
+        '--log-level=0',
+        '--remote-debugging-port=0'
+      ] : []),
       // 增强的D-Bus和系统服务禁用参数（修复colon错误和系统总线错误）
       '--no-dbus',
       '--disable-dbus',
@@ -337,6 +352,40 @@ class EnvironmentConfig {
   }
 
   /**
+   * 检查是否有VNC服务
+   * @returns {boolean}
+   */
+  hasVncService() {
+    return !!(process.env.VNC_SERVER_URL || process.env.VNC_DISPLAY);
+  }
+
+  /**
+   * 获取VNC配置
+   * @returns {Object} VNC配置
+   */
+  getVncConfig() {
+    return {
+      enabled: this.hasVncService(),
+      serverUrl: process.env.VNC_SERVER_URL || null,
+      display: process.env.VNC_DISPLAY || ':1',
+      port: process.env.VNC_PORT || 5901,
+      password: process.env.VNC_PASSWORD || null
+    };
+  }
+
+  /**
+   * 获取服务URL配置
+   * @returns {Object} 服务URL配置
+   */
+  getServiceUrls() {
+    return {
+      vncServer: process.env.VNC_SERVER_URL || null,
+      browserService: process.env.BROWSER_SERVICE_URL || null,
+      apiGateway: process.env.API_GATEWAY_URL || null
+    };
+  }
+
+  /**
    * 验证环境配置
    * @returns {Object} 验证结果
    */
@@ -355,8 +404,8 @@ class EnvironmentConfig {
     }
 
     // 检查生产环境配置
-    if (this.isProduction() && !this.shouldUseHeadless()) {
-      issues.push('生产环境必须使用无头模式');
+    if (this.isProduction() && !this.shouldUseHeadless() && !this.hasVncService()) {
+      issues.push('生产环境必须使用无头模式或配置VNC服务');
     }
 
     return {

@@ -3,6 +3,7 @@ const ResumeModel = require('../models/resumeModel');
 const memoryMonitor = require('../utils/memoryMonitor');
 const browserDisplayConfig = require('../config/browserDisplayConfig');
 const { environmentConfig, getBrowserConfig, validateConfig } = require('../config/environmentConfig');
+const vncService = require('./vncService');
 
 // 加载Puppeteer模块
 let puppeteer = null;
@@ -44,6 +45,8 @@ class ZhilianService {
     this.currentStatus = 'not_initialized';
     this.io = io;
     this.isStopped = false;
+    this.vncSession = null;
+    this.environmentConfig = environmentConfig;
     
     // 候选人浏览状态跟踪
     this.browsingStatus = {
@@ -136,26 +139,16 @@ class ZhilianService {
       logger.info('开始初始化Puppeteer浏览器...');
       this.currentStatus = 'initializing';
       
+      // 检查并初始化VNC服务
+      if (this.environmentConfig.hasVncService()) {
+        logger.info('🖥️ 检测到VNC服务，初始化VNC会话...');
+        this.vncSession = await vncService.initializeSession();
+      }
+      
       const config = getBrowserConfig();
       const launchOptions = {
-        headless: config.headless,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-extensions',
-          '--disable-default-apps'
-        ],
+        headless: this.environmentConfig.shouldUseHeadless(),
+        args: this.environmentConfig.getBrowserArgs(),
         timeout: 60000,
         ...config.launchOptions
       };
@@ -169,6 +162,15 @@ class ZhilianService {
           logger.info('容器环境使用自定义浏览器路径:', process.env.PUPPETEER_EXECUTABLE_PATH);
         } else {
           logger.info('容器环境让Puppeteer自动检测浏览器路径');
+        }
+        
+        // VNC环境下的特殊配置
+        if (this.vncSession) {
+          logger.info('🖥️ 配置VNC显示环境');
+          launchOptions.env = {
+            ...process.env,
+            DISPLAY: this.vncSession.display || ':1'
+          };
         }
       }
 
@@ -580,6 +582,17 @@ class ZhilianService {
       if (this.browser) {
         await this.browser.close();
         this.browser = null;
+      }
+      
+      // 清理VNC会话
+      if (this.vncSession) {
+        try {
+          await vncService.cleanupSession(this.vncSession.id);
+          this.vncSession = null;
+          logger.info('✅ VNC会话已清理');
+        } catch (error) {
+          logger.error('❌ 清理VNC会话失败:', error.message);
+        }
       }
       
       this.currentStatus = 'not_initialized';
