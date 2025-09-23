@@ -268,8 +268,8 @@ class EnvironmentConfig {
       '--disable-background-timer-throttling',
       '--disable-renderer-backgrounding',
       '--disable-backgrounding-occluded-windows',
-      '--disable-ipc-flooding-protection',
-      '--single-process'
+      '--disable-ipc-flooding-protection'
+      // 移除 --single-process 参数，因为它会导致 Protocol error (Target.setDiscoverTargets): Target closed
     ];
 
     // 生产环境额外参数
