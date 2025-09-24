@@ -506,21 +506,20 @@ const ZhilianControl = () => {
     
     loginPollingRef.current = setInterval(async () => {
       try {
-        // 直接调用fetchStatus来更新所有状态
-        await fetchStatus();
-        
-        // 检查是否已登录，如果已登录则停止轮询
         const result = await apiGet(API_ENDPOINTS.ZHILIAN.GET_STATUS);
         
         if (result.success && result.data.loggedIn) {
           // 登录成功，停止轮询
           clearInterval(loginPollingRef.current);
           loginPollingRef.current = null;
-          addLog('检测到用户已登录，停止轮询', 'success');
+          addLog('检测到用户已登录，停止登录轮询', 'success');
           
           // 显示登录成功消息
           message.success('用户已登录！');
           addLog('用户登录成功！', 'success');
+          
+          // 更新状态
+          setIsLoggedIn(true);
           setCurrentStep(3);
           
           // 登录成功后自动切换到候选人浏览选项卡
@@ -630,8 +629,14 @@ const ZhilianControl = () => {
   ], []);
 
   useEffect(() => {
+    // 初始化时获取状态
     fetchStatus();
     addLog('智联招聘控制界面已加载', 'info');
+    
+    // 启动状态轮询 - 每5秒检查一次状态
+    statusPollingRef.current = setInterval(() => {
+      fetchStatus();
+    }, 5000);
     
     // 组件卸载时清理定时器
     return () => {

@@ -32,6 +32,7 @@ import BossZhipinControl from './components/BossZhipinControl';
 import ZhilianControl from './components/ZhilianControl';
 // 公司搜索组件已删除
 import PositionManagement from './components/PositionManagement';
+import PerformanceEvaluation from './components/PerformanceEvaluation';
 
 
 import { createCOTResponse } from './utils/cotUtils';
@@ -1567,6 +1568,11 @@ function App() {
               icon: <GlobalOutlined />,
               label: '浏览器',
             },
+            {
+              key: '7',
+              icon: <BarChartOutlined />,
+              label: '性能评估',
+            },
 
           ]}
         />
@@ -1658,7 +1664,8 @@ function App() {
             <KnowledgeBase selectedMenu="upload" />
           ) : selectedMenuKey === '6' ? (
             <Browser />
-
+          ) : selectedMenuKey === '7' ? (
+            <PerformanceEvaluation />
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ textAlign: 'center' }}>

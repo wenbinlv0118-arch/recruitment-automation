@@ -113,35 +113,65 @@ class ZeaburReadyValidator {
     };
     
     // 检查环境变量
-    const envVars = {
-      'ZEABUR_ENVIRONMENT': process.env.ZEABUR_ENVIRONMENT,
-      'NODE_ENV': process.env.NODE_ENV,
-      'HEADLESS_MODE': process.env.HEADLESS_MODE
-    };
+    const zeaburEnv = process.env.ZEABUR_ENVIRONMENT || process.env.ZEABUR;
+    const nodeEnv = process.env.NODE_ENV;
+    const headlessMode = process.env.HEADLESS_MODE || process.env.BROWSER_HEADLESS;
+    const containerEnv = process.env.CONTAINER;
     
     let configValid = true;
     
-    // 验证Puppeteer配置存在 - 放宽检查要求
-    const zhilianServicePath = path.join(__dirname, 'src/services/zhilianService.js');
+    // 检查无头模式和沙箱配置
     try {
-      const content = fs.readFileSync(zhilianServicePath, 'utf8');
-      const hasHeadless = content.includes('headless') || content.includes('HEADLESS');
-      const hasNoSandbox = content.includes('--no-sandbox');
+      // 检查环境配置文件
+      const envConfigPath = path.join(__dirname, 'src', 'config', 'environmentConfig.js');
+      const configPath = path.join(__dirname, 'src', 'utils', 'config.js');
+      
+      let hasHeadless = false;
+      let hasNoSandbox = false;
+      
+      // 检查环境配置文件
+      if (fs.existsSync(envConfigPath)) {
+        const content = fs.readFileSync(envConfigPath, 'utf8');
+        hasHeadless = content.includes('headless') || content.includes('HEADLESS');
+        hasNoSandbox = content.includes('--no-sandbox') || content.includes('disable-setuid-sandbox') || content.includes('disable-sandbox');
+      }
+      
+      // 检查配置文件
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, 'utf8');
+        if (!hasHeadless) {
+          hasHeadless = content.includes('headless') || content.includes('HEADLESS');
+        }
+        if (!hasNoSandbox) {
+          hasNoSandbox = content.includes('--no-sandbox') || content.includes('disable-setuid-sandbox') || content.includes('disable-sandbox');
+        }
+      }
       
       this.log('Headless配置', hasHeadless, hasHeadless ? '已配置无头模式' : '未找到无头模式配置');
       this.log('沙箱配置', hasNoSandbox, hasNoSandbox ? '已禁用沙箱模式' : '未禁用沙箱模式');
       
-      configValid = hasHeadless && hasNoSandbox;
+      if (!hasNoSandbox) {
+        configValid = false;
+      }
+      if (!hasHeadless) {
+        configValid = false;
+      }
     } catch (error) {
       this.log('配置验证', false, error.message);
       configValid = false;
     }
     
     // 检查环境变量
-    Object.entries(envVars).forEach(([key, value]) => {
-      const exists = value !== undefined;
-      this.log(`环境变量 ${key}`, true, `${exists ? value : '未设置'}`);
-    });
+    this.log('ZEABUR环境', !!zeaburEnv, zeaburEnv || '未设置');
+    this.log('NODE_ENV', nodeEnv === 'production', nodeEnv || '未设置');
+    this.log('无头模式', !!headlessMode, headlessMode || '未设置');
+    this.log('容器环境', !!containerEnv, containerEnv || '未设置');
+    
+    // 环境变量验证
+    const envValid = !!zeaburEnv && nodeEnv === 'production' && !!headlessMode && !!containerEnv;
+    if (!envValid) {
+      configValid = false;
+    }
     
     return configValid;
   }

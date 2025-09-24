@@ -23,12 +23,12 @@ echo ""
 
 # 等待X11服务就绪
 echo "等待X11服务就绪..."
-for i in {1..60}; do
+for i in {1..30}; do
     if xdpyinfo -display :1 >/dev/null 2>&1; then
         echo "X11服务已就绪"
         break
     fi
-    if [ $i -eq 60 ]; then
+    if [ $i -eq 30 ]; then
         echo "错误: X11服务启动超时"
         # 尝试手动启动Xvfb
         echo "尝试手动启动Xvfb..."
@@ -42,13 +42,13 @@ for i in {1..60}; do
             exit 1
         fi
     fi
-    echo "等待X11服务启动... ($i/60)"
-    sleep 1
+    echo "等待X11服务启动... ($i/30)"
+    sleep 0.5
 done
 
 # 等待窗口管理器就绪
 echo "等待窗口管理器就绪..."
-sleep 3
+sleep 2
 
 # 检查窗口管理器是否运行
 if ! pgrep -f fluxbox >/dev/null 2>&1; then
@@ -83,6 +83,9 @@ if command -v chromium-browser >/dev/null 2>&1; then
         --disable-background-timer-throttling \
         --disable-backgrounding-occluded-windows \
         --disable-renderer-backgrounding \
+        --disable-features=VizDisplayCompositor \
+        --memory-pressure-off \
+        --max_old_space_size=512 \
         --window-size=1280,720 \
         --user-data-dir=/tmp/chrome-user-data \
         --no-first-run --no-default-browser-check \
@@ -109,11 +112,19 @@ elif command -v google-chrome-stable >/dev/null 2>&1; then
     
     echo "启动参数: google-chrome-stable --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1280,720 --user-data-dir=/tmp/chrome-user-data --no-first-run --no-default-browser-check $TARGET_URL"
     
-    # 使用最简化的启动参数
+    # 使用优化的启动参数
     google-chrome-stable --no-sandbox --disable-dev-shm-usage \
-        --disable-gpu --window-size=1280,720 \
+        --disable-gpu --disable-software-rasterizer \
+        --disable-background-timer-throttling \
+        --disable-backgrounding-occluded-windows \
+        --disable-renderer-backgrounding \
+        --disable-features=VizDisplayCompositor \
+        --memory-pressure-off \
+        --max_old_space_size=512 \
+        --window-size=1280,720 \
         --user-data-dir=/tmp/chrome-user-data \
         --no-first-run --no-default-browser-check \
+        --disable-extensions --disable-plugins \
         "$TARGET_URL" \
         > /var/log/supervisor/browser.log 2>&1 &
     BROWSER_PID=$!
@@ -136,7 +147,7 @@ fi
 
 # 等待浏览器启动
 echo "等待浏览器完全启动..."
-sleep 3
+sleep 2
 
 # 检查浏览器进程是否正常运行
 if kill -0 $BROWSER_PID 2>/dev/null; then

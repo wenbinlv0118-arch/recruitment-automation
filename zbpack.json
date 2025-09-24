@@ -24,8 +24,8 @@
         "BACKEND_URL": "https://recruitment-automation-backend.zeabur.app"
       },
       "resources": {
-        "memory": "2Gi",
-        "cpu": "1"
+        "memory": "1Gi",
+        "cpu": "0.5"
       }
     },
     "frontend": {
@@ -61,8 +61,8 @@
         "CONTAINER": "true"
       },
       "resources": {
-        "memory": "2Gi",
-        "cpu": "1"
+        "memory": "1Gi",
+        "cpu": "0.5"
       },
       "volumes": ["/data"]
     }

@@ -364,9 +364,16 @@ class EnvironmentConfig {
    * @returns {Object} VNC配置
    */
   getVncConfig() {
+    // Zeabur环境下自动配置VNC服务
+    let serverUrl = process.env.VNC_SERVER_URL;
+    if (this.environment === ENVIRONMENT_TYPES.ZEABUR && !serverUrl) {
+      serverUrl = 'https://recruitment-automation-vnc.zeabur.app';
+      logger.info('Zeabur环境自动配置VNC服务URL:', serverUrl);
+    }
+    
     return {
-      enabled: this.hasVncService(),
-      serverUrl: process.env.VNC_SERVER_URL || null,
+      enabled: this.hasVncService() || this.environment === ENVIRONMENT_TYPES.ZEABUR,
+      serverUrl: serverUrl,
       display: process.env.VNC_DISPLAY || ':1',
       port: process.env.VNC_PORT || 5901,
       password: process.env.VNC_PASSWORD || null

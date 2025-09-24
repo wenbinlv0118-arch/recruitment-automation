@@ -203,15 +203,15 @@ class ZhilianService {
     try {
       if (!this.page) throw new Error('浏览器未初始化');
       
-      logger.info('导航到智联招聘网站...');
-      await this.page.goto('https://www.zhaopin.com', { 
+      logger.info('导航到智联招聘登录页面...');
+      await this.page.goto('https://passport.zhaopin.com/org/login?validateCampus=', { 
         waitUntil: 'networkidle2',
         timeout: 30000 
       });
       
       // 等待页面加载完成
       await new Promise(resolve => setTimeout(resolve, 2000));
-      logger.info('成功导航到智联招聘网站');
+      logger.info('成功导航到智联招聘登录页面');
       
       return true;
       
@@ -606,11 +606,62 @@ class ZhilianService {
   /**
    * 获取当前状态
    */
+  /**
+   * 获取服务状态 - 原始格式
+   */
   getStatus() {
     return {
       currentStatus: this.currentStatus,
       browsing: this.browsingStatus,
       resumeProcessing: this.resumeProcessingStatus
+    };
+  }
+
+  /**
+   * 获取前端期望的状态格式
+   */
+  getFrontendStatus() {
+    const hasBrowser = this.browser !== null;
+    const hasPage = this.page !== null;
+    const isInitialized = hasBrowser;
+    
+    return {
+      status: this.currentStatus,
+      initialized: isInitialized,
+      loggedIn: this.isLoggedIn,
+      hasBrowser: hasBrowser,
+      hasPage: hasPage,
+      browser: {
+        isOpen: hasBrowser,
+        currentUrl: hasPage ? null : null // 可以后续添加获取当前URL的逻辑
+      },
+      page: {
+        isReady: hasPage,
+        title: null // 可以后续添加获取页面标题的逻辑
+      },
+      browsing: {
+        isActive: this.browsingStatus.isActive,
+        mode: this.browsingStatus.mode,
+        progress: {
+          processed: this.browsingStatus.processedCount,
+          total: this.browsingStatus.targetCount,
+          percentage: this.browsingStatus.targetCount > 0 ? 
+            Math.round((this.browsingStatus.processedCount / this.browsingStatus.targetCount) * 100) : 0
+        },
+        startTime: this.browsingStatus.startTime,
+        lastActivity: new Date().toISOString()
+      },
+      resumeProcessing: {
+        isActive: this.resumeProcessingStatus.isActive,
+        progress: {
+          processed: this.resumeProcessingStatus.processedCount,
+          total: this.resumeProcessingStatus.resumes.length,
+          percentage: this.resumeProcessingStatus.resumes.length > 0 ? 
+            Math.round((this.resumeProcessingStatus.processedCount / this.resumeProcessingStatus.resumes.length) * 100) : 0
+        },
+        startTime: this.resumeProcessingStatus.startTime,
+        lastActivity: new Date().toISOString()
+      }
     };
   }
 }

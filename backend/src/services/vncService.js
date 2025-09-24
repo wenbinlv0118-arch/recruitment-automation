@@ -95,6 +95,15 @@ class VncService {
   }
 
   /**
+   * 初始化VNC会话（createVncSession的别名）
+   * @param {Object} options - 会话选项
+   * @returns {Promise<Object|null>}
+   */
+  async initializeSession(options = {}) {
+    return await this.createVncSession(options);
+  }
+
+  /**
    * 获取浏览器配置（适配VNC环境）
    * @returns {Object}
    */

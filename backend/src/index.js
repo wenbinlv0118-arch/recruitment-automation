@@ -7,6 +7,10 @@ if (process.env.NODE_ENV === 'production') {
   require('./utils/logFilter');
 }
 
+const socketHandlers = require('./socketHandlers');
+const { setupCDPSocketHandlers } = require('./cdpSocketHandlers');
+const { activatePageSwitchProtection } = require('./services/pageSwitchProtectionService');
+
 // 检查并加载本地环境配置
 const localEnvPath = path.join(__dirname, '../.env.local');
 if (fs.existsSync(localEnvPath)) {
@@ -112,8 +116,13 @@ function isInPageSwitchProtection() {
   return true;
 }
 
-// 添加 Socket.IO 连接事件监听
+// Socket.IO 连接处理
 io.on('connection', (socket) => {
+  console.log('用户连接:', socket.id);
+  
+  // 设置Socket处理器
+  socketHandlers.setupSocketHandlers(io, socket);
+  
   console.log('客户端已连接:', socket.id);
   console.log('客户端传输方式:', socket.conn.transport.name);
   console.log('客户端地址:', socket.handshake.address);
@@ -1263,10 +1272,28 @@ app.use('/api/resume', resumeRoutes);
 
 // 公司搜索路由已删除
 
+// 设置CDP Socket处理器
+setupCDPSocketHandlers(io);
+
+// 初始化性能评估服务
+const PerformanceEvaluationService = require('./services/performanceEvaluationService');
+let performanceEvaluationService;
+try {
+  performanceEvaluationService = new PerformanceEvaluationService(io);
+  console.log('性能评估服务初始化成功');
+} catch (error) {
+  console.error('性能评估服务初始化失败:', error.message);
+  performanceEvaluationService = null;
+}
+
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`服务器运行在端口 ${PORT}`);
   console.log(`存储目录: ${storageDir}`);
+  console.log('CDP Socket处理器已启用');
+  if (performanceEvaluationService) {
+    console.log('性能评估WebSocket服务已启用');
+  }
 });
 
 // API路由：异步上传简历文件（优化版本，避免超时）

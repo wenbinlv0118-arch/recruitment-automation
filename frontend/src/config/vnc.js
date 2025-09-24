@@ -58,10 +58,10 @@ export const checkVncConnection = async (config = getCurrentVncConfig()) => {
   try {
     const { serverUrl, webPort } = config;
     const port = webPort ? `:${webPort}` : '';
-    const healthUrl = `${serverUrl}${port}/health`;
+    const vncUrl = `${serverUrl}${port}/vnc.html`;
     
-    const response = await fetch(healthUrl, {
-      method: 'GET',
+    const response = await fetch(vncUrl, {
+      method: 'HEAD',
       timeout: 5000
     });
     
