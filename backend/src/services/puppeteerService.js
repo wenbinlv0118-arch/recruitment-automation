@@ -5,7 +5,7 @@
  */
 
 const puppeteer = require('puppeteer');
-const vncService = require('./vncService');
+const { vncService } = require('./vncService');
 const { getEnvironmentConfig } = require('../config/environmentConfig');
 
 class PuppeteerService {

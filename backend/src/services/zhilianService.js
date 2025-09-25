@@ -3,7 +3,7 @@ const ResumeModel = require('../models/resumeModel');
 const memoryMonitor = require('../utils/memoryMonitor');
 const browserDisplayConfig = require('../config/browserDisplayConfig');
 const { environmentConfig, getBrowserConfig, validateConfig } = require('../config/environmentConfig');
-const vncService = require('./vncService');
+const { vncService } = require('./vncService');
 
 // 加载Puppeteer模块
 let puppeteer = null;

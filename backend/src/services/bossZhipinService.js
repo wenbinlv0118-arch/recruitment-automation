@@ -6,7 +6,7 @@
 
 const logger = require('../utils/logger');
 const ResumeModel = require('../models/resumeModel');
-const vncService = require('./vncService');
+const { vncService } = require('./vncService');
 const { environmentConfig } = require('../config/environmentConfig');
 
 // 使用Puppeteer替代Playwright
