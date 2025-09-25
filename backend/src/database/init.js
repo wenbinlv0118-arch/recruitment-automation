@@ -1,4 +1,11 @@
-const Database = require('better-sqlite3');
+// 尝试加载 better-sqlite3，如果失败则提供备用方案
+let Database;
+try {
+  Database = require('better-sqlite3');
+} catch (error) {
+  console.warn('better-sqlite3 未安装，SQLite 功能将不可用:', error.message);
+  Database = null;
+}
 const path = require('path');
 const fs = require('fs');
 
@@ -10,6 +17,12 @@ class DatabaseManager {
 
   async init() {
     try {
+      // 检查 better-sqlite3 是否可用
+      if (!Database) {
+        console.warn('SQLite 数据库不可用，请安装 better-sqlite3 依赖');
+        return false;
+      }
+      
       // 确保存储目录存在
       const storageDir = path.dirname(this.dbPath);
       if (!fs.existsSync(storageDir)) {
@@ -75,6 +88,9 @@ class DatabaseManager {
   }
 
   run(sql, params = []) {
+    if (!this.db) {
+      return Promise.reject(new Error('数据库未初始化或不可用'));
+    }
     try {
       const result = this.db.prepare(sql).run(params);
       return Promise.resolve({ id: result.lastInsertRowid, changes: result.changes });
@@ -84,6 +100,9 @@ class DatabaseManager {
   }
 
   get(sql, params = []) {
+    if (!this.db) {
+      return Promise.reject(new Error('数据库未初始化或不可用'));
+    }
     try {
       const result = this.db.prepare(sql).get(params);
       return Promise.resolve(result);
@@ -93,6 +112,9 @@ class DatabaseManager {
   }
 
   all(sql, params = []) {
+    if (!this.db) {
+      return Promise.reject(new Error('数据库未初始化或不可用'));
+    }
     try {
       const result = this.db.prepare(sql).all(params);
       return Promise.resolve(result);
