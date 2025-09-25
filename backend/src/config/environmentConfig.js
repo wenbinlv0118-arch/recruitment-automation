@@ -184,17 +184,44 @@ class EnvironmentConfig {
       '--disable-web-security',
       '--disable-features=VizDisplayCompositor',
       
-      // VNC显示支持配置
+      // 强制X11和显示服务器禁用（修复Missing X server or $DISPLAY错误）
+      '--disable-x11',
+      '--disable-xss',
+      '--disable-xvfb',
+      '--no-xshm',
+      '--disable-display-server',
+      '--disable-wayland',
+      '--disable-x11-extensions',
+      '--disable-xrandr',
+      '--disable-xinput',
+      '--disable-xrender',
+      '--disable-xcomposite',
+      '--disable-xdamage',
+      '--disable-xfixes',
+      '--disable-xshape',
+      '--disable-xtest',
+      '--disable-xtst',
+      
+      // VNC显示支持配置（仅在VNC环境下启用）
       ...(this.hasVncService() ? [
         `--display=${process.env.VNC_DISPLAY || ':1'}`,
         '--enable-logging',
         '--log-level=0',
         '--remote-debugging-port=0'
-      ] : []),
-      // 增强的D-Bus和系统服务禁用参数（修复colon错误和系统总线错误）
+      ] : [
+        // 非VNC环境下完全禁用显示相关功能
+        '--disable-display',
+        '--disable-x11-display',
+        '--no-display-server'
+      ]),
+      
+      // 强化D-Bus系统总线禁用（修复Failed to connect to socket /run/dbus/system_bus_socket错误）
       '--no-dbus',
       '--disable-dbus',
       '--disable-system-dbus',
+      '--disable-session-dbus',
+      '--disable-dbus-proxy',
+      '--disable-dbus-activation',
       '--disable-system-font-check',
       '--disable-font-subpixel-positioning',
       '--disable-sync',
@@ -284,6 +311,33 @@ class EnvironmentConfig {
         '--disable-dev-tools',
         '--disable-extensions-http-throttling',
         '--disable-component-extensions-with-background-pages',
+        
+        // 生产环境容器优化（修复Code: 1启动失败）
+        '--disable-software-rasterizer',
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-ipc-flooding-protection',
+        '--disable-features=TranslateUI',
+        '--disable-features=VizDisplayCompositor',
+        '--disable-features=VizHitTestSurfaceLayer',
+        '--disable-features=VizServiceDisplayCompositor',
+        '--disable-features=UseOzonePlatform',
+        '--disable-features=AudioServiceOutOfProcess',
+        '--disable-features=MediaFoundationClearPlayback',
+        
+        // 强化系统服务禁用（容器环境）
+        '--disable-system-proxy-config-service',
+        '--disable-system-font-fallback',
+        '--disable-system-notification-service',
+        '--disable-system-timezone',
+        '--disable-system-color-chooser',
+        '--disable-system-font-family',
+        '--disable-system-keyboard-lock',
+        '--disable-system-media-controls',
+        '--disable-system-display-info',
+        '--disable-system-audio-info',
+        
         // 生产环境内存和进程优化
         '--max_old_space_size=256',
         '--disable-crash-reporter',
@@ -294,6 +348,22 @@ class EnvironmentConfig {
         '--disable-client-side-phishing-detection',
         '--disable-sync',
         '--metrics-recording-only',
+        '--no-crash-upload',
+        
+        // 容器环境特殊参数（修复启动失败）
+        '--disable-seccomp-filter-sandbox',
+        '--disable-namespace-sandbox',
+        '--disable-gpu-sandbox',
+        '--disable-software-rasterizer',
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--disable-extensions',
+        '--disable-sync',
+        '--disable-translate',
+        '--no-service-autorun',
+        '--no-experiments',
+        '--no-default-browser-check',
+        '--no-pings',
         '--no-crash-upload'
       );
     }
