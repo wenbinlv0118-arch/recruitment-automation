@@ -100,6 +100,91 @@ class ZhilianService {
   }
 
   /**
+   * 诊断浏览器启动错误
+   * @param {Error} error - 启动错误
+   * @returns {Object} 错误诊断信息
+   */
+  diagnoseBrowserError(error) {
+    const errorMessage = error.message || error.toString();
+    const diagnosis = {
+      type: 'unknown',
+      description: '未知错误',
+      suggestions: [],
+      severity: 'high'
+    };
+
+    // XDG_SESSION_TYPE 错误
+    if (errorMessage.includes('Unknown XDG_SESSION_TYPE')) {
+      diagnosis.type = 'xdg_session';
+      diagnosis.description = 'XDG会话类型未知，容器环境缺少会话管理配置';
+      diagnosis.suggestions = [
+        '设置 XDG_SESSION_TYPE=unspecified 环境变量',
+        '添加 --disable-session-api 浏览器参数',
+        '禁用 XDG 桌面门户服务'
+      ];
+    }
+    
+    // D-Bus 连接错误
+    else if (errorMessage.includes('Failed to connect to the bus') || errorMessage.includes('dbus')) {
+      diagnosis.type = 'dbus_connection';
+      diagnosis.description = 'D-Bus系统总线连接失败，容器环境缺少系统总线服务';
+      diagnosis.suggestions = [
+        '设置 DBUS_SESSION_BUS_ADDRESS= 环境变量',
+        '添加 --no-dbus 浏览器参数',
+        '禁用所有 D-Bus 相关服务'
+      ];
+    }
+    
+    // X11 显示服务器错误
+    else if (errorMessage.includes('Missing X server') || errorMessage.includes('$DISPLAY')) {
+      diagnosis.type = 'x11_display';
+      diagnosis.description = 'X11显示服务器缺失，无头环境需要禁用显示服务器依赖';
+      diagnosis.suggestions = [
+        '设置 DISPLAY= 环境变量为空',
+        '添加 --disable-x11 浏览器参数',
+        '强制使用无头模式'
+      ];
+    }
+    
+    // 平台初始化错误
+    else if (errorMessage.includes('The platform failed to initialize')) {
+      diagnosis.type = 'platform_init';
+      diagnosis.description = '平台初始化失败，Ozone平台层无法启动';
+      diagnosis.suggestions = [
+        '设置 OZONE_PLATFORM=headless 环境变量',
+        '添加 --ozone-platform=headless 浏览器参数',
+        '禁用平台相关功能'
+      ];
+    }
+    
+    // 沙盒错误
+    else if (errorMessage.includes('sandbox') || errorMessage.includes('SUID')) {
+      diagnosis.type = 'sandbox';
+      diagnosis.description = '沙盒机制启动失败，容器环境权限不足';
+      diagnosis.suggestions = [
+        '添加 --no-sandbox 浏览器参数',
+        '禁用 setuid 沙盒',
+        '使用单进程模式'
+      ];
+      diagnosis.severity = 'medium';
+    }
+    
+    // 内存不足错误
+    else if (errorMessage.includes('out of memory') || errorMessage.includes('OOM')) {
+      diagnosis.type = 'memory';
+      diagnosis.description = '内存不足，无法启动浏览器进程';
+      diagnosis.suggestions = [
+        '增加容器内存限制',
+        '使用 --memory-pressure-off 参数',
+        '启用单进程模式减少内存使用'
+      ];
+      diagnosis.severity = 'critical';
+    }
+
+    return diagnosis;
+  }
+
+  /**
    * 使用重试机制启动浏览器
    * @param {Object} launchOptions - 浏览器启动选项
    * @param {number} maxRetries - 最大重试次数
@@ -107,11 +192,22 @@ class ZhilianService {
    */
   async launchBrowserWithRetry(launchOptions, maxRetries = 3) {
     let lastError = null;
+    const errorHistory = [];
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const memUsage = process.memoryUsage();
         logger.info(`浏览器启动第 ${attempt} 次尝试 - 内存使用: RSS=${Math.round(memUsage.rss/1024/1024)}MB`);
+        
+        // 记录启动参数（仅在第一次尝试时）
+        if (attempt === 1) {
+          logger.info('浏览器启动参数:', {
+            headless: launchOptions.headless,
+            argsCount: launchOptions.args?.length || 0,
+            timeout: launchOptions.timeout,
+            executablePath: launchOptions.executablePath || 'auto-detect'
+          });
+        }
         
         const browser = await puppeteer.launch(launchOptions);
         logger.info('浏览器启动成功');
@@ -119,16 +215,190 @@ class ZhilianService {
         
       } catch (error) {
         lastError = error;
-        logger.error(`浏览器启动第 ${attempt} 次尝试失败: ${error.message}`);
+        const diagnosis = this.diagnoseBrowserError(error);
+        errorHistory.push({ attempt, error: error.message, diagnosis });
+        
+        logger.error(`浏览器启动第 ${attempt} 次尝试失败:`, {
+          error: error.message,
+          type: diagnosis.type,
+          description: diagnosis.description,
+          severity: diagnosis.severity
+        });
+        
+        // 输出诊断建议
+        if (diagnosis.suggestions.length > 0) {
+          logger.warn('错误诊断建议:', diagnosis.suggestions);
+        }
         
         if (attempt === maxRetries) break;
         
         const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        logger.info(`等待 ${waitTime}ms 后重试...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
     
+    // 生成详细的错误报告
+    const errorReport = {
+      message: `浏览器启动失败: ${lastError?.message || '未知错误'}`,
+      attempts: maxRetries,
+      errorHistory,
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        platform: process.platform,
+        isContainer: !!(process.env.ZEABUR || process.env.CONTAINER),
+        hasDisplay: !!process.env.DISPLAY,
+        hasVnc: this.environmentConfig.hasVncService()
+      },
+      recommendations: this.generateErrorRecommendations(errorHistory)
+    };
+    
+    logger.error('浏览器启动完全失败，错误报告:', errorReport);
     throw new Error(`浏览器启动失败: ${lastError?.message || '未知错误'}`);
+  }
+
+  /**
+   * 生成错误修复建议
+   * @param {Array} errorHistory - 错误历史记录
+   * @returns {Array} 修复建议列表
+   */
+  generateErrorRecommendations(errorHistory) {
+    const recommendations = new Set();
+    
+    errorHistory.forEach(({ diagnosis }) => {
+      diagnosis.suggestions.forEach(suggestion => {
+        recommendations.add(suggestion);
+      });
+    });
+    
+    // 通用建议
+    recommendations.add('检查容器环境是否正确配置');
+    recommendations.add('确认所有必要的环境变量已设置');
+    recommendations.add('验证浏览器启动参数是否完整');
+    
+    return Array.from(recommendations);
+  }
+
+  /**
+   * 获取回退浏览器配置
+   * @param {number} fallbackLevel - 回退级别 (1-3)
+   * @returns {Object} 回退配置
+   */
+  getFallbackBrowserConfig(fallbackLevel = 1) {
+    const baseConfig = this.environmentConfig.getBrowserConfig();
+    const fallbackConfigs = {
+      1: {
+        // 级别1：最小化参数集
+        description: '最小化参数配置',
+        args: [
+          '--headless=new',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
+          '--single-process',
+          '--no-zygote'
+        ],
+        timeout: 60000
+      },
+      2: {
+        // 级别2：强制单进程模式
+        description: '强制单进程模式',
+        args: [
+          '--headless=new',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--single-process',
+          '--no-zygote',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--memory-pressure-off',
+          '--max_old_space_size=512'
+        ],
+        timeout: 90000
+      },
+      3: {
+        // 级别3：极简配置
+        description: '极简配置（最后尝试）',
+        args: [
+          '--headless=new',
+          '--no-sandbox',
+          '--single-process'
+        ],
+        timeout: 120000
+      }
+    };
+    
+    const fallback = fallbackConfigs[fallbackLevel] || fallbackConfigs[3];
+    
+    return {
+      headless: 'new',
+      args: fallback.args,
+      timeout: fallback.timeout,
+      ignoreDefaultArgs: ['--enable-automation'],
+      env: {
+        ...process.env,
+        DISPLAY: '',
+        XAUTHORITY: '',
+        XDG_SESSION_TYPE: 'unspecified',
+        DBUS_SESSION_BUS_ADDRESS: '',
+        OZONE_PLATFORM: 'headless'
+      },
+      description: fallback.description
+    };
+  }
+
+  /**
+   * 使用回退机制启动浏览器
+   * @param {Object} primaryConfig - 主要配置
+   * @returns {Promise<Browser>} 浏览器实例
+   */
+  async launchBrowserWithFallback(primaryConfig) {
+    const maxFallbackLevels = 3;
+    
+    // 首先尝试主要配置
+    try {
+      logger.info('尝试使用主要配置启动浏览器');
+      return await this.launchBrowserWithRetry(primaryConfig, 2);
+    } catch (primaryError) {
+      logger.warn('主要配置启动失败，开始尝试回退配置:', primaryError.message);
+      
+      // 尝试回退配置
+      for (let level = 1; level <= maxFallbackLevels; level++) {
+        try {
+          const fallbackConfig = this.getFallbackBrowserConfig(level);
+          logger.info(`尝试回退配置级别 ${level}: ${fallbackConfig.description}`);
+          
+          // 合并容器环境的特殊配置
+          if (process.env.ZEABUR || process.env.CONTAINER) {
+            const customPath = '/usr/bin/google-chrome-stable';
+            if (require('fs').existsSync(customPath)) {
+              fallbackConfig.executablePath = customPath;
+            }
+          }
+          
+          const browser = await this.launchBrowserWithRetry(fallbackConfig, 1);
+          logger.info(`回退配置级别 ${level} 启动成功`);
+          return browser;
+          
+        } catch (fallbackError) {
+          logger.error(`回退配置级别 ${level} 失败:`, fallbackError.message);
+          
+          if (level === maxFallbackLevels) {
+            // 所有回退配置都失败了
+            const finalError = new Error(
+              `所有浏览器配置都失败了。主要错误: ${primaryError.message}。` +
+              `最后回退错误: ${fallbackError.message}`
+            );
+            finalError.primaryError = primaryError;
+            finalError.fallbackErrors = [fallbackError];
+            throw finalError;
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -148,7 +418,8 @@ class ZhilianService {
       // 获取VNC配置的浏览器参数
       const browserConfig = await vncService.getBrowserConfigForVnc();
       
-      const launchOptions = {
+      // 设置主要启动选项
+      const primaryLaunchOptions = {
         headless: browserConfig.headless,
         args: browserConfig.args,
         timeout: 60000,
@@ -160,7 +431,7 @@ class ZhilianService {
         // 只有在明确设置了PUPPETEER_EXECUTABLE_PATH时才使用自定义路径
         // 否则让Puppeteer自动检测浏览器（支持Playwright安装的浏览器）
         if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-          launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+          primaryLaunchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
           logger.info('容器环境使用自定义浏览器路径:', process.env.PUPPETEER_EXECUTABLE_PATH);
         } else {
           logger.info('容器环境让Puppeteer自动检测浏览器路径');
@@ -169,14 +440,15 @@ class ZhilianService {
         // VNC环境下的特殊配置
         if (this.vncSession) {
           logger.info('🖥️ 配置VNC显示环境');
-          launchOptions.env = {
+          primaryLaunchOptions.env = {
             ...process.env,
             DISPLAY: this.vncSession.display || ':1'
           };
         }
       }
 
-      this.browser = await this.launchBrowserWithRetry(launchOptions);
+      // 使用回退机制启动浏览器
+      this.browser = await this.launchBrowserWithFallback(primaryLaunchOptions);
       
       // 创建初始页面
       this.page = await this.browser.newPage();
@@ -192,7 +464,17 @@ class ZhilianService {
       return true;
       
     } catch (error) {
-      logger.error('浏览器初始化失败:', error.message);
+      logger.error('浏览器初始化完全失败:', {
+        error: error.message,
+        primaryError: error.primaryError?.message,
+        fallbackErrors: error.fallbackErrors?.map(e => e.message),
+        environment: {
+          nodeEnv: process.env.NODE_ENV,
+          platform: process.platform,
+          isContainer: !!(process.env.ZEABUR || process.env.CONTAINER)
+        }
+      });
+      
       this.currentStatus = 'not_initialized';
       throw error;
     }

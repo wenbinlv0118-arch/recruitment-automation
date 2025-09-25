@@ -202,6 +202,18 @@ class EnvironmentConfig {
       '--disable-xtest',
       '--disable-xtst',
       
+      // 彻底解决XDG_SESSION_TYPE未知错误
+      '--disable-session-api',
+      '--disable-login-animations',
+      '--disable-session-crashed-bubble',
+      '--disable-session-service',
+      '--disable-xdg-desktop-portal',
+      '--disable-xdg-mime',
+      '--disable-xdg-utils',
+      '--no-xdg-desktop-portal',
+      '--disable-desktop-capture',
+      '--disable-desktop-notifications',
+      
       // VNC显示支持配置（仅在VNC环境下启用）
       ...(this.hasVncService() ? [
         `--display=${process.env.VNC_DISPLAY || ':1'}`,
@@ -222,6 +234,10 @@ class EnvironmentConfig {
       '--disable-session-dbus',
       '--disable-dbus-proxy',
       '--disable-dbus-activation',
+      '--disable-dbus-service',
+      '--disable-dbus-client',
+      '--disable-dbus-glib',
+      '--disable-dbus-python',
       '--disable-system-font-check',
       '--disable-font-subpixel-positioning',
       '--disable-sync',
@@ -232,6 +248,19 @@ class EnvironmentConfig {
       '--disable-renderer-backgrounding',
       '--disable-field-trial-config',
       '--disable-back-forward-cache',
+      
+      // 彻底禁用平台初始化相关功能（修复The platform failed to initialize错误）
+      '--disable-platform-encryption',
+      '--disable-platform-notifications',
+      '--disable-platform-verification',
+      '--disable-ozone-platform',
+      '--disable-ui-compositor',
+      '--disable-viz-display-compositor',
+      '--disable-viz-hit-test-surface-layer',
+      '--disable-viz-service-display-compositor',
+      '--ozone-platform=headless',
+      '--use-gl=swiftshader',
+      '--disable-gl-drawing-for-tests',
       
       // 彻底禁用D-Bus和系统集成
       '--disable-desktop-notifications',
@@ -364,7 +393,36 @@ class EnvironmentConfig {
         '--no-experiments',
         '--no-default-browser-check',
         '--no-pings',
-        '--no-crash-upload'
+        '--no-crash-upload',
+        
+        // 强化无头模式参数
+        '--virtual-time-budget=5000',
+        '--run-all-compositor-stages-before-draw',
+        '--disable-partial-raster',
+        '--disable-skia-runtime-opts',
+        '--force-color-profile=srgb',
+        '--force-device-scale-factor=1',
+        '--hide-scrollbars',
+        '--mute-audio',
+        '--autoplay-policy=no-user-gesture-required',
+        '--disable-audio-output',
+        '--disable-audio-input',
+        '--disable-microphone',
+        '--disable-camera',
+        '--disable-geolocation',
+        '--disable-notifications',
+        '--disable-permissions-api',
+        '--disable-presentation-api',
+        '--disable-push-messaging',
+        '--disable-speech-api',
+        '--disable-wake-lock-api',
+        '--disable-web-bluetooth',
+        '--disable-web-usb',
+        '--disable-webgl',
+        '--disable-webgl2',
+        '--disable-webrtc',
+        '--disable-webrtc-hw-decoding',
+        '--disable-webrtc-hw-encoding'
       );
     }
 
