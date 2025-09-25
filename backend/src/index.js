@@ -1279,7 +1279,15 @@ setupCDPSocketHandlers(io);
 const PerformanceEvaluationService = require('./services/performanceEvaluationService');
 let performanceEvaluationService;
 try {
-  performanceEvaluationService = new PerformanceEvaluationService(io);
+  performanceEvaluationService = new PerformanceEvaluationService();
+  // 异步初始化WebSocket服务器
+  performanceEvaluationService.initialize({
+    port: 3001
+  }).then(() => {
+    console.log('性能评估WebSocket服务器启动成功');
+  }).catch(error => {
+    console.error('性能评估WebSocket服务器启动失败:', error);
+  });
   console.log('性能评估服务初始化成功');
 } catch (error) {
   console.error('性能评估服务初始化失败:', error.message);

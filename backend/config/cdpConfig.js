@@ -15,36 +15,44 @@ const cdpConfig = {
     // Chrome可执行文件路径（根据环境自动检测）
     executablePath: process.env.CHROME_EXECUTABLE_PATH || getDefaultChromePath(),
     
-    // Chrome启动参数
+    // Chrome启动参数 - 优化版本，提升启动速度
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding',
-      '--disable-features=TranslateUI',
+      '--disable-features=TranslateUI,VizDisplayCompositor',
       '--disable-ipc-flooding-protection',
-      '--enable-features=NetworkService,NetworkServiceLogging',
-      '--force-color-profile=srgb',
-      '--metrics-recording-only',
-      '--use-mock-keychain',
+      '--enable-features=NetworkService',
       '--disable-extensions',
       '--disable-plugins',
       '--disable-background-networking',
       '--disable-sync',
       '--disable-translate',
+      '--disable-default-apps',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-background-downloads',
+      '--disable-add-to-shelf',
+      '--disable-client-side-phishing-detection',
+      '--disable-datasaver-prompt',
+      '--disable-domain-reliability',
+      '--disable-features=AudioServiceOutOfProcess',
       '--hide-scrollbars',
       '--mute-audio',
       '--no-default-browser-check',
       '--no-pings',
       '--password-store=basic',
       '--use-gl=swiftshader',
-      '--use-angle=swiftshader'
+      '--use-angle=swiftshader',
+      '--aggressive-cache-discard',
+      '--memory-pressure-off',
+      '--max_old_space_size=4096',
+      '--js-flags=--max-old-space-size=4096'
     ],
     
     // 无头模式配置

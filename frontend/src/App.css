@@ -174,8 +174,9 @@
 /* 内容区域样式 - 玻璃拟态 */
 .content-container { 
   padding: 24px; 
-  height: calc(100vh - 64px); 
-  overflow-y: auto;
+  min-height: calc(100vh - 64px); 
+  height: auto;
+  overflow-y: visible;
   background: var(--glass-bg) !important;
   backdrop-filter: var(--blur-md) !important;
   -webkit-backdrop-filter: var(--blur-md) !important;

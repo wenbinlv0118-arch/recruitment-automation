@@ -19,6 +19,14 @@ router.post('/start', async (req, res) => {
   try {
     logger.info('收到启动 Boss 直聘智能寻聘请求');
     
+    // 检查VNC服务状态
+    const { vncService } = require('../services/vncService');
+    const isVncAvailable = await vncService.isVncServiceAvailable();
+    
+    if (isVncAvailable) {
+      logger.info('检测到VNC服务可用，将在VNC环境下启动浏览器');
+    }
+    
     // 如果已有服务实例，先关闭
     if (bossZhipinService) {
       await bossZhipinService.stopCurrentTask();
@@ -30,12 +38,28 @@ router.post('/start', async (req, res) => {
     // 启动初始化流程
     await bossZhipinService.initializeBrowser();
     
+    // 如果VNC可用，创建VNC会话
+    let vncSession = null;
+    if (isVncAvailable) {
+      try {
+        vncSession = await vncService.createVncSession({
+          resolution: '1920x1080',
+          purpose: 'boss_zhipin_recruitment'
+        });
+        logger.info('VNC会话创建成功', { sessionId: vncSession?.sessionId });
+      } catch (vncError) {
+        logger.warn('VNC会话创建失败，继续使用普通模式', { error: vncError.message });
+      }
+    }
+    
     res.json({
       success: true,
       message: 'Boss 直聘智能寻聘已启动，请使用 App 扫码登录',
       data: {
         status: 'initialized',
-        nextStep: 'waiting_for_login'
+        nextStep: 'waiting_for_login',
+        vncEnabled: isVncAvailable,
+        vncSession: vncSession
       }
     });
     

@@ -284,6 +284,35 @@ function registerAllRoutes(app) {
     }
   });
 
+  // VNC服务状态检查路由
+  app.get('/api/vnc/status', async (req, res) => {
+    try {
+      const { vncService } = require('../services/vncService');
+      
+      // 检查VNC服务是否可用
+      const isAvailable = await vncService.isVncServiceAvailable();
+      const status = vncService.getStatus();
+      
+      res.json({
+        success: true,
+        available: isAvailable,
+        enabled: status.enabled,
+        config: {
+          serverUrl: status.config.serverUrl,
+          display: status.config.display
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('VNC状态检查失败:', error);
+      res.status(500).json({
+        success: false,
+        available: false,
+        error: 'VNC状态检查失败: ' + error.message
+      });
+    }
+  });
+
   // 注册其他路由模块
   app.use('/api/knowledge', knowledgeRoutes);
   app.use('/api/tasks', taskRoutes);

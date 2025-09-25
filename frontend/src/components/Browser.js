@@ -89,6 +89,25 @@ const Browser = () => {
   const vncUrl = buildVncUrl();
 
   /**
+   * 自动切换到VNC模式
+   */
+  const autoSwitchToVnc = async () => {
+    console.log('🔄 自动切换到VNC模式');
+    setIsVncMode(true);
+    setIframeKey(prev => prev + 1); // 强制刷新iframe
+    
+    // 延迟检查VNC连接状态，确保iframe加载完成
+    setTimeout(async () => {
+      try {
+        await checkVncStatus();
+        console.log('✅ VNC模式切换完成');
+      } catch (error) {
+        console.error('❌ VNC状态检查失败:', error);
+      }
+    }, 2000);
+  };
+
+  /**
    * 预设的常用网站列表
    */
   const presetUrls = [
@@ -153,11 +172,89 @@ const Browser = () => {
     }
   };
 
+  /**
+   * 检查VNC服务连接（用于生产环境检测）
+   */
+  const checkVncConnectionLocal = async () => {
+    try {
+      // 检查VNC服务是否可用
+      const response = await fetch('/api/vnc/status', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.success && data.available;
+      }
+      
+      return false;
+    } catch (error) {
+      console.warn('VNC服务检测失败:', error);
+      return false;
+    }
+  };
+
   // 组件挂载时检查VNC连接状态
   useEffect(() => {
     if (isVncMode) {
       checkVncStatus();
     }
+  }, [isVncMode]);
+
+  // 监听智能寻聘启动事件
+  useEffect(() => {
+    /**
+     * 监听智能寻聘启动事件
+     * @param {CustomEvent} event - 自定义事件
+     */
+    const handleSmartRecruitmentStart = (event) => {
+      console.log('📡 接收到智能寻聘启动事件:', event.detail);
+      autoSwitchToVnc();
+    };
+
+    // 添加事件监听器
+    window.addEventListener('smartRecruitmentStart', handleSmartRecruitmentStart);
+    
+    // 清理函数
+    return () => {
+      window.removeEventListener('smartRecruitmentStart', handleSmartRecruitmentStart);
+    };
+  }, []);
+
+  // 监听生产环境检测事件
+  useEffect(() => {
+    /**
+     * 检测是否为生产环境并自动切换VNC模式
+     */
+    const checkProductionEnvironment = async () => {
+      const isProduction = process.env.NODE_ENV === 'production' || 
+                          window.location.hostname !== 'localhost';
+      
+      if (isProduction && !isVncMode) {
+        console.log('🌐 检测到生产环境，准备自动切换到VNC模式');
+        
+        try {
+          // 在生产环境中，检测VNC服务可用性
+          const isConnected = await checkVncConnectionLocal();
+          if (isConnected) {
+            console.log('✅ VNC服务可用，自动切换到VNC模式');
+            autoSwitchToVnc();
+          } else {
+            console.log('⚠️ VNC服务暂不可用，将在智能寻聘启动时再次尝试');
+          }
+        } catch (error) {
+          console.warn('⚠️ VNC服务检测失败:', error);
+        }
+      }
+    };
+
+    // 延迟检测，确保组件完全挂载
+    const timer = setTimeout(checkProductionEnvironment, 1000);
+    
+    return () => clearTimeout(timer);
   }, [isVncMode]);
 
   /**

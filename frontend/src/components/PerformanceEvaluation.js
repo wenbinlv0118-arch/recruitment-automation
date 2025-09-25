@@ -90,6 +90,10 @@ const PerformanceEvaluation = () => {
    */
   const handleWebSocketMessage = (data) => {
     switch (data.type) {
+      case 'connected':
+        console.log('WebSocket连接确认:', data.clientId);
+        setIsConnected(true);
+        break;
       case 'performance_metrics':
         setPerformanceMetrics(data.metrics);
         break;
@@ -99,9 +103,19 @@ const PerformanceEvaluation = () => {
         break;
       case 'mode_switched':
         setCurrentMode(data.mode);
+        setTestStatus('idle');
+        break;
+      case 'mode_switch_failed':
+        console.error('模式切换失败:', data.error);
+        alert('模式切换失败: ' + data.error);
+        setTestStatus('idle');
         break;
       case 'comparison_data':
         setComparisonData(data.comparison);
+        break;
+      case 'error':
+        console.error('服务器错误:', data.message);
+        alert('服务器错误: ' + data.message);
         break;
       default:
         console.log('未知消息类型:', data.type);
@@ -131,7 +145,7 @@ const PerformanceEvaluation = () => {
     }
 
     try {
-      setTestStatus('running');
+      setTestStatus('switching');
       
       sendWebSocketMessage({
         type: 'switch_mode',
@@ -150,7 +164,6 @@ const PerformanceEvaluation = () => {
     } catch (error) {
       console.error('切换模式失败:', error);
       alert('切换模式失败: ' + error.message);
-    } finally {
       setTestStatus('idle');
     }
   };
@@ -387,16 +400,16 @@ const PerformanceEvaluation = () => {
               <button
                 className={`mode-btn ${currentMode === 'vnc' ? 'active' : ''}`}
                 onClick={() => switchMode('vnc')}
-                disabled={testStatus === 'running'}
+                disabled={testStatus === 'running' || testStatus === 'switching' || !isConnected}
               >
-                切换到VNC
+                {testStatus === 'switching' ? '切换中...' : '切换到VNC'}
               </button>
               <button
                 className={`mode-btn ${currentMode === 'cdp' ? 'active' : ''}`}
                 onClick={() => switchMode('cdp')}
-                disabled={testStatus === 'running'}
+                disabled={testStatus === 'running' || testStatus === 'switching' || !isConnected}
               >
-                切换到CDP
+                {testStatus === 'switching' ? '切换中...' : '切换到CDP'}
               </button>
             </div>
           </div>
@@ -449,9 +462,9 @@ const PerformanceEvaluation = () => {
             <button
               className="test-btn start"
               onClick={startPerformanceTest}
-              disabled={testStatus === 'running' || !isConnected}
+              disabled={testStatus === 'running' || testStatus === 'switching' || !isConnected}
             >
-              {testStatus === 'running' ? '测试进行中...' : '开始性能测试'}
+              {testStatus === 'running' ? '测试进行中...' : testStatus === 'switching' ? '模式切换中...' : '开始性能测试'}
             </button>
             <button
               className="test-btn stop"
@@ -463,9 +476,9 @@ const PerformanceEvaluation = () => {
             <button
               className="test-btn comparison"
               onClick={runComparisonTest}
-              disabled={testStatus === 'running' || !isConnected}
+              disabled={testStatus === 'running' || testStatus === 'switching' || !isConnected}
             >
-              运行对比测试
+              {testStatus === 'switching' ? '模式切换中...' : '运行对比测试'}
             </button>
           </div>
         </div>

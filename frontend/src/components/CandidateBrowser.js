@@ -270,6 +270,19 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       if (response.ok) {
         setIsInitialized(true);
         setCurrentStep(1);
+        
+        // 触发智能寻聘启动事件，通知Browser组件切换到VNC模式
+        const smartRecruitmentEvent = new CustomEvent('smartRecruitmentStart', {
+          detail: {
+            platform: 'zhilian',
+            timestamp: new Date().toISOString(),
+            message: '智联招聘智能寻聘已启动',
+            source: 'CandidateBrowser'
+          }
+        });
+        window.dispatchEvent(smartRecruitmentEvent);
+        console.log('🚀 已通知浏览器组件切换到VNC模式');
+        
         // 开始状态轮询
         startZhilianStatusPolling();
       } else {
@@ -560,6 +573,19 @@ const CandidateBrowser = ({ platform = 'boss-zhipin' }) => {
       
       if (result.success) {
         message.success('候选人浏览已启动');
+        
+        // 触发智能寻聘启动事件，通知Browser组件切换到VNC模式
+        const smartRecruitmentEvent = new CustomEvent('smartRecruitmentStart', {
+          detail: {
+            platform: platform,
+            timestamp: new Date().toISOString(),
+            message: `${platform === 'zhilian' ? '智联招聘' : 'Boss直聘'}候选人浏览已启动`,
+            source: 'CandidateBrowser',
+            mode: browseMode
+          }
+        });
+        window.dispatchEvent(smartRecruitmentEvent);
+        console.log('🚀 已通知浏览器组件切换到VNC模式');
         
         // 根据选择的模式导航到对应页面
         await navigateToModeSpecificPage(browseMode);

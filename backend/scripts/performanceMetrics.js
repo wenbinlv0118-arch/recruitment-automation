@@ -5,10 +5,12 @@
 
 const os = require('os');
 const { performance } = require('perf_hooks');
+const EventEmitter = require('events');
 const logger = require('../src/utils/logger');
 
-class PerformanceMetrics {
+class PerformanceMetrics extends EventEmitter {
   constructor() {
+    super();
     this.metrics = {
       latency: {
         measurements: [],
@@ -225,6 +227,9 @@ class PerformanceMetrics {
     };
     
     this.metrics.memory.measurements.push(measurement);
+    
+    // 触发指标更新事件
+    this.emit('metricsUpdated', this.getCurrentMetrics());
   }
 
   /**
@@ -264,6 +269,9 @@ class PerformanceMetrics {
     };
     
     this.metrics.cpu.measurements.push(measurement);
+    
+    // 触发指标更新事件
+    this.emit('metricsUpdated', this.getCurrentMetrics());
   }
 
   /**
@@ -572,6 +580,49 @@ class PerformanceMetrics {
     });
     
     return filtered;
+  }
+
+  /**
+   * 获取当前性能指标
+   * @returns {Object} 当前性能指标
+   */
+  getCurrentMetrics() {
+    const latest = {};
+    
+    // 获取最新的内存指标
+    if (this.metrics.memory.measurements.length > 0) {
+      const latestMemory = this.metrics.memory.measurements[this.metrics.memory.measurements.length - 1];
+      latest.memoryUsage = Math.round((latestMemory.process.heapUsed / 1024 / 1024) * 100) / 100; // MB
+    } else {
+      latest.memoryUsage = 0;
+    }
+    
+    // 获取最新的CPU指标
+    if (this.metrics.cpu.measurements.length > 0) {
+      const latestCPU = this.metrics.cpu.measurements[this.metrics.cpu.measurements.length - 1];
+      latest.cpuUsage = Math.round(latestCPU.usage * 100) / 100;
+    } else {
+      latest.cpuUsage = 0;
+    }
+    
+    // 获取最新的帧率指标
+    if (this.metrics.frameRate.measurements.length > 0) {
+      const latestFrameRate = this.metrics.frameRate.measurements[this.metrics.frameRate.measurements.length - 1];
+      latest.frameRate = Math.round(latestFrameRate.fps * 100) / 100;
+    } else {
+      latest.frameRate = 0;
+    }
+    
+    // 获取最新的延迟指标
+    if (this.metrics.latency.measurements.length > 0) {
+      const recentLatencies = this.metrics.latency.measurements.slice(-10);
+      const avgLatency = recentLatencies.reduce((sum, m) => sum + m.latency, 0) / recentLatencies.length;
+      latest.latency = Math.round(avgLatency * 100) / 100;
+    } else {
+      latest.latency = 0;
+    }
+    
+    return latest;
   }
 
   /**

@@ -22,20 +22,24 @@ module.exports = {
       '--disable-background-networking', // 禁用后台网络
       '--disable-default-apps', // 禁用默认应用
       '--disable-extensions', // 禁用扩展
+      '--disable-plugins', // 禁用插件
       '--disable-sync', // 禁用同步
+      '--disable-translate', // 禁用翻译
       '--no-first-run', // 跳过首次运行
       '--no-default-browser-check', // 不检查默认浏览器
+      '--disable-infobars', // 禁用信息栏
       
       // 窗口和渲染优化
-      '--disable-features=CalculateNativeWinOcclusion', // 禁用窗口遮挡计算
+      '--disable-features=CalculateNativeWinOcclusion,TranslateUI,VizDisplayCompositor', // 禁用窗口遮挡计算、翻译UI和显示合成器
       '--disable-backgrounding-occluded-windows', // 禁用被遮挡窗口的后台处理
       '--disable-renderer-backgrounding', // 禁用渲染器后台处理
+      '--disable-component-extensions-with-background-pages', // 禁用带后台页面的组件扩展
+      '--disable-background-downloads', // 禁用后台下载
       
       // 窗口大小设置
       '--window-size=1920,1080', // 设置窗口大小
       '--start-maximized', // 启动时最大化窗口
       '--disable-web-security', // 禁用网页安全限制
-      '--disable-features=VizDisplayCompositor', // 禁用显示合成器
       '--enable-viewport-meta', // 启用视口元标签支持
       '--force-viewport-meta-tag', // 强制使用视口元标签
       
@@ -48,7 +52,10 @@ module.exports = {
       '--disable-skia-runtime-opts', // 禁用Skia运行时优化
       
       // 内存和性能优化
+      '--aggressive-cache-discard', // 激进缓存丢弃
+      '--memory-pressure-off', // 关闭内存压力
       '--max_old_space_size=4096', // 设置最大内存使用量
+      '--js-flags=--max-old-space-size=4096', // JS标志设置最大内存
       '--disable-background-timer-throttling', // 禁用后台定时器节流
     ],
     
@@ -80,23 +87,29 @@ module.exports = {
    * Boss直聘浏览器显示配置
    * 为保持一致性，也应用相同的显示优化
    */
-  bossZhipin: {
-    // 与智联招聘使用相同的基础配置
+  boss: {
+    // Boss直聘配置 - 优化版本
     launchArgs: [
       '--force-device-scale-factor=1',
-      '--high-dpi-support=1',
-      '--force-color-profile=srgb',
-      '--disable-features=CalculateNativeWinOcclusion',
+      '--window-size=1920,1080',
+      '--disable-extensions',
+      '--disable-plugins',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--disable-translate',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-infobars',
+      '--disable-features=TranslateUI,VizDisplayCompositor',
+      '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding',
-      '--window-size=1920,1080',
-      '--start-maximized',
-      '--disable-font-subpixel-positioning',
-      '--enable-font-antialiasing',
-      '--disable-partial-raster',
-      '--disable-skia-runtime-opts',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-background-downloads',
+      '--aggressive-cache-discard',
+      '--memory-pressure-off',
       '--max_old_space_size=4096',
-      '--disable-background-timer-throttling',
+      '--js-flags=--max-old-space-size=4096'
     ],
     
     contextOptions: {
@@ -131,6 +144,24 @@ module.exports = {
       '--force-color-profile=srgb',
       '--window-size=1920,1080',
       '--start-maximized',
+      '--disable-extensions',
+      '--disable-plugins',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--disable-translate',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-infobars',
+      '--disable-features=TranslateUI,VizDisplayCompositor',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-background-downloads',
+      '--aggressive-cache-discard',
+      '--memory-pressure-off',
+      '--max_old_space_size=4096',
+      '--js-flags=--max-old-space-size=4096',
       '--disable-font-subpixel-positioning',
       '--enable-font-antialiasing'
     ],

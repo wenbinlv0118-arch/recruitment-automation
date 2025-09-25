@@ -59,6 +59,14 @@ router.post('/start', async (req, res) => {
       });
     }
     
+    // 检查VNC服务状态
+    const { vncService } = require('../services/vncService');
+    const isVncAvailable = await vncService.isVncServiceAvailable();
+    
+    if (isVncAvailable) {
+      logger.info('检测到VNC服务可用，将在VNC环境下启动浏览器');
+    }
+    
     // 获取Socket.IO实例
     const io = req.app.get('io');
     
@@ -72,6 +80,20 @@ router.post('/start', async (req, res) => {
         success: false,
         message: '智联招聘智能寻聘任务正在运行中，请等待完成或先停止当前任务'
       });
+    }
+    
+    // 如果VNC可用，创建VNC会话
+    let vncSession = null;
+    if (isVncAvailable) {
+      try {
+        vncSession = await vncService.createVncSession({
+          resolution: '1920x1080',
+          purpose: 'zhilian_recruitment'
+        });
+        logger.info('VNC会话创建成功', { sessionId: vncSession?.sessionId });
+      } catch (vncError) {
+        logger.warn('VNC会话创建失败，继续使用普通模式', { error: vncError.message });
+      }
     }
     
     // 异步执行浏览任务
@@ -106,7 +128,9 @@ router.post('/start', async (req, res) => {
         mode,
         filters,
         targetCount,
-        status: service.getStatus()
+        status: service.getStatus(),
+        vncEnabled: isVncAvailable,
+        vncSession: vncSession
       }
     });
     

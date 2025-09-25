@@ -235,6 +235,17 @@ const BossZhipinControl = () => {
         addLog(result.message, 'success');
         setCurrentStep(1);
         
+        // 触发智能寻聘启动事件，通知Browser组件切换到VNC模式
+        const smartRecruitmentEvent = new CustomEvent('smartRecruitmentStart', {
+          detail: {
+            platform: 'bosszhipin',
+            timestamp: new Date().toISOString(),
+            message: 'Boss直聘智能寻聘已启动'
+          }
+        });
+        window.dispatchEvent(smartRecruitmentEvent);
+        addLog('🚀 已通知浏览器组件切换到VNC模式', 'info');
+        
         // 开始轮询状态
         startStatusPolling();
       } else {

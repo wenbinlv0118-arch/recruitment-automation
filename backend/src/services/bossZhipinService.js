@@ -57,15 +57,19 @@ class BossZhipinService {
       // 检测环境
       const isContainerEnv = process.env.NODE_ENV === 'production' || process.env.ZEABUR || process.env.CONTAINER;
       
-      // Puppeteer启动参数 - 使用环境配置
+      // 获取VNC配置的浏览器参数
+      const browserConfig = await vncService.getBrowserConfigForVnc();
+      
+      // Puppeteer启动参数 - 使用VNC优化配置
       const launchOptions = {
-        headless: this.environmentConfig.shouldUseHeadless(),
-        args: this.environmentConfig.getBrowserArgs(),
+        headless: browserConfig.headless,
+        args: browserConfig.args,
         defaultViewport: {
           width: 1366,
           height: 768
         },
-        timeout: 60000
+        timeout: 60000,
+        env: browserConfig.env
       };
 
       // 容器环境特殊配置

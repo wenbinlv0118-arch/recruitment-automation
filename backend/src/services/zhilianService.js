@@ -145,12 +145,14 @@ class ZhilianService {
         this.vncSession = await vncService.initializeSession();
       }
       
-      const config = getBrowserConfig();
+      // 获取VNC配置的浏览器参数
+      const browserConfig = await vncService.getBrowserConfigForVnc();
+      
       const launchOptions = {
-        headless: this.environmentConfig.shouldUseHeadless(),
-        args: this.environmentConfig.getBrowserArgs(),
+        headless: browserConfig.headless,
+        args: browserConfig.args,
         timeout: 60000,
-        ...config.launchOptions
+        env: browserConfig.env
       };
 
       // 容器环境特殊处理

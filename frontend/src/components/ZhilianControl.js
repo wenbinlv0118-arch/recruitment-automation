@@ -305,6 +305,17 @@ const ZhilianControl = () => {
         addLog('智联招聘网站已打开，等待用户登录', 'success');
         setCurrentStep(2);
         
+        // 触发智能寻聘启动事件，通知Browser组件切换到VNC模式
+        const smartRecruitmentEvent = new CustomEvent('smartRecruitmentStart', {
+          detail: {
+            platform: 'zhilian',
+            timestamp: new Date().toISOString(),
+            message: '智联招聘智能寻聘已启动'
+          }
+        });
+        window.dispatchEvent(smartRecruitmentEvent);
+        addLog('🚀 已通知浏览器组件切换到VNC模式', 'info');
+        
         // 开始轮询状态
         startStatusPolling();
         
@@ -466,14 +477,14 @@ const ZhilianControl = () => {
       fetchStatus();
     }, 2000); // 每2秒检查一次
     
-    // 5分钟后停止轮询
+    // 8分钟后停止轮询，给浏览器更多启动时间
     setTimeout(() => {
       if (statusPollingRef.current) {
         clearInterval(statusPollingRef.current);
         statusPollingRef.current = null;
         addLog('状态轮询已超时停止', 'warning');
       }
-    }, 300000); // 5分钟
+    }, 480000); // 8分钟
   };
 
   /**
@@ -534,14 +545,14 @@ const ZhilianControl = () => {
       }
     }, 3000); // 每3秒检查一次
     
-    // 2分钟后停止登录轮询
+    // 5分钟后停止登录轮询，给用户更多登录时间
     setTimeout(() => {
       if (loginPollingRef.current) {
         clearInterval(loginPollingRef.current);
         loginPollingRef.current = null;
         addLog('登录轮询已超时停止，请手动检查登录状态', 'warning');
       }
-    }, 120000); // 2分钟
+    }, 300000); // 5分钟
   };
 
   /**

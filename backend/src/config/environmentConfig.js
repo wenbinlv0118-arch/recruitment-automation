@@ -325,9 +325,9 @@ class EnvironmentConfig {
    */
   getBrowserTimeout() {
     if (this.isProduction()) {
-      return 60000; // 生产环境 60 秒
+      return 90000; // 生产环境 90 秒
     }
-    return 30000; // 开发环境 30 秒
+    return 60000; // 开发环境 60 秒，增加启动时间
   }
 
   /**
