@@ -9,7 +9,7 @@ if (process.env.NODE_ENV === 'production') {
 
 const socketHandlers = require('./socketHandlers');
 const { setupCDPSocketHandlers } = require('./cdpSocketHandlers');
-const { activatePageSwitchProtection } = require('./services/pageSwitchProtectionService');
+// 页面切换保护功能在本文件中实现
 
 // 检查并加载本地环境配置
 const localEnvPath = path.join(__dirname, '../.env.local');

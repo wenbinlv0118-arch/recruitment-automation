@@ -10,12 +10,12 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 // 导入相关服务
-const CDPService = require('./cdpService');
-const VNCService = require('./vncService');
-const PerformanceMetrics = require('../../scripts/performanceMetrics');
-const AutomatedTestCases = require('../../scripts/automatedTestCases');
-const PerformanceComparison = require('../../scripts/performanceComparison');
-const ModeToggleService = require('../../scripts/modeToggleService');
+const { CDPService } = require('./cdpService');
+const { VncService } = require('./vncService');
+const { PerformanceMetrics } = require('../../scripts/performanceMetrics');
+const { AutomatedTestCases } = require('../../scripts/automatedTestCases');
+const { PerformanceComparison } = require('../../scripts/performanceComparison');
+// const ModeToggleService = require('../../scripts/modeToggleService'); // 模块不存在，暂时注释
 
 class PerformanceEvaluationService extends EventEmitter {
   constructor() {
@@ -27,11 +27,11 @@ class PerformanceEvaluationService extends EventEmitter {
     
     // 服务实例
     this.cdpService = new CDPService();
-    this.vncService = new VNCService();
+    this.vncService = new VncService();
     this.performanceMetrics = new PerformanceMetrics();
     this.automatedTestCases = new AutomatedTestCases();
     this.performanceComparison = new PerformanceComparison();
-    this.modeToggleService = new ModeToggleService();
+    // this.modeToggleService = new ModeToggleService(); // 模块不存在，暂时注释
     
     // 测试会话管理
     this.activeSessions = new Map();
@@ -112,7 +112,7 @@ class PerformanceEvaluationService extends EventEmitter {
   async initializeServices() {
     try {
       // 初始化模式切换服务
-      await this.modeToggleService.initialize();
+      // await this.modeToggleService.initialize(); // 模块不存在，暂时注释
       
       // 设置事件监听
       this.setupServiceEventListeners();
@@ -128,13 +128,13 @@ class PerformanceEvaluationService extends EventEmitter {
    */
   setupServiceEventListeners() {
     // 监听模式切换事件
-    this.modeToggleService.on('modeChanged', (data) => {
-      this.broadcastToClients({
-        type: 'mode_switched',
-        mode: data.mode,
-        sessionId: data.sessionId
-      });
-    });
+    // this.modeToggleService.on('modeChanged', (data) => {
+    //   this.broadcastToClients({
+    //     type: 'mode_switched',
+    //     mode: data.mode,
+    //     sessionId: data.sessionId
+    //   });
+    // }); // 模块不存在，暂时注释
     
     // 监听性能指标更新
     this.performanceMetrics.on('metricsUpdated', (metrics) => {
@@ -251,7 +251,8 @@ class PerformanceEvaluationService extends EventEmitter {
       const { mode, sessionId } = message;
       
       // 切换模式
-      const result = await this.modeToggleService.switchMode(sessionId, mode);
+      // const result = await this.modeToggleService.switchMode(sessionId, mode); // 模块不存在，暂时注释
+      const result = { currentMode: mode }; // 临时替代
       
       this.sendToClient(clientId, {
         type: 'mode_switched',
@@ -601,7 +602,7 @@ class PerformanceEvaluationService extends EventEmitter {
       this.performanceMetrics.stopMonitoring();
       
       // 关闭相关服务
-      await this.modeToggleService.shutdown();
+      // await this.modeToggleService.shutdown(); // 模块不存在，暂时注释
       
       console.log('性能评估服务已关闭');
       

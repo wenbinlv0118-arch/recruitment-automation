@@ -7,7 +7,7 @@
 const CDP = require('chrome-remote-interface');
 const EventEmitter = require('events');
 const ScreenRecordingService = require('./screenRecordingService');
-const { getEnvironmentConfig } = require('../config/environmentConfig');
+const { getConfig } = require('../config/environmentConfig');
 
 class CDPService extends EventEmitter {
   constructor() {
@@ -16,7 +16,7 @@ class CDPService extends EventEmitter {
     this.isConnected = false;
     this.isRecording = false;
     this.screenRecordingService = new ScreenRecordingService();
-    this.environmentConfig = getEnvironmentConfig();
+    this.environmentConfig = getConfig();
     this.cdpPort = process.env.CDP_PORT || 9222;
     this.cdpHost = process.env.CDP_HOST || 'localhost';
     

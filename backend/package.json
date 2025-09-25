@@ -28,8 +28,8 @@
     "@xenova/transformers": "^2.15.1",
     "axios": "^1.6.2",
     "browser-use": "^0.0.1",
-    "chrome-remote-interface": "^0.33.2",
     "chromadb": "^3.0.14",
+    "chrome-remote-interface": "^0.33.2",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
@@ -46,6 +46,7 @@
     "socket.io": "^4.7.4",
     "socket.io-client": "^4.7.4",
     "tesseract.js": "^6.0.1",
+    "uuid": "^13.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
