@@ -13,7 +13,23 @@ async function initializeServices() {
     dbManager = new DatabaseManager();
     await dbManager.init();
     knowledgeService = new KnowledgeService(dbManager);
-    llmService = new LLMService();
+    /**
+     * 初始化大语言模型服务（为什么）
+     * - 在缺少 LLM_API_KEY 时，不应阻塞知识库基础能力（上传、检索、健康检查）
+     * - 仅在配置完整时初始化 LLM，以支持带知识库的 AI 对话
+     */
+    if (process.env.LLM_API_KEY) {
+      try {
+        llmService = new LLMService();
+        console.log('知识库路由：LLM 服务初始化成功');
+      } catch (e) {
+        console.error('知识库路由：LLM 服务初始化失败（将降级为禁用）:', e.message);
+        llmService = null;
+      }
+    } else {
+      console.log('知识库路由：LLM_API_KEY 未设置，跳过 LLM 服务初始化');
+      llmService = null;
+    }
   }
 }
 
@@ -268,7 +284,22 @@ router.post('/chat', async (req, res) => {
     const results = await knowledgeService.retrieveKnowledge(query, companyId, 5);
     const context = knowledgeService.buildContext(results);
 
-    // 2. 使用LLM生成回答
+    // 2. 使用LLM生成回答（降级处理：未配置LLM时直接返回检索上下文）
+    if (!llmService || typeof llmService.chatWithKnowledgeBase !== 'function') {
+      return res.json({
+        success: true,
+        data: {
+          query,
+          response: {
+            provider: 'none',
+            text: 'LLM 未配置，已返回检索到的知识上下文。请设置环境变量 LLM_API_KEY 后再试。',
+          },
+          context,
+          retrievedDocs: results
+        }
+      });
+    }
+
     const response = await llmService.chatWithKnowledgeBase(
       query,
       context,

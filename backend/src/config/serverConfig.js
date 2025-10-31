@@ -20,8 +20,9 @@ function createServer() {
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
   app.use(express.static(path.join(__dirname, '../public')));
 
-  // 确保存储目录存在
-  const storageDir = path.join(__dirname, '../../storage/resumes');
+  // 确保存储目录存在（支持环境变量覆盖）
+  const { storageSubdir } = require('../utils/envPaths');
+  const storageDir = storageSubdir('resumes');
   ensureDirectory(storageDir);
 
   // 创建HTTP服务器

@@ -496,8 +496,20 @@ const ResumeLibrary = () => {
               return null;
             };
             
-            // 解析联系方式
+            /**
+             * 解析联系方式（邮箱与电话）
+             * 为什么：优先使用后端LLM解析出的结构化字段，保证卡片信息稳定；
+             * 若缺失则回退从Markdown内容中提取，提升鲁棒性。
+             */
             const parseContactInfo = (resume) => {
+              // 结构化字段优先
+              if ((resume.email && resume.email.trim()) || (resume.phone && resume.phone.trim())) {
+                return {
+                  email: (resume.email || '').trim(),
+                  phone: (resume.phone || '').trim()
+                };
+              }
+
               const contact = { email: '', phone: '' };
               if (resume.parsedContent) {
                 const content = resume.parsedContent;

@@ -1,5 +1,7 @@
 const { chromium } = require('playwright');
 const logger = require('../utils/logger');
+const { resolveActionElement } = require('../utils/selectorResolver');
+const resourcePreloader = require('./resourcePreloader');
 const ResumeModel = require('../models/resumeModel');
 const browserDisplayConfig = require('../config/browserDisplayConfig');
 // 简单的简历分析函数
@@ -32,6 +34,7 @@ class ZhilianService {
     this.currentStatus = 'not_initialized'; // not_initialized, initialized, logging_in, idle, browsing, processing
     this.io = io; // Socket.IO实例，用于发送实时状态更新
     this.isStopped = false; // 服务停止标志，用于控制浏览器恢复机制
+    this._initLock = false; // 初始化并发锁，避免重复初始化导致的失败
     
     // 候选人浏览状态跟踪
     this.browsingStatus = {
@@ -96,6 +99,19 @@ class ZhilianService {
       // 获取智联招聘专用的显示配置
       const displayConfig = browserDisplayConfig.zhilian;
       
+      // 记录 Playwright 浏览器目录，便于诊断
+      const pwPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
+      if (pwPath) {
+        logger.info(`Playwright 浏览器目录: ${pwPath}`);
+      }
+      
+      // 确保浏览器资源已安装
+      const installed = await resourcePreloader.isPlaywrightChromiumInstalled();
+      if (!installed) {
+        logger.info('检测到未安装 Playwright Chromium，开始安装...');
+        await resourcePreloader.installPlaywrightChromium();
+      }
+      
       // 基础启动参数
       const baseArgs = [
         '--no-sandbox',
@@ -107,7 +123,6 @@ class ZhilianService {
         '--disable-gpu',
         '--disable-web-security',
         '--disable-features=VizDisplayCompositor',
-        '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         '--autoplay-policy=no-user-gesture-required', // 允许自动播放
         '--disable-permissions-api', // 禁用权限API检查
         '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer', // 禁用显示合成器
@@ -132,19 +147,47 @@ class ZhilianService {
       
       logger.info('浏览器启动参数已优化，包含显示统一配置');
       
-      this.browser = await chromium.launch({
-        headless: false, // 显示浏览器界面，便于用户登录
-        args: allArgs,
-        viewport: displayConfig.contextOptions.viewport
-      });
+      // 启动浏览器，失败时自动安装并重试一次
+      try {
+        this.browser = await chromium.launch({
+          headless: false, // 显示浏览器界面，便于用户登录
+          args: allArgs,
+          viewport: displayConfig.contextOptions.viewport
+        });
+      } catch (err) {
+        logger.warn(`Chromium 启动失败，尝试安装后重试：${err?.message || err}`);
+        await resourcePreloader.installPlaywrightChromium();
+        this.browser = await chromium.launch({
+          headless: false,
+          args: allArgs,
+          viewport: displayConfig.contextOptions.viewport
+        });
+      }
       
+      // 准备随机用户代理
+      const userAgents = [
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      ];
+      const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+
       // 使用统一的上下文配置
       const context = await this.browser.newContext({
         ...displayConfig.contextOptions,
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        userAgent: randomUserAgent,
+        extraHTTPHeaders: displayConfig?.pageOptions?.extraHTTPHeaders
       });
-      
+
       this.page = await context.newPage();
+
+      // 页面级额外请求头（不重复上下文已设置的语言与编码）
+      await this.page.setExtraHTTPHeaders({
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      });
       
       // 设置页面超时
       this.page.setDefaultTimeout(30000);
@@ -612,108 +655,189 @@ class ZhilianService {
   }
 
   /**
-   * 导航到简历搜索页面 - 优化版本
-   * 改进页面导航逻辑和错误处理机制
+   * 导航到简历/人才搜索页面 - 强化版本
+   * 目标：统一并增强导航稳定性，支持直接入口与层级菜单两种路径，并提供 URL 回退。
+   * 策略：
+   * 1) 先检测当前是否已在搜索页；
+   * 2) 优先尝试直接入口（“搜简历”、“人才搜索”、“智能寻聘”等）；
+   * 3) 若失败，再尝试层级菜单（顶部/侧边菜单 -> 子项“搜简历/人才搜索”）；
+   * 4) 最后使用 rd6 搜索页直达作为回退（与现有流程一致性更强），并保留旧直达以防结构差异。
    */
   async navigateToResumeSearch() {
     try {
-      logger.info('正在导航到简历搜索页面...');
-      
-      // 首先检查当前页面状态
+      logger.info('正在导航到简历/人才搜索页面（强化版）...');
+
+      // 1) 基本可用性校验
       if (!this.page || this.page.isClosed()) {
-        throw new Error('页面不可用，无法导航');
+        throw new Error('页面不可用，无法导航到搜索页面');
       }
-      
+
       const currentUrl = this.page.url();
       logger.info(`当前页面URL: ${currentUrl}`);
-      
-      // 如果已经在搜索页面，直接返回
-      if (currentUrl.includes('resume') || currentUrl.includes('search')) {
-        logger.info('已经在简历搜索页面，跳过导航');
+
+      // 2) 已在搜索页则直接返回（覆盖更精确的 rd6 路径）
+      if (
+        currentUrl.includes('rd6.zhaopin.com/app/search') ||
+        currentUrl.includes('resume') ||
+        currentUrl.includes('search')
+      ) {
+        logger.info('检测到已在搜索页面，跳过导航');
         return;
       }
-      
-      // 查找简历搜索相关的链接或按钮
-      const searchLinks = [
-        'a[href*="resume"]',
+
+      // 3) 解析器优先：基于远程别名配置进行多策略解析
+      try {
+        const loc = await resolveActionElement(this.page, 'zhilian', 'search');
+        if (loc) {
+          logger.info('通过解析器点击简历/人才搜索入口');
+          await loc.click();
+          await this.page.waitForTimeout(1200);
+          return;
+        }
+      } catch (e) {
+        logger.warn('解析器未找到智联搜索入口，回退到强化版策略:', e?.message || e);
+      }
+
+      // 3b) 直接入口选择器：文本与属性双覆盖（回退）
+      const directEntrySelectors = [
+        'a:has-text("搜简历")',
+        'button:has-text("搜简历")',
+        'a:has-text("人才搜索")',
+        'button:has-text("人才搜索")',
+        'a:has-text("简历搜索")',
+        'button:has-text("简历搜索")',
+        'a:has-text("搜索简历")',
+        'button:has-text("搜索简历")',
+        'a:has-text("智能寻聘")',
+        'a:has-text("智能招聘")',
         'a[href*="search"]',
+        'a[href*="resume"]',
         '.nav-item:has-text("简历")',
         '.menu-item:has-text("简历")',
         '[data-menu="resume"]'
       ];
-      
-      let searchLink = null;
-      for (const selector of searchLinks) {
+
+      let clicked = false;
+      for (const selector of directEntrySelectors) {
         try {
-          searchLink = await this.page.$(selector);
-          if (searchLink) {
-            logger.info(`找到简历搜索链接: ${selector}`);
+          const el = this.page.locator(selector).first();
+          const visible = await el.isVisible({ timeout: 1500 }).catch(() => false);
+          if (visible) {
+            logger.info(`尝试点击直接入口: ${selector}`);
+            await el.click();
+            clicked = true;
             break;
           }
-        } catch (e) {
-          // 继续尝试下一个选择器
+        } catch (_) { /* 略过，继续尝试 */ }
+      }
+
+      // 4) 层级菜单路径（若未点击成功）
+      if (!clicked) {
+        logger.info('未找到直接入口，尝试层级菜单导航...');
+        const menuRoots = [
+          'nav', '.nav', '.navbar', '.menu', '.sidebar', '.side-menu'
+        ];
+        const menuEntryTexts = [
+          '招聘', '人才', '简历', '搜索', '智能寻聘', '智能招聘'
+        ];
+        const subEntryTexts = [
+          '搜简历', '人才搜索', '简历搜索', '搜索简历'
+        ];
+
+        let menuClicked = false;
+        for (const root of menuRoots) {
+          try {
+            const rootLocator = this.page.locator(root);
+            const rootVisible = await rootLocator.first().isVisible({ timeout: 1500 }).catch(() => false);
+            if (!rootVisible) continue;
+
+            // 打开菜单根
+            await rootLocator.first().click({ force: true }).catch(() => {});
+            await this.page.waitForTimeout(500);
+
+            // 点击菜单一级
+            for (const txt of menuEntryTexts) {
+              const entry = this.page.locator(`${root} :scope >> text=${txt}`).first();
+              const entryVisible = await entry.isVisible({ timeout: 1000 }).catch(() => false);
+              if (!entryVisible) continue;
+              await entry.click({ force: true }).catch(() => {});
+              await this.page.waitForTimeout(500);
+
+              // 点击子项进入搜索
+              for (const subTxt of subEntryTexts) {
+                const sub = this.page.locator(`${root} :scope >> text=${subTxt}`).first();
+                const subVisible = await sub.isVisible({ timeout: 1000 }).catch(() => false);
+                if (!subVisible) continue;
+                logger.info(`尝试通过层级菜单进入搜索: ${txt} -> ${subTxt}`);
+                await sub.click({ force: true }).catch(() => {});
+                menuClicked = true;
+                break;
+              }
+              if (menuClicked) break;
+            }
+            if (menuClicked) break;
+          } catch (_) { /* 继续尝试下一个菜单根 */ }
+        }
+
+        clicked = menuClicked;
+      }
+
+      // 5) 导航后的初步等待（不抛出）
+      try {
+        await this.page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+        logger.info('DOM加载完成');
+      } catch (domErr) {
+        logger.warn(`DOM加载等待超时: ${domErr.message}`);
+      }
+      await this.page.waitForTimeout(1200);
+
+      // 6) 如果仍未点击成功，使用 URL 回退（优先 rd6 搜索页）
+      if (!clicked) {
+        logger.warn('未能通过页面元素进入搜索，使用直达回退URL');
+        let navigated = false;
+        const fallbackUrls = [
+          'https://rd6.zhaopin.com/app/search',
+          'https://rd.zhaopin.com/resumepreview'
+        ];
+        for (const url of fallbackUrls) {
+          try {
+            await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            navigated = true;
+            logger.info(`直达导航成功: ${url}`);
+            break;
+          } catch (gotoErr) {
+            logger.warn(`直达失败(${url}): ${gotoErr.message}`);
+          }
+        }
+        if (!navigated) {
+          throw new Error('所有回退URL均导航失败，无法进入搜索页面');
         }
       }
-      
-      if (searchLink) {
-        // 点击搜索链接
-        await searchLink.click();
-        logger.info('已点击搜索链接，等待页面响应...');
-        
-        // 使用更短的超时时间等待页面开始加载
-        try {
-          await this.page.waitForLoadState('domcontentloaded', { timeout: 60000 });
-          logger.info('页面DOM加载完成');
-        } catch (domError) {
-          logger.warn('DOM加载超时，但继续尝试:', domError.message);
-        }
-        
-        // 短暂等待页面稳定
-        await this.page.waitForTimeout(2000);
-        
-      } else {
-        logger.warn('未找到搜索链接，尝试直接导航');
-        
-        // 直接导航到简历搜索页面
-        try {
-          await this.page.goto('https://rd.zhaopin.com/resumepreview', {
-            waitUntil: 'domcontentloaded',
-            timeout: 30000
-          });
-          logger.info('直接导航成功');
-        } catch (gotoError) {
-          logger.error('直接导航也失败:', gotoError.message);
-          throw gotoError;
-        }
-      }
-      
-      // 验证导航是否成功
+
+      // 7) 验证与稳定处理
       const newUrl = this.page.url();
       logger.info(`导航后页面URL: ${newUrl}`);
-      
-      // 调用优化后的页面加载等待方法
       await this.waitForPageFullyLoaded();
-      logger.info('成功导航到简历搜索页面');
-      
+      await this.smartRandomDelay('navigation');
+      logger.info('成功导航到简历/人才搜索页面');
+
     } catch (error) {
-      logger.error('导航到简历搜索页面失败:', error);
-      
-      // 增强错误处理：检查页面是否仍然可用
+      logger.error('导航到简历/人才搜索页面失败:', error);
+
+      // 容错：若实际上已在搜索或简历相关页面则继续执行
       if (this.page && !this.page.isClosed()) {
         try {
-          const currentUrl = this.page.url();
-          logger.info(`错误发生时的页面URL: ${currentUrl}`);
-          
-          // 如果已经在简历相关页面，可能导航实际上是成功的
-          if (currentUrl.includes('resume') || currentUrl.includes('search') || currentUrl.includes('zhaopin.com')) {
-            logger.warn('虽然导航过程中出现错误，但似乎已经在正确的页面上，继续执行');
-            return; // 不抛出错误，继续执行
+          const url = this.page.url();
+          logger.info(`错误发生时的页面URL: ${url}`);
+          if (url.includes('resume') || url.includes('search') || url.includes('zhaopin.com')) {
+            logger.warn('检测到仍在有效页面，忽略错误继续执行');
+            return;
           }
         } catch (urlError) {
           logger.warn('无法获取当前页面URL:', urlError.message);
         }
       }
-      
+
       throw error;
     }
   }
@@ -727,6 +851,8 @@ class ZhilianService {
   async startBrowsing(mode, filters = {}, targetCount = 50) {
     // 首先重置停止标志，确保服务可以正常启动
     this.isStopped = false;
+    // 在开始浏览前确保干净的启动状态，避免因脏状态导致的初始化失败
+    await this.ensureCleanStart();
     
     return await this.withErrorHandling(async () => {
       logger.info(`开始智联招聘候选人浏览，模式: ${mode}，目标数量: ${targetCount}`);
@@ -791,6 +917,102 @@ class ZhilianService {
   }
 
   /**
+   * 确保干净重启（确保浏览器/页面健康且可用）
+   * 目的：在停止服务后再次启动时，消除可能的脏状态（已关闭的页面、断开的浏览器、挂起的状态），
+   * 并在需要时重建浏览器与页面，避免初始化失败，提升用户体验。
+   */
+  async ensureCleanStart() {
+    // 简单的并发保护，避免重复初始化引发冲突
+    const waitForUnlock = async () => {
+      let waited = 0;
+      while (this._initLock && waited < 5000) {
+        await new Promise(r => setTimeout(r, 200));
+        waited += 200;
+      }
+    };
+
+    await waitForUnlock();
+    if (this._initLock) {
+      // 超时仍上锁，直接返回交由后续逻辑处理
+      return;
+    }
+
+    this._initLock = true;
+    try {
+      // 停止残留的任务标记，统一到空闲态
+      if (this.browsingStatus?.isActive || this.resumeProcessingStatus?.isActive) {
+        this.browsingStatus.isActive = false;
+        this.resumeProcessingStatus.isActive = false;
+        this.currentStatus = 'idle';
+      }
+
+      // 统一的状态自检与重置（轻量）
+      this.validateAndResetState();
+
+      // 如果浏览器或页面不可用，或页面已关闭，执行重建
+      const pageInvalid = !this.page || this.page.isClosed();
+      const browserInvalid = !this.browser || !this.browser.isConnected();
+
+      if (pageInvalid || browserInvalid) {
+        // 彻底关闭残留资源
+        try {
+          await this.closeBrowser();
+        } catch (e) {
+          logger.warn('关闭残留浏览器失败（忽略继续）：', e?.message || e);
+        }
+
+        // 重新初始化浏览器与页面
+        await this.initializeBrowser();
+        await this.openZhilianWebsite();
+
+      } else {
+        // 浏览器与页面看起来健康，进一步做就绪性检查
+        try {
+          await this.ensureBrowserAndPageReady();
+        } catch (e) {
+          logger.warn('页面就绪性检查失败，尝试连接恢复：', e?.message || e);
+          const recovered = await this.recoverFromConnectionError();
+          if (!recovered) {
+            // 恢复失败则执行重建
+            try { await this.closeBrowser(); } catch {}
+            await this.initializeBrowser();
+            await this.openZhilianWebsite();
+          }
+        }
+
+        // 如当前不在智联域，主动回到首页
+        try {
+          const url = this.page?.url?.() || '';
+          if (!url.includes('zhaopin.com')) {
+            await this.openZhilianWebsite();
+          }
+        } catch (navErr) {
+          logger.warn('回到智联首页失败，尝试恢复连接：', navErr?.message || navErr);
+          const recovered = await this.recoverFromConnectionError();
+          if (!recovered) {
+            try { await this.closeBrowser(); } catch {}
+            await this.initializeBrowser();
+            await this.openZhilianWebsite();
+          }
+        }
+      }
+
+      // 额外：尽量提前做一次登录检测，失败不抛出由上层处理
+      try {
+        await this.checkLoginStatus();
+      } catch (e) {
+        logger.info('登录状态尚未建立，启动流程将提示登录');
+      }
+    } catch (error) {
+      logger.error('确保干净重启失败：', error);
+      // 兜底：尝试恢复连接，失败则交由上层错误处理
+      try { await this.recoverFromConnectionError(); } catch {}
+    } finally {
+      this._initLock = false;
+    }
+  }
+
+  /**
    * 浏览搜索候选人
    * @param {object} filters - 筛选条件
    * @param {number} targetCount - 目标数量
@@ -802,27 +1024,52 @@ class ZhilianService {
       // 导航到简历搜索页面
       await this.navigateToResumeSearch();
       
-      // 重要：在查看候选人之前，必须先完成所有筛选条件的配置
-      logger.info('配置筛选条件中，在此期间不查看候选人信息...');
-      await this.applySearchFilters(filters);
+      // 优先尝试 iframe 搜索模式（与 Boss 一致的稳健策略）
+      await this.waitForIframeLoadZhilian();
+      const searchFrame = await this.getSearchIframe();
       
-      // 筛选条件配置完成后，使用智能随机延迟等待页面更新
-      logger.info('筛选条件配置完成，智能等待页面更新...');
-      await this.smartRandomDelay('navigation');
-      
-      // 等待页面完全加载
-      await this.waitForPageFullyLoaded();
-      
-      // 再次智能延迟，确保筛选后的候选人完全加载
-      logger.info('智能等待，确保筛选后的候选人加载完成...');
-      await this.smartRandomDelay('navigation');
-      
-      // 模拟人类查看筛选结果的行为
-      await this.simulateHumanBehavior();
-      
-      // 按照页面顺序从上往下处理候选人
-      logger.info('开始按顺序处理候选人，从上往下点击...');
-      await this.processSearchResultsSequentially(targetCount);
+      if (searchFrame) {
+        logger.info('检测到搜索相关 iframe，采用 iframe 模式进行筛选与处理');
+        
+        // 在 iframe 中应用筛选条件
+        await this.applyFiltersInIframe(searchFrame, filters);
+        
+        // 导航与页面就绪
+        logger.info('筛选条件应用完成（iframe），智能等待页面更新...');
+        await this.smartRandomDelay('navigation');
+        await this.waitForPageFullyLoaded();
+        await this.smartRandomDelay('navigation');
+        await this.simulateHumanBehavior();
+        
+        // 在 iframe 中按顺序处理候选人
+        logger.info('开始按顺序处理候选人（iframe模式），从上往下点击...');
+        await this.processSearchResultsSequentiallyInIframe(searchFrame, targetCount);
+      } else {
+        // 回退到页面级处理
+        logger.info('未检测到搜索相关 iframe，回退到页面级筛选与处理');
+        
+        // 重要：在查看候选人之前，必须先完成所有筛选条件的配置
+        logger.info('配置筛选条件中，在此期间不查看候选人信息...');
+        await this.applySearchFilters(filters);
+        
+        // 筛选条件配置完成后，使用智能随机延迟等待页面更新
+        logger.info('筛选条件配置完成，智能等待页面更新...');
+        await this.smartRandomDelay('navigation');
+        
+        // 等待页面完全加载
+        await this.waitForPageFullyLoaded();
+        
+        // 再次智能延迟，确保筛选后的候选人完全加载
+        logger.info('智能等待，确保筛选后的候选人加载完成...');
+        await this.smartRandomDelay('navigation');
+        
+        // 模拟人类查看筛选结果的行为
+        await this.simulateHumanBehavior();
+        
+        // 按照页面顺序从上往下处理候选人
+        logger.info('开始按顺序处理候选人，从上往下点击...');
+        await this.processSearchResultsSequentially(targetCount);
+      }
       
       logger.info(`搜索候选人浏览完成，共处理 ${this.browsingStatus.processedCount} 个候选人`);
       
@@ -1573,6 +1820,38 @@ class ZhilianService {
       return 0;
     }
   }
+
+  /**
+   * 获取 iframe 中候选人数量（与页面级一致的选择器集）
+   * @param {import('playwright').Frame} frame - 目标 iframe
+   */
+  async getCandidateCountInFrame(frame) {
+    try {
+      const candidateSelectors = [
+        'div.search-resume-item.resume-item-exp',
+        '.search-resume-item',
+        '.resume-item',
+        '.resume-card',
+        '.candidate-item',
+        '.search-result-item',
+        '.list-item',
+        '.resume-list-item'
+      ];
+      for (const selector of candidateSelectors) {
+        try {
+          const count = await frame.$$eval(selector, els => els.length);
+          if (count > 0) {
+            logger.info(`iframe中找到 ${count} 个候选人元素 (${selector})`);
+            return count;
+          }
+        } catch (_) { /* 继续尝试下一个选择器 */ }
+      }
+      return 0;
+    } catch (error) {
+      logger.error('获取iframe候选人数量失败:', error);
+      return 0;
+    }
+  }
   
   /**
    * 获取指定索引的候选人元素（即时获取，避免DOM元素分离问题）
@@ -1615,6 +1894,45 @@ class ZhilianService {
       return null;
     } catch (error) {
       logger.error(`获取第 ${index + 1} 个候选人元素失败:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 获取 iframe 中指定索引的候选人元素（即时获取，避免DOM分离）
+   * @param {import('playwright').Frame} frame - 目标 iframe
+   * @param {number} index - 候选人索引（0开始）
+   */
+  async getCurrentCandidateElementInFrame(frame, index) {
+    try {
+      const candidateSelectors = [
+        'div.search-resume-item.resume-item-exp',
+        '.search-resume-item',
+        '.resume-item',
+        '.resume-card',
+        '.candidate-item',
+        '.search-result-item',
+        '.list-item',
+        '.resume-list-item'
+      ];
+      for (const selector of candidateSelectors) {
+        try {
+          const elements = await frame.$$(selector);
+          if (elements.length > index) {
+            const isAttached = await elements[index].evaluate(el => el.isConnected);
+            if (isAttached) {
+              logger.info(`iframe中成功获取第 ${index + 1} 个候选人元素 (${selector})`);
+              return elements[index];
+            } else {
+              logger.warn(`iframe中第 ${index + 1} 个候选人元素已从 DOM 中分离`);
+            }
+          }
+        } catch (_) { /* 继续尝试下一个选择器 */ }
+      }
+      logger.warn('iframe中未获取到候选人元素');
+      return null;
+    } catch (error) {
+      logger.error('获取iframe候选人元素失败:', error);
       return null;
     }
   }
@@ -4808,6 +5126,142 @@ class ZhilianService {
   }
 
   /**
+   * 等待可能出现的搜索 iframe 加载完成（短等待，避免阻塞）
+   * @param {number} timeoutMs - 最大等待时长（毫秒）
+   */
+  async waitForIframeLoadZhilian(timeoutMs = 3000) {
+    try {
+      const start = Date.now();
+      // 快速探测 iframe 出现
+      await this.page.waitForSelector('iframe', { timeout: 1200 }).catch(() => {});
+      // 小幅延迟，给内部资源加载时间
+      await this.smartRandomDelay('short');
+      const iframes = await this.page.$$('iframe');
+      logger.info(`页面中检测到 ${iframes.length} 个 iframe`);
+      return iframes.length > 0 || (Date.now() - start) < timeoutMs;
+    } catch (error) {
+      logger.warn('等待iframe加载过程中出现异常（忽略并回退）:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * 识别与简历搜索相关的 iframe（通过特征元素与URL关键词）
+   * @returns {Promise<import('playwright').Frame|null>}
+   */
+  async getSearchIframe() {
+    try {
+      const iframeHandles = await this.page.$$('iframe');
+      for (const handle of iframeHandles) {
+        const frame = await handle.contentFrame();
+        if (!frame) continue;
+        const url = frame.url();
+
+        // URL 关键词判断（尽量宽松）
+        const urlLooksLikeSearch = /zhaopin\.com|rd6|search|resume/i.test(url);
+
+        // DOM 特征判断：存在候选人列表或筛选输入框
+        const hasCandidateList = await frame.$('.search-resume-item, .resume-item, .resume-card, .candidate-item, .search-result-item, .resume-list-item');
+        const hasKeywordInput = await frame.$('input[placeholder*="关键"], input[placeholder*="关键词"], input[placeholder*="关键字"]');
+        const hasFilterArea = await frame.$('[class*="filter"], [class*="Filter"], [data-role*="filter"]');
+
+        if (urlLooksLikeSearch || hasCandidateList || hasKeywordInput || hasFilterArea) {
+          logger.info(`识别到可能的搜索iframe: ${url}`);
+          return frame;
+        }
+      }
+      logger.info('未识别到与搜索相关的iframe');
+      return null;
+    } catch (error) {
+      logger.error('识别搜索iframe失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 在 iframe 中应用筛选条件（最小可用集：关键词）
+   * 说明：为保证稳定性，先应用关键词筛选，其它条件后续逐步补充
+   */
+  async applyFiltersInIframe(frame, filters = {}) {
+    try {
+      // 关键词筛选
+      if (filters.keywords) {
+        const keywordSelectors = [
+          'input[placeholder*="关键词"]',
+          'input[placeholder*="关键字"]',
+          'input[placeholder*="关键"]',
+          'input[type="search"]',
+          'input.search-input'
+        ];
+        for (const sel of keywordSelectors) {
+          const input = await frame.$(sel);
+          if (input) {
+            await input.click({ delay: 60 }).catch(() => {});
+            await input.fill(String(filters.keywords)).catch(() => {});
+            await frame.press(sel, 'Enter').catch(() => {});
+            logger.info(`已在iframe中应用关键词筛选: ${filters.keywords}`);
+            break;
+          }
+        }
+      }
+
+      // 轻量延迟与就绪
+      await this.smartRandomDelay('short');
+      await this.waitForPageFullyLoaded();
+    } catch (error) {
+      logger.warn('在iframe中应用筛选条件失败，后续将回退到页面级逻辑:', error.message);
+    }
+  }
+
+  /**
+   * 在 iframe 中按顺序处理候选人（与页面级处理一致的点击-提取流程）
+   * 为减少侵入式修改，内部通过 this._activeFrame 让已有流程感知 iframe 环境
+   */
+  async processSearchResultsSequentiallyInIframe(frame, targetCount = 50) {
+    try {
+      this._activeFrame = frame;
+      await this.smartRandomDelay('navigation');
+      await this.waitForPageFullyLoaded();
+
+      const total = await this.getCandidateCountInFrame(frame);
+      if (!total || total <= 0) {
+        logger.warn('iframe中未检测到候选人，回退到页面级处理');
+        return await this.processSearchResultsSequentially(targetCount);
+      }
+
+      const limit = Math.min(total, targetCount);
+      logger.info(`iframe模式：准备处理 ${limit}/${total} 名候选人`);
+
+      for (let i = 0; i < limit; i++) {
+        // 重新获取元素，减少DOM分离风险
+        const candidateElement = await this.getCurrentCandidateElementInFrame(frame, i);
+        if (!candidateElement) {
+          logger.warn(`iframe中第 ${i + 1} 个候选人元素不可用，跳过`);
+          continue;
+        }
+
+        try {
+          await this.clickCandidateAndGetResume(candidateElement, i + 1);
+        } catch (error) {
+          logger.error(`处理第 ${i + 1} 个候选人（iframe）失败:`, error.message || error);
+          continue;
+        }
+
+        // 退出详情页，回到列表
+        await this.page.keyboard.press('Escape').catch(() => {});
+        await this.smartRandomDelay('short');
+        await this.waitForPageFullyLoaded();
+      }
+    } catch (error) {
+      logger.error('按序处理候选人（iframe）失败:', error);
+      // 出错时回退到页面级处理，保证流程不中断
+      try { await this.processSearchResultsSequentially(targetCount); } catch (_) {}
+    } finally {
+      this._activeFrame = null;
+    }
+  }
+
+  /**
    * 智能随机延迟 - 根据操作类型调整延迟时间
    * @param {string} operationType - 操作类型：'click', 'scroll', 'input', 'navigation'
    */
@@ -5692,31 +6146,37 @@ class ZhilianService {
           
           // **重要修复**: 在点击前重新验证和获取可点击元素，防止DOM分离
           let activeClickableElement = clickableElement;
-          
+
           // 检查元素是否仍然附加到DOM
           try {
             const isAttached = await clickableElement.evaluate(el => el.isConnected);
             if (!isAttached) {
               logger.warn(`第${index}个候选人的可点击元素已从DOM分离，重新获取...`);
-              
-              // 重新获取候选人元素
-              const freshCandidateElement = await this.getCurrentCandidateElement(index - 1); // index-1因为getCurrentCandidateElement是0开始的
+
+              // 重新获取候选人元素（优先在 iframe 中获取）
+              let freshCandidateElement = null;
+              if (this._activeFrame) {
+                freshCandidateElement = await this.getCurrentCandidateElementInFrame(this._activeFrame, index - 1);
+              } else {
+                freshCandidateElement = await this.getCurrentCandidateElement(index - 1); // index-1因为getCurrentCandidateElement是0开始的
+              }
+
               if (!freshCandidateElement) {
                 throw new Error('无法重新获取候选人元素');
               }
-              
+
               // 重新查找可点击链接
               activeClickableElement = await this.findClickableResumeLink(freshCandidateElement);
               if (!activeClickableElement) {
                 throw new Error('无法重新获取可点击元素');
               }
-              
+
               logger.info(`第${index}个候选人：成功重新获取可点击元素`);
             }
-            
+
             // 再次验证元素可见性
             await activeClickableElement.isVisible();
-            
+
           } catch (error) {
             logger.error(`第${index}个候选人元素验证失败:`, error.message);
             throw new Error(`候选人元素已从DOM中分离或不可见: ${error.message}`);

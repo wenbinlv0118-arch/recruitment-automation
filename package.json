@@ -1,19 +1,95 @@
 {
   "name": "recruitment-automation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "智能招聘自动化系统",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm start",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "electron:dev": "ELECTRON_DEV=1 electron .",
+    "build:renderer": "cd frontend && npm run build",
+    "dist:mac": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 electron-builder --mac",
+    "dist:win": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 electron-builder --win",
+    "dist": "npm run build:renderer && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 electron-builder -mwl"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "electron": "38.4.0",
+    "electron-builder": "^24.9.1"
   },
   "dependencies": {
     "axios": "^1.11.0",
     "http-proxy-middleware": "^3.0.5",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "fs-extra": "^11.3.1",
+    "mammoth": "^1.9.1",
+    "multer": "^1.4.5-lts.1",
+    "node-cache": "^5.1.2",
+    "path": "^0.12.7",
+    "pdf-parse": "^1.1.1",
+    "playwright": "^1.40.0",
+    "socket.io": "^4.7.4",
+    "sqlite3": "^5.1.7",
+    "tesseract.js": "^6.0.1",
+    "xlsx": "^0.18.5",
+    "@xenova/transformers": "^2.15.1",
+    "@huggingface/inference": "^4.6.1",
+    "chromadb": "^3.0.10",
+    "browser-use": "^0.0.1",
+    "electron-updater": "^6.1.7"
+  },
+  "build": {
+    "appId": "com.recruitment.automation",
+    "productName": "Recruitment Automation",
+    "files": [
+      "electron/**",
+      "frontend/build/**",
+      "backend/**",
+      "package.json"
+    ],
+    "asar": false,
+    "asarUnpack": [
+      "**/*.node",
+      "node_modules/sqlite3/**"
+    ],
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "directories": {
+      "buildResources": "electron/assets"
+    },
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "electron/assets/icons/app.icns"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "extraResources": [
+      {
+        "from": "backend/storage",
+        "to": "storage",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "backend/eng.traineddata",
+        "to": "bundled-ocr/eng.traineddata"
+      },
+      {
+        "from": "backend/chi_sim.traineddata",
+        "to": "bundled-ocr/chi_sim.traineddata"
+      }
+    ]
   }
 }

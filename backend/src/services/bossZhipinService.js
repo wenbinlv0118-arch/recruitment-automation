@@ -1,7 +1,10 @@
 const { chromium } = require('playwright');
 const logger = require('../utils/logger');
+const { resolveActionElement } = require('../utils/selectorResolver');
 const CanvasOcrService = require('./canvasOcrService');
 const DragSelectionService = require('./dragSelectionService');
+const resourcePreloader = require('./resourcePreloader');
+const browserDisplayConfig = require('../config/browserDisplayConfig');
 
 class BossZhipinService {
   constructor(io = null) {
@@ -46,6 +49,9 @@ class BossZhipinService {
     
     // 拖拽选区复制服务
     this.dragSelectionService = new DragSelectionService();
+
+    // 初始化并发锁，防止重复初始化导致的竞态
+    this._initLock = false;
   }
 
   /**
@@ -106,12 +112,31 @@ class BossZhipinService {
    */
   /**
    * 初始化浏览器 - 增强反爬虫对策
+   * 说明：
+   * - 启动前检测 Playwright Chromium 是否安装，缺失则安装
+   * - 启动失败时自动安装并重试一次
+   * - 应用显示配置中的额外请求头到上下文
    */
   async initializeBrowser() {
     try {
       logger.info('正在启动 Boss 直聘自动化浏览器...');
+      const displayConfig = browserDisplayConfig.bossZhipin;
       
-      this.browser = await chromium.launch({
+      // 记录 Playwright 浏览器目录，便于诊断
+      const pwPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
+      if (pwPath) {
+        logger.info(`Playwright 浏览器目录: ${pwPath}`);
+      }
+      
+      // 确保浏览器资源已安装
+      const installed = await resourcePreloader.isPlaywrightChromiumInstalled();
+      if (!installed) {
+        logger.info('检测到未安装 Playwright Chromium，开始安装...');
+        await resourcePreloader.installPlaywrightChromium();
+      }
+      
+      // 启动浏览器，失败时自动安装并重试一次
+      const launchOptions = {
         headless: false, // 开发阶段使用有头模式，便于调试
         slowMo: 500, // 适度放慢操作速度
         args: [
@@ -146,19 +171,39 @@ class BossZhipinService {
           '--use-fake-ui-for-media-stream', // 使用虚假UI处理媒体流
           '--use-fake-device-for-media-stream', // 使用虚假设备处理媒体流
           '--disable-features=MediaRouter', // 禁用媒体路由
-          '--disable-ipc-flooding-protection' // 禁用IPC洪水保护
+          '--disable-ipc-flooding-protection', // 禁用IPC洪水保护
+          // 统一显示参数
+          ...displayConfig.launchArgs
         ]
-      });
+      };
+      try {
+        this.browser = await chromium.launch(launchOptions);
+      } catch (err) {
+        logger.warn(`Chromium 启动失败，尝试安装后重试：${err?.message || err}`);
+        await resourcePreloader.installPlaywrightChromium();
+        this.browser = await chromium.launch(launchOptions);
+      }
 
-      // 创建浏览器上下文，配置剪贴板权限自动授权
+      // 准备随机用户代理
+      const userAgents = [
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      ];
+      const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+
+      // 创建浏览器上下文，应用显示配置与请求头
       const context = await this.browser.newContext({
-        permissions: ['clipboard-read', 'clipboard-write'] // 自动授权剪贴板权限
+        ...displayConfig.contextOptions,
+        permissions: ['clipboard-read', 'clipboard-write'], // 自动授权剪贴板权限
+        extraHTTPHeaders: displayConfig?.pageOptions?.extraHTTPHeaders,
+        userAgent: randomUserAgent
       });
       
       // 使用配置好的上下文创建页面
       this.page = await context.newPage();
       
-      // 设置随机视口大小，模拟真实用户
+      // 设置随机视口大小，模拟真实用户（页面级覆盖）
       const viewports = [
         { width: 1366, height: 768 },
         { width: 1920, height: 1080 },
@@ -168,19 +213,9 @@ class BossZhipinService {
       const randomViewport = viewports[Math.floor(Math.random() * viewports.length)];
       await this.page.setViewportSize(randomViewport);
       
-      // 设置更真实的用户代理和请求头
-      const userAgents = [
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      ];
-      const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-      
+      // 设置页面额外请求头（不重复上下文已设置的语言与编码）
       await this.page.setExtraHTTPHeaders({
-        'User-Agent': randomUserAgent,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
         'DNT': '1',
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1'
@@ -470,6 +505,64 @@ class BossZhipinService {
   }
 
   /**
+   * 确保启动前处于干净可用状态（函数级注释）
+   * 为什么：
+   * - 用户“停止服务”后再次“启动”，可能残留定时器或已关闭的页面句柄，导致初始化失败
+   * - 在启动前统一清理脏状态，并在需要时重建浏览器/页面，提升可恢复性
+   */
+  async ensureCleanStart() {
+    // 简单并发锁，避免重复进入
+    let spinCount = 0;
+    while (this._initLock && spinCount < 10) {
+      await this.page?.waitForTimeout?.(300).catch(() => new Promise(r => setTimeout(r, 300)));
+      spinCount++;
+    }
+    this._initLock = true;
+
+    try {
+      // 停止残留浏览任务并清理页面切换定时器
+      if (this.browsingStatus?.isActive) this.browsingStatus.isActive = false;
+      if (this.pageSwitchTimeout) {
+        clearTimeout(this.pageSwitchTimeout);
+        this.pageSwitchTimeout = null;
+      }
+
+      // 处理断开连接或已关闭页面的情况
+      const pageClosed = !!(this.page && typeof this.page.isClosed === 'function' && this.page.isClosed());
+      const browserDisconnected = !!(this.browser && typeof this.browser.isConnected === 'function' && !this.browser.isConnected());
+
+      if (!this.browser || !this.page || pageClosed || browserDisconnected) {
+        try {
+          // 尽量彻底清理，避免旧上下文残留
+          if (this.browser || this.page) {
+            await this.closeBrowser();
+          }
+        } catch (e) {
+          logger.warn('关闭旧浏览器/页面时出现问题，继续重建:', e?.message || e);
+        }
+
+        await this.initializeBrowser();
+        await this.openBossZhipinWebsite();
+      } else {
+        // 已有有效页面，确保页面就绪
+        try {
+          await this.ensurePageReady();
+        } catch (e) {
+          logger.warn('页面就绪检查失败，尝试重建页面:', e?.message || e);
+          await this.closeBrowser().catch(() => {});
+          await this.initializeBrowser();
+          await this.openBossZhipinWebsite();
+        }
+      }
+
+      this.currentStatus = 'idle';
+      return true;
+    } finally {
+      this._initLock = false;
+    }
+  }
+
+  /**
    * 导航到招聘页面（点击"我要招聘"）
    */
   async navigateToRecruitmentPage() {
@@ -691,6 +784,8 @@ class BossZhipinService {
    */
   async startBrowsing(mode, filters = {}, targetCount = 3) {
     try {
+      // 启动前保证环境干净，避免初始化失败
+      await this.ensureCleanStart();
       this.currentStatus = 'browsing';
       
       // 初始化浏览状态
@@ -785,32 +880,134 @@ class BossZhipinService {
   async searchCandidates(filters, targetCount = 3) {
     try {
       logger.info('开始搜索牛人...', filters);
-      
-      // 导航到搜索牛人界面
-      await this.page.click('text=搜索牛人');
-      await this.page.waitForTimeout(3000);
-      
-      // 等待iframe加载完成
-      await this.waitForIframeLoad();
-      
-      // 获取iframe的locator
-      const iframe = await this.getSearchIframe();
-      if (!iframe) {
-        throw new Error('未找到搜索页面的iframe');
+      // 页面就绪
+      await this.ensurePageReady();
+
+      // 更稳健的导航到搜索/人才版块
+      const navSuccess = await this.navigateToTalentSearchPage();
+      if (!navSuccess) {
+        logger.warn('未能通过导航显式进入搜索版块，尝试继续检测 iframe 与页面级降级方案');
       }
-      
-      // 在iframe上下文中应用筛选条件
-      await this.applyFiltersInIframe(iframe, filters);
-      
-      // 在iframe中执行搜索
-      await this.executeSearchInIframe(iframe);
-      
-      // 处理搜索结果中的候选人
-      await this.processSearchResults(iframe, targetCount);
+
+      // 等待 iframe 加载（若存在）
+      await this.waitForIframeLoad();
+
+      // 获取搜索相关 iframe（内容特征驱动）
+      const iframe = await this.getSearchIframe();
+
+      if (iframe) {
+        // 在 iframe 中应用筛选与搜索
+        await this.applyFiltersInIframe(iframe, filters);
+        await this.executeSearchInIframe(iframe);
+        await this.processSearchResults(iframe, targetCount);
+      } else {
+        // 未检测到 iframe，执行页面级降级搜索与处理
+        logger.warn('未找到搜索页面 iframe，执行页面级搜索降级流程');
+        await this.applySearchFiltersLegacy(filters);
+        await this.browseRecommendedCandidateList(targetCount);
+      }
       
     } catch (error) {
       logger.error('搜索牛人失败:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 导航到搜索/人才版块（更稳健的多策略）
+   * 说明：
+   * - 优先直接点击“搜索牛人/人才搜索”等入口
+   * - 若入口在“智能寻聘/智能招聘/人才库”等菜单下，则先展开再点击
+   * - 导航后不强依赖 URL，仅通过后续 iframe/内容特征进一步确认
+   * @returns {Promise<boolean>} 是否成功触发到目标版块的入口点击
+   */
+  async navigateToTalentSearchPage() {
+    try {
+      logger.info('开始导航到搜索/人才版块...');
+      await this.ensurePageReady();
+
+      // 先使用解析器尝试根据别名与多策略解析（更稳健）
+      try {
+        const loc = await resolveActionElement(this.page, 'boss', 'search');
+        if (loc) {
+          await loc.click();
+          await this.page.waitForTimeout(1500);
+          logger.info('通过解析器成功点击搜索/人才入口');
+          return true;
+        }
+      } catch (e) {
+        logger.warn('解析器未找到搜索入口，回退到内置选择器:', e?.message || e);
+      }
+
+      // 直接入口选择器
+      const directSelectors = [
+        'text=搜索牛人',
+        'text=人才搜索',
+        'text=候选人搜索',
+        'text=搜牛人',
+        '.nav-item:has-text("搜索牛人")',
+        'a:has-text("搜索牛人")',
+        'a[href*="talent"], a[href*="search"]'
+      ];
+
+      // 菜单入口选择器（先展开再找入口）
+      const menuSelectors = [
+        'text=智能寻聘',
+        'text=智能招聘',
+        'text=招聘工作台',
+        'text=人才库'
+      ];
+
+      let clicked = false;
+
+      // 直接尝试点击入口
+      for (const selector of directSelectors) {
+        try {
+          const el = this.page.locator(selector).first();
+          if (await el.isVisible()) {
+            await el.click();
+            clicked = true;
+            logger.info(`已点击搜索入口: ${selector}`);
+            break;
+          }
+        } catch (_) {
+          // 忽略并继续
+        }
+      }
+
+      // 若未点击成功，尝试展开菜单后再找入口
+      if (!clicked) {
+        for (const menu of menuSelectors) {
+          try {
+            const menuEl = this.page.locator(menu).first();
+            if (await menuEl.isVisible()) {
+              await menuEl.click();
+              await this.page.waitForTimeout(1000);
+
+              // 展开后再次尝试直接入口
+              for (const selector of directSelectors) {
+                try {
+                  const el = this.page.locator(selector).first();
+                  if (await el.isVisible()) {
+                    await el.click();
+                    clicked = true;
+                    logger.info(`在菜单下点击搜索入口: ${selector}`);
+                    break;
+                  }
+                } catch (_) {}
+              }
+            }
+            if (clicked) break;
+          } catch (_) {}
+        }
+      }
+
+      // 导航后的短暂稳定等待
+      await this.page.waitForTimeout(1500);
+      return clicked;
+    } catch (error) {
+      logger.error('导航到搜索/人才版块失败:', error);
+      return false;
     }
   }
 
@@ -821,10 +1018,22 @@ class BossZhipinService {
   async navigateToCommunicationPage() {
     try {
       logger.info('开始导航到沟通页面...');
-      
-      // 直接点击"沟通"按钮，导航到沟通界面
-      await this.page.click('text=沟通');
-      await this.page.waitForTimeout(2000);
+      // 先使用解析器尝试根据别名与多策略解析（更稳健）
+      try {
+        const loc = await resolveActionElement(this.page, 'boss', 'communicate');
+        if (loc) {
+          await loc.click();
+          await this.page.waitForTimeout(2000);
+        } else {
+          // 兜底：直接点击“沟通”文本
+          await this.page.click('text=沟通');
+          await this.page.waitForTimeout(2000);
+        }
+      } catch (e) {
+        logger.warn('解析器未定位沟通入口，使用兜底文本点击:', e?.message || e);
+        await this.page.click('text=沟通');
+        await this.page.waitForTimeout(2000);
+      }
       
       // 选择"全部"选项
       await this.page.click('text=全部');
@@ -2704,12 +2913,25 @@ class BossZhipinService {
         const src = await iframe.getAttribute('src');
         logger.info(`iframe ${i + 1} src: ${src}`);
         
-        // 检查是否是搜索相关的iframe
+        // 优先使用内容特征判断（筛选区 / 结果卡片）
+        const frame = await iframe.contentFrame();
+        if (frame) {
+          try {
+            const hasFilter = await frame.$('div.check-params-options-content, div.check-params-options-content-1015gray, div.check-param-options-content-1013gray');
+            const hasCards = await frame.$('div.card-container, .candidate-card-wrap, li.card-item');
+            if (hasFilter || hasCards) {
+              logger.info('通过内容特征匹配到搜索相关iframe');
+              return frame;
+            }
+          } catch (_) {}
+        }
+
+        // 次要策略：根据 src 关键词匹配
         if (src && (src.includes('geek') || src.includes('search') || src.includes('talent'))) {
-          const frame = await iframe.contentFrame();
-          if (frame) {
-            logger.info('找到搜索页面iframe');
-            return frame;
+          const bySrc = await iframe.contentFrame();
+          if (bySrc) {
+            logger.info('通过src关键词匹配到搜索相关iframe');
+            return bySrc;
           }
         }
       }
@@ -3445,7 +3667,12 @@ class BossZhipinService {
     try {
       this.browsingStatus.isActive = false;
       this.currentStatus = 'idle';
-      logger.info('候选人浏览已停止');
+      // 额外清理可能的页面切换定时器，避免影响下次启动
+      if (this.pageSwitchTimeout) {
+        clearTimeout(this.pageSwitchTimeout);
+        this.pageSwitchTimeout = null;
+      }
+      logger.info('候选人浏览已停止，定时器已清理');
       return true;
     } catch (error) {
       logger.error('停止候选人浏览失败:', error);

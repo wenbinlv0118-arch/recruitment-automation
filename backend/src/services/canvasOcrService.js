@@ -2,6 +2,7 @@ const { createWorker } = require('tesseract.js');
 const fs = require('fs-extra');
 const path = require('path');
 const logger = require('../utils/logger');
+const { getOcrConfig } = require('../utils/envPaths');
 
 /**
  * Canvas截图和OCR识别服务
@@ -23,12 +24,21 @@ class CanvasOcrService {
       }
 
       logger.info('正在初始化OCR工作器...');
+      // 读取 OCR 路径配置并确保缓存目录存在
+      const ocrConfig = getOcrConfig();
+      await fs.ensureDir(ocrConfig.cachePath);
+
+      // 使用本地缓存与可配置语言路径，减少对网络的依赖
       this.worker = await createWorker('chi_sim+eng', 1, {
+        cachePath: ocrConfig.cachePath,
+        langPath: ocrConfig.langPath,
+        workerPath: ocrConfig.workerPath,
+        corePath: ocrConfig.corePath,
         logger: m => {
           if (m.status === 'recognizing text') {
             logger.info(`OCR识别进度: ${Math.round(m.progress * 100)}%`);
           }
-        }
+        },
       });
       
       this.isInitialized = true;

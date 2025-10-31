@@ -73,11 +73,15 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
     return false; // 阻止默认上传行为
   }, []);
 
-  // 处理Boss直聘简历解析（使用大模型）
+  /**
+   * 使用大模型解析粘贴的文本简历
+   * 为什么：统一将用户粘贴的任意来源的简历文本交给后端LLM接口解析，
+   * 返回结构化字段与Markdown详情，提升列表卡片与详情页的展示完整性与一致性。
+   */
   const handleBossResumeParseText = useCallback(async () => {
     const textValue = form.getFieldValue('bossResumeText');
     if (!textValue || textValue.trim().length < 50) {
-      message.warning('请输入足够的Boss直聘简历文本内容（至少50字符）');
+      message.warning('请输入足够的文本内容（至少50字符）');
       return;
     }
     
@@ -88,7 +92,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ text: textValue })
+        body: JSON.stringify({ text: textValue, strictLLM: true })
       });
       
       const result = await response.json();
@@ -96,35 +100,41 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
       if (result.success) {
         // 处理新的结构化JSON数据格式
         if (result.data.name && result.data.name !== '未知') {
-          // 新格式：直接使用结构化数据
+          // 新格式：直接使用结构化数据（包含markdownContent、结构化字段）
           setParsedResume({
             ...result.data,
+            parseMethod: 'llm',
             name: result.data.name || '大模型解析结果'
           });
-          message.success('Boss直聘简历解析成功（结构化数据）');
+          message.success('文本简历解析成功（结构化数据）');
         } else {
-          // 旧格式：兼容Markdown格式
+          // 旧格式：兼容Markdown格式，显式补充 markdownContent 字段
           setParsedResume({
             name: '大模型解析结果',
             parsedContent: result.data.parsedContent,
+            markdownContent: result.data.markdownContent || result.data.parsedContent,
             parseMethod: 'llm',
             originalText: result.data.originalText || result.data.text,
             timestamp: result.data.timestamp
           });
-          message.success('Boss直聘简历解析成功（Markdown格式）');
+          message.success('文本简历解析成功（Markdown格式）');
         }
       } else {
-        message.error(result.error || 'Boss直聘简历解析失败');
+        message.error(result.error || '文本简历解析失败');
       }
     } catch (error) {
-      console.error('Boss直聘简历解析失败:', error);
-      message.error('Boss直聘简历解析失败，请重试');
+      console.error('文本简历解析失败:', error);
+      message.error('文本简历解析失败，请重试');
     } finally {
       setLoading(false);
     }
   }, [form]);
 
-  // 提交简历
+  /**
+   * 提交当前解析结果到简历库
+   * 为什么：将LLM解析得到的结构化字段与Markdown详情入库，
+   * 以便在简历列表卡片展示关键字段，并在详情页以Markdown呈现完整信息。
+   */
   const handleSubmit = useCallback(async () => {
     try {
       const values = await form.validateFields();
@@ -244,25 +254,25 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
                 label: (
                   <span>
                     <FileTextOutlined />
-                    Boss直聘简历解析
+                    文本简历解析（大模型）
                   </span>
                 ),
                 children: (
                   <>
                     <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f6f8fa' }}>
                       <Text type="secondary">
-                        请将Boss直聘上的候选人简历文本复制粘贴到下方文本框中，系统将使用大模型AI自动解析并以Markdown格式输出结构化简历。
+                        请将候选人简历文本（任意来源）复制粘贴到下方文本框中，系统将使用大模型AI自动解析，输出结构化字段与Markdown详情。
                       </Text>
                     </Card>
                     
                     <Form.Item 
                       name="bossResumeText" 
-                      label="Boss直聘简历文本"
-                      rules={[{ required: true, message: '请输入Boss直聘简历文本' }]}
+                      label="文本简历"
+                      rules={[{ required: true, message: '请输入文本简历内容' }]}
                     >
                       <TextArea 
                         rows={10} 
-                        placeholder="请粘贴Boss直聘简历文本...\n\n示例格式：\n张伟 28岁 5年 本科 离职\n\n我是一名有着5年工作经验的解决方案经理...\n\n期望职位：解决方案经理\n工作地点：北京\n行业：互联网\n薪资：15k-25k/月\n\n岗位经验\n解决方案经理 5年\n\n工作经历\n2019-03-2024-10 北京科技有限公司 解决方案经理\n负责企业级解决方案的设计和实施..."
+                        placeholder="请粘贴简历文本（如Boss直聘、智联、前程等）...\n\n示例格式：\n张伟 28岁 5年 本科 离职\n\n自我介绍：...\n期望职位：解决方案经理\n工作地点：北京\n行业：互联网\n薪资：15k-25k/月\n\n工作经历：...\n教育经历：...\n技能：..."
                       />
                     </Form.Item>
                     
@@ -272,7 +282,7 @@ const ResumeUploadModal = ({ visible, onClose, onSuccess }) => {
                       loading={loading}
                       disabled={!bossResumeText?.trim()}
                     >
-                      解析Boss直聘简历
+                      解析文本简历
                     </Button>
                   </>
                 )

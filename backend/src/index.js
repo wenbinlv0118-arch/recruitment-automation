@@ -13,7 +13,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    // 允许开发与打包（file:// -> Origin:null）环境连接
+    origin: ["http://localhost:3000", "http://127.0.0.1:3000", "null"],
     methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
@@ -365,8 +366,9 @@ app.use('/api/resume-library/stats', cacheMiddleware.mediumTerm);
 // 知识库检索使用短期缓存
 app.use('/api/knowledge/search', cacheMiddleware.shortTerm);
 
-// 确保存储目录存在
-const storageDir = path.join(__dirname, '../storage/resumes');
+// 确保存储目录存在（支持环境变量覆盖）
+const { storageSubdir } = require('./utils/envPaths');
+const storageDir = storageSubdir('resumes');
 fs.ensureDirSync(storageDir);
 
 // 智联招聘自动化服务已删除
@@ -869,10 +871,29 @@ app.post('/api/resume-library/parse-text', async (req, res) => {
   }
 });
 
-// API路由：使用大模型解析Boss直聘简历
+/**
+ * 使用大模型解析文本简历（Boss直聘命名，支持任意来源文本）
+ * 为什么：提供统一的LLM解析入口，输出结构化JSON和Markdown详情。
+ * 支持严格模式：当 strictLLM=true 时，LLM失败不进行本地降级解析，直接返回错误。
+ */
 app.post('/api/resume/parse-boss-resume', async (req, res) => {
+  /**
+   * 路由功能：使用大模型解析文本简历（Boss直聘命名）
+   * 为什么：提供统一的LLM解析入口，输出结构化JSON与Markdown。
+   * 关键点：严格模式strictLLM需进行健壮的布尔转换，避免字符串"true"/"false"误判。
+   */
   try {
-    const { text } = req.body;
+    const { text, strictLLM } = req.body;
+    // 严格模式健壮识别（支持 boolean、字符串、数字）
+    const strictMode = (function normalizeStrict(val) {
+      if (typeof val === 'boolean') return val;
+      if (typeof val === 'number') return val === 1;
+      if (typeof val === 'string') {
+        const v = val.trim().toLowerCase();
+        return v === 'true' || v === '1' || v === 'yes' || v === 'on';
+      }
+      return false;
+    })(strictLLM);
     
     if (!text || text.trim().length < 10) {
       return res.status(400).json({ success: false, error: '请提供有效的简历文本内容' });
@@ -1056,13 +1077,59 @@ app.post('/api/resume/parse-boss-resume', async (req, res) => {
     }
   } catch (error) {
     console.error('大模型简历解析失败:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: '大模型简历解析失败', 
-      message: error.message 
-    });
+    // LLM失败时使用降级解析，尽量保证前端可用性
+    if (strictMode) {
+      // 严格模式：不进行本地降级，直接返回错误
+      return res.status(500).json({ 
+        success: false, 
+        error: '大模型简历解析失败（严格模式）', 
+        message: error.message 
+      });
+    }
+    // 非严格模式：尝试降级解析，保证前端体验
+    try {
+      const fallbackResult = await parseBossResumeWithFallback(req.body.text);
+      return res.json({
+        success: true,
+        data: fallbackResult,
+        message: 'LLM解析失败，已使用降级解析'
+      });
+    } catch (fallbackError) {
+      console.error('降级解析失败:', fallbackError);
+      return res.status(500).json({ 
+        success: false, 
+        error: '大模型简历解析失败', 
+        message: error.message 
+      });
+    }
   }
 });
+
+/**
+ * 使用降级策略解析Boss直聘文本简历（当LLM不可用或失败时）
+ * 设计目的：在LLM调用失败的情况下，仍返回结构化的基础解析结果，避免前端出现致命错误。
+ * @param {string} text 简历文本内容
+ * @returns {Promise<Object>} 含基础字段和降级标记的解析结果
+ */
+async function parseBossResumeWithFallback(text) {
+  // 简单校验输入
+  if (!text || typeof text !== 'string' || text.trim().length < 10) {
+    throw new Error('降级解析失败：简历文本内容不合法');
+  }
+
+  // 使用本地简历解析服务进行基础提取
+  const resumeParserService = require('./services/resumeParserService');
+  const parsed = resumeParserService.parseResumeText(text);
+
+  // 统一返回结构，增加降级标记与时间戳
+  return {
+    ...parsed,
+    markdownContent: text, // 无LLM时直接回传原文本作为展示内容
+    parsedContent: text,
+    parseMethod: 'fallback',
+    timestamp: new Date().toISOString()
+  };
+}
 
 // API路由：对简历进行评分
 app.post('/api/resume-library/:resumeId/score', async (req, res) => {
@@ -1210,16 +1277,49 @@ app.use('/api/zhilian', zhilianRoutes);
 // 注册简历路由
 const resumeRoutes = require('./routes/resumeRoutes');
 app.use('/api/resume', resumeRoutes);
+// 资源预加载路由：用于在联网时按需预下载 Playwright 浏览器与 OCR 语言
+const resourcesRoutes = require('./routes/resources');
+app.use(resourcesRoutes);
 
 
 
 // 公司搜索路由已删除
 
 const PORT = process.env.PORT || 5001;
-server.listen(PORT, () => {
-  console.log(`服务器运行在端口 ${PORT}`);
-  console.log(`存储目录: ${storageDir}`);
-});
+
+/**
+ * 启动 HTTP 服务（绑定到 IPv4 本地地址）
+ * 为什么：在某些打包环境下，默认只在 IPv6 (::1) 监听会导致外部用 IPv4(127.0.0.1) 访问失败。
+ * 通过显式绑定到 127.0.0.1，确保开发与打包环境都能正常访问。
+ * @param {number} port 要监听的端口
+ * @param {string} host 监听主机地址，默认 127.0.0.1
+ */
+function startHttpServer(port, host = '127.0.0.1') {
+  server.listen(port, host, () => {
+    console.log(`服务器运行在端口 ${port}`);
+    console.log(`存储目录: ${storageDir}`);
+  });
+}
+
+startHttpServer(PORT);
+
+// 后台自动修复：首次缺失时安装 Playwright 浏览器
+// 为什么：避免用户界面无法自测时仍有预加载失败日志，提升可用性
+try {
+  const resourcePreloader = require('./services/resourcePreloader');
+  setImmediate(async () => {
+    try {
+      const installed = await resourcePreloader.isPlaywrightChromiumInstalled();
+      if (!installed) {
+        await resourcePreloader.installPlaywrightChromium();
+      }
+    } catch (e) {
+      console.warn('自动安装 Playwright 浏览器失败:', e.message);
+    }
+  });
+} catch (e) {
+  console.warn('加载资源预加载服务失败:', e.message);
+}
 
 // API路由：异步上传简历文件（优化版本，避免超时）
 app.post('/api/resume-library/upload-async', upload.single('file'), async (req, res) => {

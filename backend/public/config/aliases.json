@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "updatedAt": "2025-10-31T00:00:00Z",
+  "sites": {
+    "boss": {
+      "actions": {
+        "search": {
+          "aliases": [
+            "搜索牛人",
+            "搜牛人",
+            "人才搜索",
+            "候选人搜索",
+            "搜索"
+          ],
+          "selectors": {
+            "css": [
+              "text=搜索牛人",
+              "text=人才搜索",
+              "text=候选人搜索",
+              "a:has-text(\"搜索牛人\")",
+              "a[href*=talent]",
+              "a[href*=search]",
+              ".nav-item:has-text(\"搜索牛人\")"
+            ],
+            "roles": [
+              { "role": "button", "nameIncludes": ["搜索", "牛人", "人才"] }
+            ],
+            "routes": [
+              "/talent",
+              "/search"
+            ]
+          }
+        },
+        "communicate": {
+          "aliases": [
+            "沟通",
+            "消息",
+            "直聊",
+            "会话",
+            "聊天"
+          ],
+          "selectors": {
+            "css": [
+              "text=沟通",
+              "a:has-text(\"沟通\")",
+              "a[href*=chat]",
+              "a[href*=message]",
+              "a[href*=im]"
+            ],
+            "roles": [
+              { "role": "link", "nameIncludes": ["沟通", "消息", "直聊"] },
+              { "role": "button", "nameIncludes": ["沟通", "消息", "直聊"] }
+            ],
+            "routes": [
+              "/chat",
+              "/message",
+              "/im"
+            ]
+          }
+        }
+      }
+    },
+    "zhilian": {
+      "actions": {
+        "search": {
+          "aliases": [
+            "搜简历",
+            "人才搜索",
+            "简历搜索",
+            "搜索简历",
+            "智能寻聘",
+            "智能招聘"
+          ],
+          "selectors": {
+            "css": [
+              "a:has-text(\"搜简历\")",
+              "button:has-text(\"搜简历\")",
+              "a:has-text(\"人才搜索\")",
+              "button:has-text(\"人才搜索\")",
+              "a:has-text(\"简历搜索\")",
+              "button:has-text(\"简历搜索\")",
+              "a:has-text(\"搜索简历\")",
+              "button:has-text(\"搜索简历\")",
+              "a[href*=search]",
+              "a[href*=resume]"
+            ],
+            "roles": [
+              { "role": "link", "nameIncludes": ["搜简历", "人才搜索", "简历搜索"] },
+              { "role": "button", "nameIncludes": ["搜简历", "人才搜索", "简历搜索"] }
+            ],
+            "routes": [
+              "rd6.zhaopin.com/app/search",
+              "/search",
+              "/resume"
+            ]
+          }
+        },
+        "communicate": {
+          "aliases": [
+            "沟通",
+            "直聊",
+            "消息",
+            "IM"
+          ],
+          "selectors": {
+            "css": [
+              "text=直聊",
+              "text=沟通",
+              "a[href*=chat]",
+              "a[href*=message]",
+              "a:has-text(\"直聊\")"
+            ],
+            "roles": [
+              { "role": "link", "nameIncludes": ["直聊", "沟通", "消息"] },
+              { "role": "button", "nameIncludes": ["直聊", "沟通", "消息"] }
+            ],
+            "routes": [
+              "/chat",
+              "/message"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

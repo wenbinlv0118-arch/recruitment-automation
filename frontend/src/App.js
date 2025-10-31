@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout, Card, Input, Button, message, List, Typography, Space, Menu, Modal } from 'antd';
-import { 
-  SendOutlined, 
-  RobotOutlined, 
-  UserOutlined, 
-  DownloadOutlined, 
-  BarChartOutlined, 
+import {
+  SendOutlined,
+  RobotOutlined,
+  UserOutlined,
+  DownloadOutlined,
+  BarChartOutlined,
   FileTextOutlined,
   LoadingOutlined,
   BookOutlined,
   UploadOutlined,
   FolderOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  CloudDownloadOutlined
 } from '@ant-design/icons';
-import io from 'socket.io-client';
+import { connectSocket } from './utils/apiClient';
+import { runAutoVerification } from './utils/packagedAutoVerifier';
 import styled from 'styled-components';
 import COTReasoning from './components/COTReasoning';
 import ResumeLibrary from './components/ResumeLibrary';
@@ -28,6 +30,7 @@ import Browser from './components/Browser';
 import SmartRecruitmentEntry from './components/SmartRecruitmentEntry';
 import BossZhipinControl from './components/BossZhipinControl';
 import ZhilianControl from './components/ZhilianControl';
+import ResourceStatusPanel from './components/ResourceStatusPanel';
 // 公司搜索组件已删除
 import PositionManagement from './components/PositionManagement';
 
@@ -533,28 +536,29 @@ function App() {
 
   // 连接Socket
   useEffect(() => {
-    // console.log('正在连接Socket.IO...');
+    let newSocket;
+    (async () => {
+      // console.log('正在连接Socket.IO...');
+      newSocket = await connectSocket({
+        transports: ['websocket', 'polling'], // 优先使用WebSocket，降级到polling
+        timeout: 20000, // 减少超时时间
+        forceNew: true,
+        reconnection: true,
+        reconnectionAttempts: 10, // 增加重连次数
+        reconnectionDelay: 2000, // 增加重连延迟
+        reconnectionDelayMax: 10000, // 增加最大重连延迟
+        upgrade: true,
+        rememberUpgrade: true,
+        autoConnect: true
+      });
     
-    const newSocket = io('http://localhost:5001', {
-      transports: ['websocket', 'polling'], // 优先使用WebSocket，降级到polling
-      timeout: 20000, // 减少超时时间
-      forceNew: true,
-      reconnection: true,
-      reconnectionAttempts: 10, // 增加重连次数
-      reconnectionDelay: 2000, // 增加重连延迟
-      reconnectionDelayMax: 10000, // 增加最大重连延迟
-      upgrade: true,
-      rememberUpgrade: true,
-      autoConnect: true
-    });
-    
-    newSocket.on('connect', () => {
+      newSocket.on('connect', () => {
       // console.log('Socket.IO连接成功:', newSocket.id);
       setIsConnected(true);
       addMessage('AI', '您好！我是 Moirai ，请告诉我您的需求，我将为您提供专业的服务～', false);
-    });
+      });
 
-    newSocket.on('disconnect', (reason) => {
+      newSocket.on('disconnect', (reason) => {
       console.log('Socket.IO连接断开:', reason);
       setIsConnected(false);
       
@@ -566,9 +570,9 @@ function App() {
       } else if (reason === 'transport error') {
         message.error('网络传输错误，正在尝试重连...');
       }
-    });
+      });
 
-    newSocket.on('connect_error', (error) => {
+      newSocket.on('connect_error', (error) => {
       console.error('Socket.IO连接错误:', error);
       setIsConnected(false);
       
@@ -580,32 +584,32 @@ function App() {
       } else {
         message.error('连接服务器失败: ' + error.message);
       }
-    });
+      });
 
-    newSocket.on('reconnect', (attemptNumber) => {
+      newSocket.on('reconnect', (attemptNumber) => {
       console.log('Socket.IO重连成功，尝试次数:', attemptNumber);
       setIsConnected(true);
       message.success('重连成功！');
-    });
+      });
 
-    newSocket.on('reconnect_attempt', (attemptNumber) => {
+      newSocket.on('reconnect_attempt', (attemptNumber) => {
       console.log('Socket.IO重连尝试:', attemptNumber);
       if (attemptNumber <= 3) {
         message.info(`正在尝试重连... (${attemptNumber}/10)`);
       }
-    });
+      });
 
-    newSocket.on('reconnect_error', (error) => {
+      newSocket.on('reconnect_error', (error) => {
       console.error('Socket.IO重连失败:', error);
-    });
+      });
 
-    newSocket.on('reconnect_failed', () => {
+      newSocket.on('reconnect_failed', () => {
       console.error('Socket.IO重连失败，已达到最大尝试次数');
       setIsConnected(false);
       message.error('无法连接到服务器，请检查网络连接或刷新页面重试');
-    });
+      });
 
-    newSocket.on('statusUpdate', (data) => {
+      newSocket.on('statusUpdate', (data) => {
       // console.log('收到状态更新:', data);
       setCurrentStatus(data);
       addMessage('AI', data.message, false);
@@ -618,10 +622,10 @@ function App() {
         setIsLoading(false);
         fetchResumes();
       }
-    });
+      });
 
-    // 监听COT消息
-    newSocket.on('cotMessage', (data) => {
+      // 监听COT消息
+      newSocket.on('cotMessage', (data) => {
       // console.log('收到COT消息:', data);
       addCOTMessage(
         data.thinkingProcess || '',
@@ -629,10 +633,10 @@ function App() {
         data.isComplete || false,
         data.isStreaming || false
       );
-    });
+      });
 
-    // 监听思维链消息
-    newSocket.on('thinking', (data) => {
+      // 监听思维链消息
+      newSocket.on('thinking', (data) => {
       // console.log('收到思维链消息:', data);
       // console.log('思维链数据类型:', typeof data.content);
       // console.log('思维链内容:', data.content);
@@ -684,10 +688,10 @@ function App() {
       
       // 显示思维过程
       addCOTMessage(thinkingProcess, '', false, true);
-    });
+      });
 
-    // 监听AI消息
-    newSocket.on('aiMessage', (data) => {
+      // 监听AI消息
+      newSocket.on('aiMessage', (data) => {
       // console.log('收到AI消息:', data);
       
       // 解析大模型的完整响应，分离思维链和最终建议
@@ -750,10 +754,10 @@ function App() {
           }];
         }
       });
-    });
+      });
 
-    // 监听知识库AI对话消息
-    newSocket.on('knowledgeChat', (data) => {
+      // 监听知识库AI对话消息
+      newSocket.on('knowledgeChat', (data) => {
       // console.log('收到知识库AI对话消息:', data);
       
       const aiMessage = {
@@ -766,10 +770,10 @@ function App() {
       };
       
       setMessages(prev => [...prev, aiMessage]);
-    });
+      });
 
-    // 监听最终建议消息
-    newSocket.on('finalAnswer', (data) => {
+      // 监听最终建议消息
+      newSocket.on('finalAnswer', (data) => {
       // console.log('收到最终建议消息:', data);
       
       // 更新COT消息，添加最终答案
@@ -803,10 +807,10 @@ function App() {
           }];
         }
       });
-    });
+      });
 
-    // 监听公司分析完成事件
-    newSocket.on('companyAnalysisCompleted', (data) => {
+      // 监听公司分析完成事件
+      newSocket.on('companyAnalysisCompleted', (data) => {
       console.log('公司分析完成:', data);
       
       if (data.status === 'success') {
@@ -818,25 +822,25 @@ function App() {
       } else {
         message.error('公司分析失败');
       }
-    });
+      });
 
-    // 公司搜索相关事件监听器已删除
+      // 公司搜索相关事件监听器已删除
 
-    // 监听简历推荐完成
-    newSocket.on('resumeRecommendationCompleted', (data) => {
+      // 监听简历推荐完成
+      newSocket.on('resumeRecommendationCompleted', (data) => {
       setRecommendedResumes(data.recommendations || []);
       setRecommendationReport(data.report || {});
       setRecommendationVisible(true);
-    });
+      });
 
-    newSocket.on('error', (data) => {
+      newSocket.on('error', (data) => {
       console.error('收到错误:', data);
       message.error(data.message || '操作失败，请重试');
       setIsLoading(false);
       setIsWaitingForCode(false);
-    });
-
-    setSocket(newSocket);
+      });
+      setSocket(newSocket);
+    })();
 
     return () => {
       // console.log('清理Socket.IO连接');
@@ -844,6 +848,11 @@ function App() {
         newSocket.disconnect();
       }
     };
+  }, []);
+
+  // 打包环境自动化验证（开发环境会自动跳过）
+  useEffect(() => {
+    runAutoVerification();
   }, []);
 
   // 获取简历列表
@@ -1619,6 +1628,11 @@ function App() {
               icon: <GlobalOutlined />,
               label: '浏览器',
             },
+            {
+              key: '7',
+              icon: <CloudDownloadOutlined />,
+              label: '资源管理',
+            },
 
           ]}
         />
@@ -1711,6 +1725,8 @@ function App() {
           ) : selectedMenuKey === '6' ? (
             <Browser />
 
+          ) : selectedMenuKey === '7' ? (
+            <ResourceStatusPanel />
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ textAlign: 'center' }}>

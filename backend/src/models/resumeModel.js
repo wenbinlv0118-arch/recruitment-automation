@@ -11,8 +11,9 @@ const resumeCache = new NodeCache({ stdTTL: 300 });
  */
 class ResumeModel {
   constructor() {
-    // 简历库存储目录
-    this.resumeStorageDir = path.join(__dirname, '../../storage/resume_library');
+    // 简历库存储目录（支持环境变量覆盖）
+    const { storageSubdir } = require('../utils/envPaths');
+    this.resumeStorageDir = storageSubdir('resume_library');
     // 简历数据库文件
     this.dbFile = path.join(this.resumeStorageDir, 'resumes.json');
     

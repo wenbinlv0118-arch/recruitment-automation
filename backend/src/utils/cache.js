@@ -59,7 +59,8 @@ class Cache {
     this.memoryCache = new Map();
     this.maxMemorySize = options.maxMemorySize || 1000; // 最大内存缓存条目数
     this.maxFileSize = options.maxFileSize || 100 * 1024 * 1024; // 最大文件缓存大小 (100MB)
-    this.cacheDir = options.cacheDir || path.join(__dirname, '../../storage/cache');
+    const { storageSubdir } = require('./envPaths');
+    this.cacheDir = options.cacheDir || storageSubdir('cache');
     this.defaultTTL = options.defaultTTL || 3600000; // 默认缓存时间 1小时
     
     // 确保缓存目录存在
@@ -405,4 +406,4 @@ const globalCache = new Cache();
 module.exports = {
   Cache,
   globalCache
-}; 
+};
