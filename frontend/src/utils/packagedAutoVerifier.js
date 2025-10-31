@@ -6,7 +6,8 @@ import { info, error } from './logCollector';
 /**
  * 运行自动化验证流程（为什么）
  * - 帮助在打包环境一键验证后端连通性与关键功能
- * - 依次触发：资源状态/预加载、智联候选人浏览、知识库聊天
+ * - 为避免应用启动时弹出第三方登录页面，已移除“智联自动打开与浏览”步骤
+ * - 当前仅验证：健康检查、资源状态/预加载、知识库检索与聊天
  */
 export async function runAutoVerification() {
   try {
@@ -52,29 +53,10 @@ export async function runAutoVerification() {
       info('Resources', 'Playwright 与 OCR 语言已就绪，跳过预加载');
     }
 
-    // 2. 智联候选人浏览（尽可能自动）
-    info('Zhilian', '初始化服务');
-    const initResp = await post('/api/zhilian/init', {});
-    const init = await parseJson(initResp);
-    info('Zhilian', `初始化结果: ${JSON.stringify(init)}`);
-
-    info('Zhilian', '打开智联网站');
-    const openResp = await post('/api/zhilian/execute-step', { step: 'open_website' });
-    const openRes = await parseJson(openResp);
-    info('Zhilian', `打开网站结果: ${JSON.stringify(openRes)}`);
-
-    info('Zhilian', '尝试启动候选人浏览（search 模式）');
-    const startResp = await post('/api/zhilian/start-browsing', {
-      mode: 'search',
-      filters: {},
-      targetCount: 5,
-    });
-    const start = await parseJson(startResp);
-    info('Zhilian', `启动浏览结果: ${JSON.stringify(start)}`);
-
-    const statusResp = await get('/api/zhilian/status');
-    const status = await parseJson(statusResp);
-    info('Zhilian', `当前状态: ${JSON.stringify(status)}`);
+    // 2. 智联相关验证（已禁用自动触发）
+    // 说明：为避免应用启动即弹出登录页面，跳过智联初始化、打开网站与自动浏览。
+    // 若用户在前端选择“启动智能寻聘”，对应功能将通过交互显式触发。
+    info('Zhilian', '跳过智联自动验证以避免启动弹窗');
 
     // 3. 知识库聊天（如果未配置 LLM，会记录降级错误）
     info('Knowledge', '检索知识库');
