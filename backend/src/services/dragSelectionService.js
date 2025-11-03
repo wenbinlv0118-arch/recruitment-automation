@@ -250,6 +250,8 @@ class DragSelectionService {
       logger.info(`定位canvas#resume元素（${contextName}模式）...`);
       
       let canvasInfo = null;
+      // 用于右键坐标夹紧的 iframe 边界框（仅 iframe 模式生效）
+      let iframeClampBounds = null;
       
       if (isMainPage) {
         // 主页面模式：直接获取canvas边界框
@@ -345,6 +347,8 @@ class DragSelectionService {
         // 计算在页面坐标系中的绝对坐标
         canvasInfo.x = iframeBoundingBox.x + canvasInfo.x;
         canvasInfo.y = iframeBoundingBox.y + canvasInfo.y;
+        // 记录 iframe 边界用于后续右键坐标校正
+        iframeClampBounds = iframeBoundingBox;
         
         logger.info(`Canvas绝对坐标（页面坐标系）: x=${canvasInfo.x}, y=${canvasInfo.y}, width=${canvasInfo.width}, height=${canvasInfo.height}`);
       }
@@ -529,7 +533,8 @@ class DragSelectionService {
       }
       
       logger.info(`在canvas#resume范围内右键点击复制: (${Math.round(clampedX)}, ${Math.round(clampedY)})`);
-      const rightClickSuccess = await this.performRightClickCopy(page, clampedX, clampedY);
+      // 在 iframe 模式下，强制右键坐标落在 iframe 范围内，保证出现复制按钮
+      const rightClickSuccess = await this.performRightClickCopy(page, clampedX, clampedY, true, iframeClampBounds);
       
       if (!rightClickSuccess) {
         logger.warn('右键复制可能未成功，但继续尝试获取内容');
@@ -653,10 +658,36 @@ class DragSelectionService {
    * @param {boolean} validateDragArea - 是否验证右键点击位置在拖拽区域内
    * @returns {Promise<boolean>} 是否成功
    */
-  async performRightClickCopy(page, x, y, validateDragArea = true) {
+  /**
+   * 右键点击复制（夹紧到 iframe 范围）
+   * @param {Object} page - Playwright 页面对象
+   * @param {number} x - 右键点击 X 坐标（页面坐标系）
+   * @param {number} y - 右键点击 Y 坐标（页面坐标系）
+   * @param {boolean} validateDragArea - 是否校验落点在拖拽选区内
+   * @param {Object|null} iframeBounds - 可选 iframe 边界框 { x, y, width, height }
+   * @returns {Promise<boolean>} 是否成功点击复制按钮
+   */
+  async performRightClickCopy(page, x, y, validateDragArea = true, iframeBounds = null) {
     try {
       logger.info(`在位置(${x}, ${y})执行右键点击复制`);
       
+      // 如提供 iframe 边界，则将右键坐标夹紧到 iframe 内部，避免落在 iframe 外导致复制按钮不出现
+      if (iframeBounds && iframeBounds.width && iframeBounds.height) {
+        const margin = 6; // 边缘安全距离，避免碰到滚动条或边框
+        const minX = iframeBounds.x + margin;
+        const maxX = iframeBounds.x + iframeBounds.width - margin;
+        const minY = iframeBounds.y + margin;
+        const maxY = iframeBounds.y + iframeBounds.height - margin;
+
+        const clampedX = Math.max(minX, Math.min(x, maxX));
+        const clampedY = Math.max(minY, Math.min(y, maxY));
+        if (clampedX !== x || clampedY !== y) {
+          logger.info(`右键坐标不在 iframe 范围内，已夹紧到 (${Math.round(clampedX)}, ${Math.round(clampedY)})`);
+          x = clampedX;
+          y = clampedY;
+        }
+      }
+
       // 验证右键点击位置是否在拖拽区域内
       if (validateDragArea && !this.isPointInDraggedArea(x, y)) {
         logger.warn(`右键点击位置(${x}, ${y})不在拖拽区域内，可能影响复制效果`);

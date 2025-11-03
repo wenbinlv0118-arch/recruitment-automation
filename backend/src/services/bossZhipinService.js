@@ -1702,6 +1702,21 @@ class BossZhipinService {
   async uploadResumeToApp(resumeContent, candidateIndex) {
     try {
       logger.info(`开始上传第 ${candidateIndex + 1} 个候选人的简历到应用...`);
+
+      // Electron 模式：通过 IPC 通知渲染进程打开上传弹窗并预填文本
+      // 目的：在打包/生产模式下避免依赖前端 dev server 的页面自动化
+      if (typeof process.send === 'function') {
+        try {
+          process.send({
+            channel: 'resume:openUploadText',
+            payload: { text: resumeContent, source: 'boss' },
+          });
+          logger.info('已通过 Electron IPC 触发前端上传弹窗与文本预填');
+          return;
+        } catch (ipcErr) {
+          logger.warn('IPC 触发上传弹窗失败，回退到浏览器自动化:', ipcErr.message);
+        }
+      }
       
       // 检查是否已停止浏览
       if (!this.browsingStatus.isActive) {
@@ -1732,21 +1747,23 @@ class BossZhipinService {
           this.appPage = null;
         });
         
-        // 导航到应用页面，添加超时控制
-        await this.appPage.goto('http://localhost:3000', { 
+        // 导航到应用页面，添加超时控制（开发模式地址可配置）
+        const devUrl = process.env.APP_DEV_URL || 'http://localhost:3000';
+        await this.appPage.goto(devUrl, { 
           waitUntil: 'networkidle',
           timeout: 15000
         });
         await this.appPage.waitForTimeout(1500);
-        logger.info('在同一浏览器窗口中创建应用页面并导航到 http://localhost:3000');
+        logger.info(`在同一浏览器窗口中创建应用页面并导航到 ${devUrl}`);
       } else {
         // 如果应用页面已存在，切换到应用页面并刷新到首页
         try {
           await this.appPage.bringToFront();
           // 检查当前URL，如果不在首页则导航到首页
           const currentUrl = this.appPage.url();
-          if (!currentUrl.includes('localhost:3000') || currentUrl !== 'http://localhost:3000/') {
-            await this.appPage.goto('http://localhost:3000', { 
+          const devUrl = process.env.APP_DEV_URL || 'http://localhost:3000';
+          if (!currentUrl.startsWith(devUrl)) {
+            await this.appPage.goto(devUrl, { 
               waitUntil: 'networkidle',
               timeout: 10000
             });
@@ -1763,7 +1780,8 @@ class BossZhipinService {
             this.appPage = null;
           });
           
-          await this.appPage.goto('http://localhost:3000', { 
+          const devUrl = process.env.APP_DEV_URL || 'http://localhost:3000';
+          await this.appPage.goto(devUrl, { 
             waitUntil: 'networkidle',
             timeout: 15000
           });
@@ -3208,10 +3226,26 @@ class BossZhipinService {
   async importResumeToApp(resumeContent, candidateIndex) {
     try {
       logger.info(`导入第 ${candidateIndex} 个候选人简历到应用...`);
+
+      // Electron 模式：通过 IPC 通知渲染进程打开上传弹窗并预填文本
+      // 目的：在打包/生产模式下避免依赖前端 dev server 的页面自动化
+      if (typeof process.send === 'function') {
+        try {
+          process.send({
+            channel: 'resume:openUploadText',
+            payload: { text: resumeContent, source: 'boss' },
+          });
+          logger.info('已通过 Electron IPC 触发前端上传弹窗与文本预填');
+          return;
+        } catch (ipcErr) {
+          logger.warn('IPC 触发上传弹窗失败，回退到浏览器自动化:', ipcErr.message);
+        }
+      }
       
       // 打开新标签页到应用前端
       const appPage = await this.browser.newPage();
-      await appPage.goto('http://localhost:3000');
+      const devUrl = process.env.APP_DEV_URL || 'http://localhost:3000';
+      await appPage.goto(devUrl);
       await appPage.waitForTimeout(2000);
       
       // 定位到"简历列表"
