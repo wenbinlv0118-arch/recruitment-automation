@@ -474,6 +474,8 @@ function App() {
   const [resumes, setResumes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMenuKey, setSelectedMenuKey] = useState('1');
+  // 来自后端（Boss/智联）推送的简历上传预填数据
+  const [resumeUploadPayload, setResumeUploadPayload] = useState(null);
   const [recommendationVisible, setRecommendationVisible] = useState(false);
   const [recommendationQuery, setRecommendationQuery] = useState('');
   const [recommendedResumes, setRecommendedResumes] = useState([]);
@@ -1574,6 +1576,35 @@ function App() {
     }
   };
 
+  /**
+   * 订阅后端推送的“打开上传简历”事件，并切换到“简历列表”
+   * 为什么：确保从 Boss/智联复制在线简历后，应用能自动打开列表与上传弹窗
+   */
+  useEffect(() => {
+    const api = window?.events?.onResumeUploadText;
+    const handler = (payload) => {
+      try {
+        setResumeUploadPayload({
+          text: payload?.text || '',
+          source: payload?.source || 'boss'
+        });
+        setSelectedMenuKey('3');
+        message.info('已接收简历文本，正在打开“简历列表”');
+      } catch (_) {}
+    };
+
+    let unsubscribe = null;
+    if (typeof api === 'function') {
+      unsubscribe = api(handler);
+    } else {
+      // 非 Electron 开发环境：提供调试入口，便于手动触发该流程
+      // 用法：在浏览器控制台执行 window.__openResumeUploadFromBackend({ text: '...', source: 'zlzp' })
+      window.__openResumeUploadFromBackend = handler;
+    }
+
+    return () => { try { unsubscribe && unsubscribe(); } catch (_) {} };
+  }, []);
+
   return (
     <StyledLayout>
       <StyledSider width={256} collapsible={false}>
@@ -1708,7 +1739,10 @@ function App() {
             </ChatContainer>
           ) : selectedMenuKey === '3' ? (
             <div style={{ height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
-              <ResumeLibrary />
+              <ResumeLibrary
+                externalInitialText={resumeUploadPayload?.text}
+                externalInitialSource={resumeUploadPayload?.source}
+              />
             </div>
           ) : selectedMenuKey === '4' ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

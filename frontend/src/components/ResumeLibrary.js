@@ -13,10 +13,13 @@ const { Option } = Select;
  * 简历库组件
  * 用于展示和管理简历资源
  */
-const ResumeLibrary = () => {
+const ResumeLibrary = ({ externalInitialText, externalInitialSource }) => {
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  // 通过 Electron IPC 预填上传弹窗数据
+  const [initialText, setInitialText] = useState('');
+  const [initialSource, setInitialSource] = useState('');
   const [selectedSource, setSelectedSource] = useState('');
   const [searchText, setSearchText] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
@@ -54,6 +57,39 @@ const ResumeLibrary = () => {
   useEffect(() => {
     fetchResumes();
   }, []);
+
+  /**
+   * 监听主进程转发的“打开上传弹窗并预填文本”事件
+   * 为什么：让后端服务可以通过 Electron IPC 触发前端上传流程
+   */
+  useEffect(() => {
+    const api = window?.events?.onResumeUploadText;
+    if (typeof api === 'function') {
+      const unsubscribe = api((payload) => {
+        try {
+          const text = payload?.text || '';
+          const source = payload?.source || 'boss';
+          setInitialText(text);
+          setInitialSource(source);
+          setUploadModalVisible(true);
+          message.info('收到后端推送的简历文本，已打开上传弹窗');
+        } catch (_) {}
+      });
+      return () => { try { unsubscribe && unsubscribe(); } catch (_) {} };
+    }
+  }, []);
+
+  /**
+   * 监听外部预填数据（来自 App 通过事件桥接）
+   * 为什么：当应用切换到简历列表后，自动打开上传弹窗并填充文本
+   */
+  useEffect(() => {
+    if (externalInitialText) {
+      setInitialText(externalInitialText);
+      setInitialSource(externalInitialSource || 'boss');
+      setUploadModalVisible(true);
+    }
+  }, [externalInitialText, externalInitialSource]);
   
   // 处理来源筛选
   const handleSourceChange = (value) => {
@@ -686,8 +722,10 @@ const ResumeLibrary = () => {
       
       <ResumeUploadModal
         visible={uploadModalVisible}
-        onClose={() => setUploadModalVisible(false)}
+        onClose={() => { setUploadModalVisible(false); setInitialText(''); setInitialSource(''); }}
         onSuccess={handleUploadSuccess}
+        initialText={initialText}
+        initialSource={initialSource}
       />
       
       {/* 简历详情弹窗 */}
